@@ -1,0 +1,82 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+readonly dry_run=
+
+readonly uuid="${1:-00000000-0000-4000-8000-000000000000}"
+readonly mnt_dir="$(mktemp -d)"
+readonly src_dir="${HOME}"
+readonly dst_dir="${mnt_dir}/$(date '+%Y%m%d')_${USER:-}@$(hostname -f)"
+
+sudo -v
+
+function format_dev() {
+if false; then
+
+  readonly device='/dev/sdX'
+  readonly fstype='ext4'
+
+  echo y | sudo mkfs --type "${fstype}" "${device}"
+  echo y | sudo tune2fs -U "${uuid}" "${device}"
+
+# sudo mount -t ext4 UUID="${uuid}" "${HOME}/mnt"
+# sudo parted -s "${device}" mklabel gpt
+# sudo parted -s "${device}" mkpart unknown 0% 100%
+
+# sudo dd if=debian.iso of="${device}"
+
+
+fi
+}
+
+function mir() {
+
+  sudo mount UUID="${uuid}" "${mnt_dir}"
+  sudo mkdir -p "${dst_dir}"
+
+  echo "${uuid} $(df | grep "${mnt_dir}" | sed 's/ .*//g')"
+
+  rsync_opts=()
+  if [[ -v dry_run ]]; then
+    rsync_opts+=('--dry-run')
+  fi
+
+  sudo rsync \
+    --archive \
+    --partial \
+    --links \
+    --delete \
+    --exclude '.cache/huggingface/hub/' \
+    --exclude '.cache/mesa_shader_cache/' \
+    --exclude '.cache/thumbnails/' \
+    --exclude '.local/' \
+    --exclude '.kube/cache/' \
+    --exclude '.mozilla/' \
+    --exclude '.wine/' \
+    --exclude 'lib/org.apache.ivy/' \
+    --exclude 'lib/org.apache.maven/' \
+    --exclude 'lib/org.rubygems/' \
+    --exclude 'lib/co.huggingface/' \
+    --exclude 'opt/' \
+    --exclude 'src/com.github/' \
+    --exclude 'src/org.golang/' \
+    --verbose \
+    ${rsync_opts[@]} \
+    "${src_dir}/" \
+    "${dst_dir}/"
+
+  du --human-readable --max-depth=1 "${mnt_dir}" 2> /dev/null | sort -b -k 2 || true
+
+  sudo fusermount -u "${mnt_dir}"
+  rm -d "${mnt_dir}"
+
+}
+
+function main() {
+# format_dev
+  mir
+}
+main

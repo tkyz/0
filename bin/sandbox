@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+type is_container > /dev/null
+if ! is_container; then
+
+  readonly container_context="$(uuidgen)"
+
+  image="${1:-}"
+  if [[ -z "${image}" ]]; then
+    source /etc/os-release
+    image="docker.io/library/${ID}:${VERSION_CODENAME:-latest}"
+  fi
+
+  podman run \
+    --interactive \
+    --tty \
+    --rm \
+    --device  /dev/fuse \
+    --name    "0.sandbox.${container_context}" \
+    --workdir '/root' \
+    --volume  "${HOME}/.cache/pip:/root/.cache/pip" \
+    --volume  "${HOME}/.profile:/root/.profile:ro" \
+    --volume  "${HOME}/.bashrc:/root/.bashrc:ro" \
+    --volume  "${HOME}/setup:/root/setup:ro" \
+    --volume  "${HOME}/bin:/root/bin:ro" \
+    --volume  "${HOME}/lib:/root/lib:ro" \
+    --volume  "${HOME}/opt:/root/opt:ro" \
+    --volume  "${HOME}/src:/root/src:ro" \
+    --volume  "${HOME}/tmp:/root/tmp" \
+    --volume  "${PWD}:/root/.pwd:ro" \
+    --volume  "${BASH_SOURCE}:/${container_context}:ro" \
+    "${image}" bash -l \
+    "/${container_context}" "${@}"
+
+elif [[ '1' == "${SHLVL}" ]]; then
+  exec bash -l
+fi

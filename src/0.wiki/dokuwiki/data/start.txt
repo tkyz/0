@@ -1,0 +1,19 @@
+====== 0 ======
+
+個人的な環境です。
+頻繁に''rebase''します。
+
+===== setup =====
+
+<code bash>
+(curl https://setup.0 || curl https://raw.githubusercontent.com/tkyz/0/main/setup) | bash
+</code>
+
+===== link =====
+
+[[https://wiki.0|wiki.0]]
+[[https://github.com/tkyz/0.git|github.com]]
+
+===== licence =====
+
+[[http://github.com/tkyz/0/blob/main/LICENSE|MIT]]

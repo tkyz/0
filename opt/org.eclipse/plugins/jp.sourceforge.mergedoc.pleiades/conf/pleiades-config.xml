@@ -1,0 +1,2550 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration>
+<!--
+###############################################################################
+#
+# Copyright (c) 2005- Shinji Kashihara. All rights reserved.
+# This program and the accompanying materials are
+# made available under the terms of the Eclipse Public License v1.0 which
+# accompanies this distribution, and is available at epl-v10.html.
+#
+###############################################################################
+#
+# Eclipse 用 Pleiades アスペクト設定ファイル
+#
+#───────────────────────────────────────
+#
+# className 属性の値：
+#   joinPoint   要素の場合 → 完全一致
+#   *cludeWhere 要素の場合 → 前方一致
+#   *cludeTrace 要素の場合 → 前方一致
+#
+# methodName 属性の値：
+#   省略可能
+#   コンストラクタの場合  → 単純クラス名 (<init> ではない)
+#   static イニシャライザ → <clinit>
+#
+# インナークラスの区切り文字：
+#   . (ドット) ではなく $  例）xxx.yyy.Zzz$InnerClass
+#
+#───────────────────────────────────────
+#
+# 条件による除外の方法
+#
+# 1. excludeWhere	呼び出し元を指定してロード時に AOP から除外する（高速）
+# 2. includeWhere	呼び出し元を指定してロード時に AOP を限定する（高速）
+# 3. excludeTrace	呼び出しトレースにより実行時に除外する [JOIN_POINT 渡し]
+# 4. includeTrace	呼び出しトレースにより実行時に限定する [JOIN_POINT 渡し]
+# 5. translation-exclude.properties (%EXCLUDE% プレフィックス)
+#					プロパティー・ファイルに指定して実行時に訳語および
+#					パッケージ単位 (前方一致) で除外する (呼び出しトレース)
+# 6. translation.properties (%IF% プレフィックス)
+#					パッケージ別に異なる約を定義
+#
+#  ・1～4 はメソッドは省略可能。
+#  ・5 はパッケージ・クラス、前方一致。
+#  ・*cludeWhere はメソッド呼び出し (editPoint="call")  のみサポート
+#  ・*cludeTrace はメソッド実行 (editPoint="execution") のみサポート
+#  ・includeTrace と excludeTrace 両方が指定されている場合は include 優先
+#  ・*Where、*Trace とも、クラス名は前方一致、メソッド名は完全一致
+#  ・descriptor は joinPoint 要素のみでサポート
+#  ・メソッド実行 (editPoint="execution") で、
+#    $0 や JOIN_POINT は xveryfy:none 指定が無い場合、コンストラクタで使用不可
+#
+#───────────────────────────────────────
+#
+# descriptor に指定する型の文字列表現
+#
+#   B byte
+#   C char
+#   D double
+#   F float
+#   I int
+#   J long
+#   S short
+#   Z boolean
+#   V void
+#
+#   Lクラス名; クラスまたはインタフェース (末尾は必ず ; が必要)
+#
+#   配列の場合は先頭に "["
+#   [Ljava/lang/String;  -> String[]
+#   [[Ljava/lang/String; -> String[][]
+#
+###############################################################################
+-->
+<pleiades>
+
+	<!-- ルート・パッケージ -->
+	<property name="root" value="jp.sourceforge.mergedoc"/>
+
+	<!-- 翻訳クラス -->
+	<property name="Translationz" value="?{root}.pleiades.runtime.resource.Translationz"/>
+
+	<!-- 計測クラス -->
+	<property name="Analyses" value="?{root}.pleiades.runtime.Analyses"/>
+
+	<!-- Apache Commons SystemUtils クラス (Gradle Shadow でパッケージ変更されている) -->
+	<property name="SystemUtils" value="?{root}.org.apache.commons.lang3.SystemUtils"/>
+
+	<!--
+	###########################################################################
+	  AOP 除外パッケージ (複数ある場合は改行・タブ・空白区切りで定義)
+	###########################################################################
+	-->
+
+	<excludePackage>
+
+		<!-- Gradle Daemon: 例外抑止 -->
+		org.gradle.launcher.daemon
+
+		<!-- Maven: 例外抑止 -->
+		org.apache.maven.model
+		
+		<!-- 起動時の例外抑止 -->
+		org.eclipse.m2e.core.internal.embedder
+
+		<!-- STS Roo コマンド実行時のフリーズ抑止 -->
+		org.springframework.roo
+		org.springframework.uaa
+		com.mysql.jdbc
+		
+		<!-- Derby 動的クラス名 (ExcludeClassNameCache ハードコードから移動) -->
+		org.apache.derby.exe
+		
+		<!-- Veracode (https://ja.osdn.net/projects/mergedoc/forums/2758/39384/) -->
+		com.veracode
+
+	</excludePackage>
+
+	<!--
+	###########################################################################
+	  Eclipse 拡張
+	###########################################################################
+	-->
+
+	<!-- Eclipse 標準の空白文字表記を変更 2016.05.14 -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$3	= $3.equals("·" ) ? " "	// 半角空白
+				: $3.equals("°" ) ? "□"	// 全角空白
+				: $3.equals("»" ) ? ">"	// \t
+				: $3.equals("¤¶") ? "↵"	// \r\n
+				: $3.equals("¤" ) ? "←"	// \r
+				: $3.equals("¶" ) ? "↓"	// \n
+				: $3;
+		]]></advice>
+
+		<joinPoint className="org.eclipse.jface.text.WhitespaceCharacterPainter" methodName="draw"/>
+
+	</pointCut>
+
+	<!-- Eclipse 起動時のスプラッシュに表示する clean メッセージ 2021.07.09 -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			if (?{root}.pleiades.PleiadesContext.getInstance().isClean)
+				$1 = "-clean " + $1;
+			$_ = $proceed($$);
+		]]></advice>
+		
+		<joinPoint className="org.eclipse.core.runtime.SubMonitor" methodName="setTaskName">
+			<includeWhere className="org.eclipse.ui.internal.Workbench$StartupProgressBundleListener"/>
+		</joinPoint>
+		
+	</pointCut>
+
+	<!-- About ダイアログにコピーライト追加 2023.03.07 -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			return $_ + "\nPleiades AOP Dynamic Translation Container © 2005 Shinji Kashihara (cypher256) @ WILL.\n";
+		]]></advice>
+
+		<joinPoint className="org.eclipse.ui.internal.ProductProperties"
+			methodName="getAboutText"
+			descriptor="(Lorg/eclipse/core/runtime/IProduct;)Ljava/lang/String;"/>
+
+	</pointCut>
+
+	<!-- HTML と CSS のファイルロード時ヒューリスティクス自動判別で Shift_JIS となるため無効化 -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+		]]></advice>
+
+		<!-- HTML 2012.09.07 -->
+		<joinPoint className="org.eclipse.wst.html.core.internal.contenttype.HTMLResourceEncodingDetector"
+			methodName="checkHeuristics"/>
+		<!-- CSS 2016.07.25 -->
+		<joinPoint className="org.eclipse.wst.css.core.internal.contenttype.CSSResourceEncodingDetector"
+			methodName="checkHeuristics"/>
+
+	</pointCut>
+
+	<!-- bat ファイル新規作成時の改行はワークスペースデフォルトを無視して CRLF を強制する 2021.04.22 -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			String name = getFileName();
+			if (name != null && name.matches(".*\\.(bat|cmd)"))
+				return new java.io.ByteArrayInputStream("\r\n".getBytes("UTF-8"));
+			return $_;
+		]]></advice>
+
+		<joinPoint className="org.eclipse.ui.dialogs.WizardNewFileCreationPage"
+			methodName="getInitialContents"/>
+
+	</pointCut>
+
+	<!-- 
+	デフォルトの Javadoc URL を日本語版のものに変更 2007.12.13
+	ja は en より公開が遅れるため、対応する ja が無い場合は最新 ja バージョンを設定する。
+	https://github.com/eclipse/eclipse.jdt.debug/blob/master/org.eclipse.jdt.launching/launching/org/eclipse/jdt/internal/launching/StandardVMType.java#L847
+	-->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			if ($_ == null) return $_;
+			String path = $_.getPath();
+			if (path.contains("/jp/")) return $_;
+			String DOC_URL = "https://docs.oracle.com/javase/jp/";
+			String jpUrl =
+				path.contains("/1.3") ? DOC_URL + "1.3/api/" :
+				path.contains("/1.4") ? DOC_URL + "1.4/api/" :
+				path.contains("/1.5") ? DOC_URL + "1.5.0/api/" :
+				path.contains("/6/" ) ? DOC_URL + "6/api/" :
+				path.contains("/7/" ) ? DOC_URL + "7/api/" :
+				path.contains("/8/" ) ? DOC_URL + "8/docs/api/" :
+				path.contains("/9/" ) ? DOC_URL + "9/docs/api/" :
+				path.contains("/10/") ? DOC_URL + "10/docs/api/" :
+				path.replaceFirst("/2[2-9]/", "/21/").replace("/en/java/javase/", DOC_URL);
+			if (!jpUrl.startsWith("http")) return $_;
+			$_  = new java.net.URL(jpUrl);
+		]]></advice>
+
+		<joinPoint
+			className="org.eclipse.jdt.internal.launching.StandardVMType"
+			methodName="getDefaultJavadocLocation"/>
+
+	</pointCut>
+
+	<!-- Javadoc ホバーで英語添付ソースより日本語 URL 指定を優先する -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			String s = $1.getAttachedJavadoc(null);
+			if (s != null) $_ = new java.io.StringReader(s);
+			if (s == null) $_ = $proceed($$);
+		]]></advice>
+
+		<!-- Eclipse 4.2～4.4 (#28872) 2012.07.01 -->
+		<joinPoint className="org.eclipse.jdt.ui.JavadocContentAccess"
+			methodName="getHTMLContentReader"
+			descriptor="(Lorg/eclipse/jdt/core/IMember;Z)Ljava/io/Reader;"/>
+
+	</pointCut>
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			String s = $1.getAttachedJavadoc(null);
+			if (s != null) $_ = s;
+			if (s == null) $_ = $proceed($$);
+		]]></advice>
+
+		<!-- Eclipse 4.2～4.4 (#28872) 2012.07.01 -->
+		<joinPoint className="org.eclipse.jdt.internal.ui.text.javadoc.JavadocContentAccess2"
+			methodName="getHTMLContent"
+			descriptor="(Lorg/eclipse/jdt/core/IMember;Z)Ljava/lang/String;"/>
+
+		<!-- 
+		Eclipse 4.5 以降 2015.08.18
+		Java 9 Jigsaw 以降は 2020-12 からクラスは動作するが一部のメソッドが英語のまま
+		https://github.com/cypher256/pleiades.io/issues/25
+		https://bugs.eclipse.org/bugs/show_bug.cgi?id=549029
+		-->
+		<joinPoint className="org.eclipse.jdt.internal.ui.text.javadoc.JavadocContentAccess2"
+			methodName="getHTMLContent"
+			descriptor="(Lorg/eclipse/jdt/core/IJavaElement;Z)Ljava/lang/String;"/>
+
+	</pointCut>
+
+	<!-- WTP デフォルト設定ホットデプロイ (自動再ロード使用可能 OFF) 2016.04.26 -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			return false;
+		]]></advice>
+
+		<joinPoint className="org.eclipse.jst.server.tomcat.core.internal.TomcatServer"
+			methodName="isModulesReloadableByDefault"/>
+
+	</pointCut>
+	
+	<!-- 
+	高速化：起動時のログ抑止 2021.11.15
+	Pleiades All in One では、すべての info 抑止は 下記を config.ini に指定
+	eclipse.log.level=WARNING
+	-->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+		]]></advice>
+
+		<!-- キーバインド競合 warning メッセージ -->
+		<joinPoint className="org.eclipse.core.runtime.MultiStatus" methodName="add">
+			<includeWhere className="org.eclipse.jface.bindings.BindingManager"/>
+		</joinPoint>
+
+		<!-- プロキシ環境変数設定 info メッセージ (http.proxyHost など) -->
+		<joinPoint className="org.eclipse.core.internal.net.Activator" methodName="logInfo">
+			<includeWhere className="org.eclipse.core.internal.net.ProxyType"
+				methodName="verifySystemPropertyEquals"/>
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- 新規 Gradle プロジェクト作成のオプション設定 -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			if (
+				// ウィザードが「プロジェクト作成ウィザード」
+				"ProjectCreationWizard".equals(getWizard().getClass().getSimpleName()) &&
+				
+				// メタデータに init.gradle が存在 (Pleiades All in One)
+				?{root}.pleiades.runtime.EclipseMetadata.getInstance().getFile("init.gradle").exists()
+			) {
+				org.eclipse.buildship.ui.internal.wizard.project.ProjectImportConfiguration config = getConfiguration();
+				config.getOverrideWorkspaceConfiguration().setValue(Boolean.TRUE);
+				
+				// 2022-03: wrapper デフォが 6.8 で Java 17 未対応エラーになるため 7 を指定 (デフォが 7.x になれば不要)
+				// 2022-06: toolingapi 7.x で wrapper が使えなくなったため、テンプレに gradlew を含めるように変更
+				// https://github.com/eclipse/buildship/tree/master/org.gradle.toolingapi
+				config.getArguments().setValue(java.util.List.of(
+					//"wrapper",
+					//"--gradle-version=7.4.2",
+					"--init-script",
+					"../.metadata/init.gradle"));
+					
+				// 2022-03: macOS で JAVA_HOME 未指定だとエラー、Win でも 17 指定だとエラーになるため設定 (17 未対応？)
+				// 2022-06: Win では toolingapi 7.x で 17 対応になったため指定しない
+				// 2022-06: Mac では Spring Boot 入門ガイドインポート指定でエラーになるため 11 を指定
+				// 2023-06: 上記エラーが解消されているため、指定なし
+				// java.io.File javaHome = ?{root}.pleiades.runtime.Applicationz.javaHome("11");
+				// if (?{SystemUtils}.IS_OS_MAC && javaHome.exists()) {
+				// 	config.getJavaHome().setValue(javaHome);
+				// }
+			}
+		]]></advice>
+
+		<joinPoint className="org.eclipse.buildship.ui.internal.wizard.project.GradleOptionsWizardPage"
+			methodName="initValues"/>
+
+	</pointCut>
+	<pointCut editPoint="execution" timing="before">
+		<!-- 作成時の Gradle 引数をプロジェクト設定に引き継がない -->
+		<advice><![CDATA[
+			if (((java.util.List) $0.getArguments().getValue()).contains("--init-script"))
+				$0.setOverwriteWorkspaceSettings(false);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.buildship.ui.internal.wizard.project.ProjectImportConfiguration"
+			methodName="toBuildConfiguration"/>
+
+	</pointCut>
+
+	<!-- ダークテーマ対応: Windows 問題ビューやインストール済みの JRE などのテーブルの線を非表示にする 2021.03.26 -->
+	<!-- 本家 2022.06 (4.24) で対応される予定 https://bugs.eclipse.org/bugs/show_bug.cgi?id=567933 -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			if (?{SystemUtils}.IS_OS_WINDOWS)
+				$1 = false;
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.widgets.Table" methodName="setLinesVisible"/>
+		<joinPoint className="org.eclipse.swt.widgets.Tree" methodName="setLinesVisible"/>
+		
+	</pointCut>
+	
+	<!-- ダークテーマ対応: Windows 問題ビューなどのヘッダー上部線を非表示にする 2021.04.01 -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			if (?{SystemUtils}.IS_OS_WINDOWS == false) return;
+			Object part = $1.getWidget();
+			if (!(part instanceof org.eclipse.swt.widgets.Composite)) return;
+			org.eclipse.swt.widgets.Composite c = (org.eclipse.swt.widgets.Composite) part;
+			if (c.getChildren().length != 3) return;
+			c.getChildren()[1].setVisible(false);
+			c.layout();
+		]]></advice>
+
+		<joinPoint className="org.eclipse.e4.ui.workbench.renderers.swt.ContributedPartRenderer"
+			methodName="setDescription"/>
+
+	</pointCut>
+
+	<!-- ダークテーマ対応: Windows 問題ビューなどのヘッダ枠線を目立たなくする 2021.04.01 -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$_ = 0;
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.internal.win32.OS" methodName="GetSysColor">
+			<includeWhere className="org.eclipse.swt.widgets.Tree" methodName="wmNotifyHeader"/>
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- ダークテーマ対応: Windows 設定ダイアログの SWT Label SEPARATOR を目立たなくする 2021.04.01 -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			long pen = $0.CreatePen($0.PS_SOLID, 1, $0.GetSysColor($0.COLOR_3DSHADOW));
+			long oldPen = $0.SelectObject($1, pen);
+			if ($4 == $0.BF_BOTTOM)
+				$_ = $0.Rectangle($1, $2.left, $2.top, $2.right, $2.top + 1);
+			else
+				$_ = $0.Rectangle($1, $2.left, $2.top, $2.left + 1, $2.bottom);
+			$0.SelectObject($1, oldPen);
+			$0.DeleteObject(pen);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.internal.win32.OS" methodName="DrawEdge">
+			<includeWhere className="org.eclipse.swt.widgets.Label" methodName="wmDrawChildSeparator"/>
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- ダークテーマ対応: 印刷マージン線のアルファ設定 (薄くする) 2021.04.01 -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$0.setAlpha(40);
+			$_ = $proceed($$);
+			$0.setAlpha(255);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.graphics.GC" methodName="drawLine">
+			<includeWhere className="org.eclipse.jface.text.MarginPainter" methodName="paintControl"/>
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- STS ガイド URL を日本語版に変更 (内部・外部ブラウザ両対応) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			if ($1 != null)
+				$1 = $1.replace("//spring.io/guides/", "//spring.pleiades.io/guides/");
+		]]></advice>
+
+		<!-- 入門コンテンツのインポート > ガイドを開く 2021.01.09 -->
+		<joinPoint className="org.springsource.ide.eclipse.commons.ui.UiUtil" methodName="openUrl"
+			descriptor="(Ljava/lang/String;)V"/>
+
+	</pointCut>
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			return $_
+				.replace("//spring.io/guides/", "//spring.pleiades.io/guides/")
+				.replace("//docs.spring.io/", "//spring.pleiades.io/");
+		]]></advice>
+
+		<!-- スターター・プロジェクト作成 > 依存関係のツールチップの各リンク URL 2021.06.04 -->
+		<joinPoint className="org.springframework.ide.eclipse.boot.wizard.DependencyTooltipContent"
+			methodName="linkBullets"/>
+
+	</pointCut>
+	
+	<!--
+	Subversive ヒストリー・ビューでアイコンが赤い四角になるバグを修正 2021.07.07
+	https://bugs.eclipse.org/bugs/show_bug.cgi?id=577147
+	-->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$_ = $proceed($$);
+			if ($0.getImageDescriptor() == null)
+				$0.setImageDescriptor($0.getHoverImageDescriptor());
+		]]></advice>
+
+		<joinPoint className="org.eclipse.team.svn.ui.history.HistoryActionManager$HistoryAction"
+			methodName="HistoryAction"
+			descriptor="(Ljava/lang/String;Ljava/lang/String;)V">
+
+			<includeWhere className="org.eclipse.team.svn.ui.history.SVNHistoryPage"/>
+
+		</joinPoint>
+
+		<joinPoint className="org.eclipse.team.svn.ui.history.HistoryActionManager$HistoryAction"
+			methodName="HistoryAction"
+			descriptor="(Ljava/lang/String;Ljava/lang/String;I)V">
+
+			<includeWhere className="org.eclipse.team.svn.ui.history.SVNHistoryPage"/>
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- Wicked Shell エンコーディング設定 (after) 2007.01.31 -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			return ?{SystemUtils}.FILE_ENCODING;
+		]]></advice>
+
+		<joinPoint className="net.sf.wickedshell.facade.descriptor.extension.ExtensionShellDescriptor"
+			methodName="getCharacterEncoding"/>
+
+	</pointCut>
+
+	<!-- Velocity エンコーディング設定 (before) JAutoDoc テンプレート 2007.09.30 -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			if ($1.getProperty("input.encoding") == null)
+				$1.setProperty("input.encoding", "UTF-8");
+		]]></advice>
+
+		<joinPoint className="org.apache.velocity.app.Velocity" methodName="init"
+			descriptor="(Ljava/util/Properties;)V"/>
+
+	</pointCut>
+
+	<!--
+	###########################################################################
+	  翻訳：メソッド呼び出し (editPoint="call")
+	###########################################################################
+	-->
+
+	<!-- 汎用 (after) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$_ = $proceed($$);
+			$_ = ?{Translationz}.translate($_, null);
+		]]></advice>
+
+		<!-- JDK リソースバンドル翻訳 -->
+		<joinPoint className="java.util.ResourceBundle" methodName="getString">
+
+			<!-- 呼び出し元による除外：AWT ショートカットキー名 (Shift、Home など) -->
+			<excludeWhere className="java.awt.Toolkit"/>
+
+			<!-- 呼び出し元による除外：メニュー項目に含まれるキー・アクセラレーター項目 -->
+			<excludeWhere
+				className="org.eclipse.jface.util.Util"
+				methodName="translateString"/>
+
+			<!-- 呼び出し元による除外：フォント名（ニーモニック変換されてしまうため）2006.11.13 -->
+			<excludeWhere
+				className="org.eclipse.jface.resource.FontRegistry"
+				methodName="readResourceBundle"/>
+
+			<!-- 呼び出し元による除外：エディターの切り替えが遅い問題の対応 2008.03.09 -->
+			<excludeWhere
+				className="org.eclipse.jdt.internal.compiler.parser.Parser"
+				methodName="readReadableNameTable"/>
+
+			<!-- 呼び出し元による除外：WTP JSP エディター - 右クリック - スタイル - 色
+				(挿入される色が訳されてしまうため) 2008.01.13 -->
+			<excludeWhere
+				className="org.eclipse.jst.pagedesigner.PDPlugin"
+				methodName="getResourceString"/>
+
+			<!-- 呼び出し元による除外：TPTP IAC 設定 XML
+				(plugins/org.eclipse.tptp.platform.ac.win_ia32_～/agent_controller/config/) 2007.09.08 -->
+			<excludeWhere
+				className="org.eclipse.tptp.platform.agentcontroller.config.ConfigUtility"
+				methodName="getString"/>
+
+			<!-- 呼び出し元による除外：CDT makefile 標準出力文字化け回避のため訳さない 2009.03.06 -->
+			<excludeWhere
+				className="org.eclipse.cdt.managedbuilder.internal.core.ManagedMakeMessages"/>
+			<!-- e2studio 対応 - http://mon80.blog.fc2.com/blog-entry-218.html 2013.09.08 -->
+			<excludeWhere
+				className="com.renesas.cdt.managedbuilder.gnu.makefile.ManagedMakeMessages"/>
+
+			<!-- 呼び出し元による除外：JAutoDoc 置換リスト 2007.09.29 -->
+			<excludeWhere
+				className="net.sf.jautodoc.preferences.PreferenceMessages"
+				methodName="getDefaultValue"/>
+
+			<!-- 呼び出し元による除外：Taylor プロパティー・ビュー 2008.01.19 -->
+			<excludeWhere
+				className="org.eclipse.emf.common.EMFPlugin"
+				methodName="getString"/>
+			<excludeWhere
+				className="org.eclipse.uml2.common.util.UML2Util"
+				methodName="getString"/>
+
+			<!-- 呼び出し元による除外：BIRT グラフ・サンプル・ビューのツリー項目 2008.06.19
+				 説明の取得で、翻訳した値から更にプロパティーを参照してしまっているため -->
+			<excludeWhere
+				className="org.eclipse.birt.chart.examples.view.description.Messages"
+				methodName="getString"/>
+
+			<!-- 呼び出し元による除外：CheckStyle - 設定 - Google Checks ダブルクリックエラー対応 2021.04.21 -->
+			<excludeWhere
+				className="net.sf.eclipsecs.core.config.meta.MetadataFactory"
+				methodName="localize"/>
+
+			<!-- DBViewer 2009.01.08 -->
+			<excludeWhere className="zigen.plugin"/>
+
+			<!-- 呼び出し元による除外：逆コンパイラー設定文字化け回避 2014.09.26 -->
+			<excludeWhere className="org.sf.feeling.decompiler." methodName="getString"/>
+
+		</joinPoint>
+
+		<!-- JDK Swing メニュー翻訳 -->
+		<joinPoint className="javax.swing.JMenuItem" methodName="getText"/>
+
+	</pointCut>
+
+	<!-- 汎用 (before) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translate($1, null);
+			$_ = $proceed($$);
+		]]></advice>
+
+		<!-- JDK 文字列フォーマット翻訳 2012.08.12 -->
+		<joinPoint className="java.lang.String" methodName="format"
+			descriptor="(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;"/>
+
+		<!-- JDK メッセージ・フォーマット翻訳 2012.08.10 -->
+		<joinPoint className="java.text.MessageFormat" methodName="format"/>
+
+		<!-- SWT シェル (DBeaver ダイアログ全般) 2016.08.18 -->
+		<joinPoint className="org.eclipse.swt.widgets.Shell" methodName="setText">
+
+			<!-- 呼び出し元による除外（ウィンドウタイトル）2022.02.22 -->
+			<excludeWhere className="org.eclipse.ui.internal.WorkbenchWindowConfigurer" methodName="setTitle"/>
+
+		</joinPoint>
+
+		<!-- SWT Label 2007.07.23 execution から call に変更 -->
+		<joinPoint className="org.eclipse.swt.widgets.Label" methodName="setText">
+
+			<!-- 呼び出し元による除外（ナビゲーター上部のプロジェクト名） -->
+			<excludeWhere className="org.eclipse.ui.internal.presentations.defaultpresentation.DefaultTabFolder"
+				methodName="setSelectedInfo"/>
+			<!-- 呼び出し元による除外 (Eclipse 3.3) 2007.10.20 -->
+			<excludeWhere className="org.eclipse.ui.internal.presentations.r33.DefaultTabFolder"
+				methodName="setSelectedInfo"/>
+			<!-- 呼び出し元による除外 (同期化ビューのタイトル) 2016.06.01 -->
+			<excludeWhere className="org.eclipse.e4.ui.workbench.renderers.swt.ContributedPartRenderer"
+				methodName="setDescription"/>
+			<!-- 呼び出し元による除外 (PDE マニフェスト・エディターの拡張タブ) 2009.04.22 -->
+			<excludeWhere className="org.eclipse.ui.forms.widgets.FormToolkit"
+				methodName="createLabel"/>
+			<!-- 呼び出し元による除外（Git 参照ログ・ビューのプロジェクト名）2021.10.12 -->
+			<excludeWhere className="org.eclipse.ui.internal.forms.widgets.TitleRegion"/>
+			<!-- 呼び出し元による除外 (JBoss Tools サーバー設定のデプロイ・ディレクトリー) 2008.01.29 -->
+			<excludeWhere className="org.jboss.ide.eclipse.as.ui.wizards.JBossServerWizardFragment"
+				methodName="enter"/>
+			<!-- 呼び出し元による除外 (パンくずリストのクラス名) 2008.05.28 -->
+			<excludeWhere className="org.eclipse.jdt.internal.ui.javaeditor.breadcrumb.BreadcrumbItemDetails"
+				methodName="setText"/>
+			<!-- 呼び出し元による除外 (Web Performer) 2008.12.08 -->
+			<excludeWhere className="jp.co.canon_soft.wp.generator.ui"/>
+			<!-- 呼び出し元による除外 DBViewer 2009.01.08 -->
+			<excludeWhere className="zigen.plugin"/>
+			<!-- 呼び出し元による除外 (DBeaver の接続タイププルダウン) 2016.08.15 -->
+			<excludeWhere className="org.jkiss.dbeaver.ui.controls.CImageCombo"/>
+
+		</joinPoint>
+
+		<!-- SWT Decoration 2016.05.22 execution から call に変更 -->
+		<joinPoint className="org.eclipse.swt.widgets.Decorations" methodName="setText">
+
+			<!-- 呼び出し元による除外（ウィンドウタイトル） -->
+			<excludeWhere className="org.eclipse.ui.internal.WorkbenchWindowConfigurer" methodName="setTitle"/>
+
+		</joinPoint>
+
+		<!-- SWT ToolItem 2016.07.12 execution から call に変更 -->
+		<joinPoint className="org.eclipse.swt.widgets.ToolItem" methodName="setText">
+
+			<!-- 呼び出し元による除外（インスタ検索フィルタープルダウン選択） -->
+			<excludeWhere className="it.unibz.instasearch.ui.SearchViewControl"/>
+
+			<!-- 呼び出し元による除外（DBeaver エディターを開いた時の上部の接続名）2017.04.19 -->
+			<excludeWhere className="org.jkiss.dbeaver.ui.editors.entity.EntityEditor"/>
+
+		</joinPoint>
+
+		<!-- ハイパーリンク (Mylyn 初期値設定ウィザード) 2009.04.22 -->
+		<joinPoint className="org.eclipse.ui.forms.widgets.Hyperlink" methodName="setText">
+
+			<!-- 呼び出し元による除外 (PDE マニフェスト・エディターの拡張タブ) 2009.04.22 -->
+			<excludeWhere className="org.eclipse.ui.forms.widgets.FormToolkit" methodName="createHyperlink"/>
+
+		</joinPoint>
+
+		<!-- SWT TableColumn -->
+		<joinPoint className="org.eclipse.swt.widgets.TableColumn" methodName="setText">
+
+			<!-- 呼び出し元による除外（Force.com IDE スキーマブラウザのクエリ結果テーブル列ヘッダー） -->
+			<excludeWhere
+				className="com.salesforce.ide.schemabrowser.ui.tableviewer.QueryTableViewer"
+				methodName="createTable"/>
+
+			<!-- 呼び出し元による除外（QuantumDB 結果ビューのテーブル列ヘッダー） -->
+			<excludeWhere
+				className="com.quantum.view.tableview.ResultSetViewer"
+				methodName="addColumnsToTable"/>
+
+			<!-- 呼び出し元による除外（DBViewer 結果ビューのテーブル列ヘッダー） -->
+			<excludeWhere
+				className="zigen.plugin.db.ui.editors.TableViewEditor"
+				methodName="setHeaderColumn"/>
+			<excludeWhere
+				className="zigen.plugin.db.ui.editors.QueryViewEditor"
+				methodName="setHeaderColumn"/>
+
+			<!-- 呼び出し元による除外（DbEdit 結果ビューのテーブル列ヘッダー） -->
+			<excludeWhere
+				className="dbedit.ui.editor.table.GridComposite$14"
+				methodName="run"/>
+
+			<!-- 呼び出し元による除外（SQL Explorer 結果ビューのテーブル列ヘッダー） -->
+			<excludeWhere
+				className="net.sourceforge.sqlexplorer.dataset.DataSetTable"
+				methodName="DataSetTable"/>
+
+			<!-- 呼び出し元による除外（jOra 結果ビューのテーブル列ヘッダー） -->
+			<excludeWhere
+				className="de.tl.jora.viewer.TableDataViewer"
+				methodName="startThread"/>
+
+		</joinPoint>
+
+		<!-- SWT TreeColumn 2007.02.10 -->
+		<joinPoint className="org.eclipse.swt.widgets.TreeColumn" methodName="setText"/>
+
+		<!-- SWT テーブル項目 2007.09.24 -->
+		<joinPoint
+			className="org.eclipse.swt.widgets.TableItem"
+			methodName="setText"
+			descriptor="(Ljava/lang/String;)V">
+
+			<!-- 呼び出し元による限定（EPIC 起動構成 - ブラウザー・タブ） -->
+			<includeWhere className="org.epic.debug.ui.LaunchConfigurationCGIBrowserTab"/>
+
+		</joinPoint>
+
+		<!-- SWT カスタム：ラベル 2006.10.08 editPoint="execution" から変更 -->
+		<joinPoint className="org.eclipse.swt.custom.CLabel" methodName="setText">
+
+			<!-- 呼び出し元による除外（DbEdit のテーブル名） -->
+			<excludeWhere className="org.eclipse.jface.action.StatusLine" methodName="updateMessageLabel"/>
+
+			<!-- 呼び出し元による除外（インクリメンタルサーチ文字列）2007.10.26 -->
+			<excludeWhere className="org.eclipse.ui.texteditor.StatusLineContributionItem" methodName="updateMessageLabel"/>
+
+			<!-- 呼び出し元による除外（Java 階層ビューのメソッド一覧タイトルのクラス名）2007.10.20 -->
+			<excludeWhere className="org.eclipse.jdt.internal.ui.typehierarchy.TypeHierarchyViewPart"/>
+
+			<!-- 呼び出し元による除外（DevStyle パンくずリストの要素）2021.03.22 -->
+			<excludeWhere className="com.genuitec.eclipse.meexplorer.breadcrumb.BreadCrumbItem"/>
+
+		</joinPoint>
+
+		<!-- SWT GC ドローテキスト -->
+		<joinPoint className="org.eclipse.swt.graphics.GC" methodName="drawText">
+
+			<!-- 呼び出し元による限定（Window Builder > デザインタブ > Structure などのタイトル）2017.04.26 -->
+			<includeWhere className="org.eclipse.wb.core.controls.flyout.FlyoutControlComposite$FlyoutContainer"/>
+
+			<!--
+			呼び出し元による限定 (DBeaver) 2016.08.16
+			・データグリッドのフィルターテキストのプレースホルダー
+			・実行計画結果初期メッセージ
+			・SQL 実行結果データなしメッセージ
+			-->
+			<includeWhere className="org.jkiss.dbeaver.ui."/>
+			<!-- 以下、上記で訳しすぎにならなければ削除 -->
+
+			<!-- 呼び出し元による限定（DBeaver データグリッドのフィルターのプレースホルダー）2016.08.16 -->
+			<!-- <includeWhere
+				className="org.jkiss.dbeaver.ui.controls.resultset.ResultSetFilterPanel"
+				methodName="paintControl"/> -->
+
+			<!-- 呼び出し元による限定（DBeaver 実行計画結果初期メッセージ）2016.08.16 -->
+			<!-- <includeWhere
+				className="org.jkiss.dbeaver.ui.views.plan.ExplainPlanViewer"
+				methodName="paintControl"/> -->
+
+			<!-- 呼び出し元による限定（DBeaver SQL 結果データなしメッセージ）2016.08.16 -->
+			<!-- <includeWhere
+				className="org.jkiss.dbeaver.ui.UIUtils"
+				methodName="drawMessageOverControl"/> -->
+
+		</joinPoint>
+
+		<!-- SWT カスタム：タブアイテム -->
+		<joinPoint className="org.eclipse.swt.custom.CTabItem" methodName="setText">
+
+			<!-- 呼び出し元による限定（起動構成のタブ）2006.10.21 -->
+			<!--   3.2 methodName="showTabsFor" -->
+			<!--   3.3 methodName="showInstanceTabsFor" -->
+			<includeWhere className="org.eclipse.debug.internal.ui.launchConfigurations.LaunchConfigurationTabGroupViewer"/>
+
+			<!-- 呼び出し元による限定（検索ダイアログのタブ）2021.03.31 -->
+			<includeWhere className="org.eclipse.search.internal.ui.SearchDialog"/>
+
+			<!-- 呼び出し元による限定（マーケットプレースのタブ）2021.05.20 -->
+			<includeWhere className="org.eclipse.epp.internal.mpc.ui.wizards.MarketplacePage"/>
+
+			<!-- 呼び出し元による限定（設定 > PHP > サーバー編集ダイアログ）2008.12.08 -->
+			<includeWhere className="org.eclipse.php.internal.server.ui.ServerEditDialog"/>
+			<includeWhere className="org.eclipse.php.internal.debug.ui.wizards.PHPExeEditDialog"/>
+
+			<!-- 呼び出し元による限定（Window Builder > デザインタブ）2017.04.26 -->
+			<includeWhere className="org.eclipse.wb.internal.core.editor.multi.DefaultMultiMode"/>
+
+		</joinPoint>
+
+		<!-- JFace 子を持つメニュー要素 (引数 1 つ) -->
+		<joinPoint className="org.eclipse.jface.action.MenuManager"
+			methodName="MenuManager"
+			descriptor="(Ljava/lang/String;)V">
+
+			<!-- 呼び出し元による除外（WindowBuilder）2021.04.22 -->
+			<excludeWhere className="org.eclipse.wb.internal.core.utils.ui.MenuManagerEx"/>
+			
+		</joinPoint>
+
+		<!-- JFace 子を持つメニュー要素 (引数 2 つ) -->
+		<joinPoint className="org.eclipse.jface.action.MenuManager"
+			methodName="MenuManager"
+			descriptor="(Ljava/lang/String;Ljava/lang/String;)V"/>
+
+	</pointCut>
+
+	<!-- バックアップ翻訳 (before) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translateBackup($1, null);
+			$_ = $proceed($$);
+		]]></advice>
+
+		<!-- SWT ツリー項目 2008.06.19 -->
+		<joinPoint
+			className="org.eclipse.swt.widgets.TreeItem"
+			methodName="setText"
+			descriptor="(Ljava/lang/String;)V">
+
+			<!-- 呼び出し元による限定：BIRT グラフ・サンプル・ビューのツリー項目 2008.06.19
+				 説明の取得で、翻訳した値から更にプロパティーを参照してしまっているため -->
+			<includeWhere className="org.eclipse.birt.chart.examples.view.ChartExamples" methodName="fillTree"/>
+
+		</joinPoint>
+
+		<!-- SWT ボタン: Mylyn の SWT.RADIO の場合、ラベル文字列での判定対応 2007.02.09 -->
+		<joinPoint className="org.eclipse.swt.widgets.Button" methodName="setText">
+		
+			<!-- 呼び出し元による除外：Spring スターター・プロジェクト作成 2021.04.27 -->
+			<excludeWhere className="org.springframework.ide.eclipse.boot.wizard.CheckBoxesSection"/>
+			
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- 復元 (before) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$_ = ?{Translationz}.restoreBackup($proceed($$), null);
+		]]></advice>
+
+		<!-- SWT ツリー項目 2008.06.19 -->
+		<joinPoint className="org.eclipse.swt.widgets.TreeItem" methodName="getText">
+
+			<!-- 呼び出し元による限定：BIRT グラフ・サンプル・ビューのツリー項目 2008.06.19
+				 説明の取得で、翻訳した値から更にプロパティーを参照してしまっているため -->
+			<includeWhere className="org.eclipse.birt.chart.examples.view.ChartExamples"
+				methodName="widgetSelected"/>
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- JDK NLS バインド / NLS#bind(String, Object) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translate($1, null);
+			$2 = ?{Translationz}.translate($2, null);
+			$_ = $proceed($$);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.osgi.util.NLS" methodName="bind"
+			descriptor="(Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/String;">
+
+			<!-- 呼び出し元による除外（プロジェクトのエンコーディング未設定警告メッセージ）2022.05.31 -->
+			<excludeWhere
+				className="org.eclipse.core.internal.resources.ValidateProjectEncoding"/>
+
+			<!-- 呼び出し元による除外（プロジェクトのプロパティーのタイトル） -->
+			<excludeWhere
+				className="org.eclipse.ui.internal.dialogs.PropertyDialog"
+				methodName="createDialogOn"/>
+
+			<!-- 呼び出し元による除外（プロジェクト名: インポート中メッセージなど多数）2021.09.24 -->
+			<excludeWhere
+				className="org.eclipse.core.internal.resources.Project"/>
+
+			<!-- 呼び出し元による除外（削除時のプロジェクト名）2007.07.09 -->
+			<excludeWhere
+				className="org.eclipse.ui.actions.DeleteResourceAction$DeleteProjectDialog"
+				methodName="getMessage"/>
+
+			<!-- 呼び出し元による除外（ナビゲータの進む/戻るのプロジェクト名）2007.07.23 -->
+			<excludeWhere
+				className="org.eclipse.ui.views.framelist.ForwardAction"
+				methodName="getToolTipText"/>
+
+			<!-- 呼び出し元による除外（同期化ビューのプロジェクト名）2016.06.01 -->
+			<excludeWhere
+				className="org.eclipse.team.internal.ui.mapping.MergeAllActionHandler"
+				methodName="getJobName"/>
+
+			<!-- 呼び出し元による除外（ビルド時のメッセージ起動構成名）2021.11.09 -->
+			<excludeWhere
+				className="org.eclipse.debug.ui.launchview.internal.launcher.StandaloneLaunchConfigExecutor$StandaloneLauncherJob"/>
+
+			<!-- 呼び出し元による除外 (エディターの切り替えが遅い問題の対応) 2008.03.09 -->
+			<excludeWhere
+				className="org.eclipse.ui.internal.decorators.DecorationReference"
+				methodName="getSubTask"/>
+
+			<!-- 呼び出し元による除外（github#108 実行 > Maven install 時の例外抑止）2022.05.20 -->
+			<excludeWhere
+				className="org.eclipse.m2e.internal.launch"/>
+
+			<!-- 呼び出し元による除外（buildship Gradle プロジェクト作成時の例外抑止）2022.05.27 -->
+			<excludeWhere
+				className="org.eclipse.ecf.provider.filetransfer"/>
+
+			<!-- 呼び出し元による除外（WTP JSP エディターの警告ポップアップ埋め込み文字列）2007.08.05 -->
+			<excludeWhere
+				className="org.eclipse.jst.jsp.core.internal.validation.JSPActionValidator"
+				methodName="checkRequiredAttributes"/>
+
+			<!-- 呼び出し元による除外（DTP SQL エディターのデータベース）2008.01.12 -->
+			<excludeWhere
+				className="org.eclipse.datatools.sqltools.sqleditor.SQLEditorConnectionInfo"
+				methodName="getName"/>
+
+			<!-- 呼び出し元による除外（Dali 永続化プロパティー・ビューのコンボ）2006.10.03 -->
+			<excludeWhere
+				className="org.eclipse.dali.ui.views.ColumnComposite"
+				methodName="populateColumnCombo"/>
+
+			<!-- 呼び出し元による除外（PDE 拡張ポイントのプロパティー・ページ）2017.04.19 -->
+			<excludeWhere className="org.eclipse.pde.internal.ui.editor.schema.SchemaAttributeDetails"/>
+			<excludeWhere className="org.eclipse.pde.internal.ui.editor.plugin.ExtensionElementDetails"/>
+			<excludeWhere className="org.eclipse.pde.internal.ui.editor.plugin.rows.ExtensionAttributeRow"
+				methodName="getPropertyLabel"/>
+
+			<!-- 呼び出し元による除外（DBeaver 接続プロパティー・ダイアログの接続名）2016.08.16 -->
+			<excludeWhere
+				className="org.jkiss.dbeaver.ui.preferences.TargetPrefPage"
+				methodName="createDescriptionLabel"/>
+
+		</joinPoint>
+	</pointCut>
+
+	<!-- JDK NLS バインド / NLS#bind(String, Object, Object) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translate($1, null);
+			$2 = ?{Translationz}.translate($2, null);
+			$3 = ?{Translationz}.translate($3, null);
+			$_ = $proceed($$);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.osgi.util.NLS" methodName="bind"
+			descriptor="(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/String;">
+
+			<!-- 呼び出し元による除外（ヒープステータスの翻訳キャッシュ増大抑止 例: 111M / 222M）2021.07.17 追加 -->
+			<excludeWhere
+				className="org.eclipse.ui.internal.HeapStatus"/>
+
+			<!-- 呼び出し元による除外（インポート時のプロジェクト名）2009.03.01 追加 -->
+			<excludeWhere
+				className="org.eclipse.ui.internal.wizards.datatransfer.WizardProjectsImportPage$ProjectRecord"/>
+
+			<!-- 呼び出し元による除外（Eclipse のタイトルバー、DbEdit のテーブル名など）2006.10.07 追加 -->
+			<excludeWhere
+				className="org.eclipse.ui.internal.ide.IDEWorkbenchWindowAdvisor"
+				methodName="computeTitle"/>
+			<!-- 呼び出し元による除外（Eclipse のタイトルバー）2016.05.22 追加 -->
+			<excludeWhere
+				className="org.eclipse.ui.internal.ide.application.IDEWorkbenchWindowAdvisor"
+				methodName="computeTitle"/>
+
+			<!-- 呼び出し元による除外（github#108 実行 > Maven install 時の例外抑止）2022.05.20 -->
+			<excludeWhere
+				className="org.eclipse.m2e.internal.launch"/>
+
+			<!-- 呼び出し元による除外（Dali 永続化プロパティー・ビューのテキスト・エリア）2006.10.03 追加 -->
+			<excludeWhere
+				className="org.eclipse.dali.ui.views.PrimaryKeyJoinColumnsComposite"
+				methodName="buildDefaultJoinColumnLabel"/>
+			<excludeWhere
+				className="org.eclipse.dali.ui.views.PrimaryKeyJoinColumnsComposite"
+				methodName="buildJoinColumnLabel"/>
+
+		</joinPoint>
+	</pointCut>
+
+	<!-- JDK NLS バインド / NLS#bind(String, Object[]) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translate($1, null);
+			$2 = ?{Translationz}.translate($2, null);
+			$_ = $proceed($$);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.osgi.util.NLS" methodName="bind"
+			descriptor="(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;">
+
+			<!-- 呼び出し元による除外（デバッグ・シェル・ビュー > (選択して) 実行 の表示結果）2021.10.07 -->
+			<excludeWhere
+				className="org.eclipse.jdt.internal.debug.ui.actions.DisplayAction"/>
+				
+			<!-- 呼び出し元による除外（HTML 検証警告に埋め込まれるタグ名）2016.07.19 -->
+			<excludeWhere
+				className="org.eclipse.wst.html.core.internal.validate.MessageFactory"/>
+
+			<!-- 呼び出し元による除外（ソース管理のプロジェクト名）2009.03.03 -->
+			<excludeWhere
+				className="org.eclipse.team.ui.synchronize.ModelSynchronizeParticipant"/>
+			<excludeWhere
+				className="org.eclipse.team.internal.ui.mapping.DiffTreeChangesSection"/>
+			<excludeWhere
+				className="org.eclipse.team.svn.core.BaseMessages"/>
+
+			<!-- 呼び出し元による除外（同期化ビュー内メッセージのプロジェクト名）2009.01.24 -->
+			<excludeWhere
+				className="org.eclipse.team.internal.ui.synchronize.ForwardingChangesSection"/>
+
+			<!-- 呼び出し元による除外（同期化時のステータスバーのプロジェクト名）2016.09.05 -->
+			<excludeWhere
+				className="org.eclipse.team.internal.ui.synchronize.SynchronizeView"/>
+
+			<!-- 呼び出し元による除外（CVS 操作時のプロジェクト名）2008.07.24 追加 -->
+			<excludeWhere
+				className="org.eclipse.team.internal.ccvs.ui.wizards.SharingWizard"
+				methodName="prepareTagPage"/>
+			<excludeWhere
+				className="org.eclipse.team.internal.ccvs.ui.wizards.SharingWizard"
+				methodName="promptToKeepMapping"/>
+			<excludeWhere
+				className="org.eclipse.team.internal.ccvs.ui.operations.CheckoutToRemoteFolderOperation"
+				methodName="getTaskName"/>
+			<excludeWhere
+				className="org.eclipse.team.internal.ccvs.ui.operations.DisconnectOperation"
+				methodName="getTaskName"/>
+
+			<!-- 呼び出し元による除外（SVN 操作時のプロジェクト名）2008.07.25 追加 -->
+			<excludeWhere
+				className="org.eclipse.team.svn.ui.synchronize.update.UpdateParticipant"
+				methodName="getName"/>
+
+			<!-- 呼び出し元による除外（SVN 同期時の進捗メッセージに含まれるプロジェクト名）2021.04.19 -->
+			<excludeWhere
+				className="org.eclipse.ui.internal.progress.GroupInfo"
+				methodName="getDisplayString"/>
+
+			<!-- 呼び出し元による除外（Git ヒストリー・ビュー > ヘッダー > プロジェクト名）2021.10.12 -->
+			<excludeWhere
+				className="org.eclipse.egit.ui.internal.history.GitHistoryPage"/>
+
+		</joinPoint>
+	</pointCut>
+
+	<!-- SWT (before) - READ_ONLY のみが対象 -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			if (($0.getStyle() & org.eclipse.swt.SWT.READ_ONLY) != 0)
+				$1 = ?{Translationz}.translate($1, null);
+			$_ = $proceed($$);
+		]]></advice>
+
+			<!-- 呼び出しトレースよる除外（Mylyn タスク編集画面）2007.02.09 -->
+			<!-- パフォーマンス優先のため SWT Text の excludeWhere に変更
+			<excludeTrace prefix="org.eclipse.mylyn.tasks.ui.editors.AbstractRepositoryTaskEditor"/>
+			-->
+
+	</pointCut>
+
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			if (($0.getStyle() & org.eclipse.swt.SWT.READ_ONLY) != 0)
+				$1 = ?{Translationz}.translate($1, null);
+			$_ = $proceed($$);
+		]]></advice>
+
+		<!-- SWT の Text -->
+		<joinPoint className="org.eclipse.swt.widgets.Text" methodName="setText">
+
+			<!-- 呼び出し元による除外（検索ダイアログのワーキング・セット) 2008.06.15 -->
+			<excludeWhere
+				className="org.eclipse.search.internal.ui.ScopePart"/>
+
+			<!-- 呼び出し元による除外（検索 -> 置換ダイアログの検索文字) 2008.06.22 -->
+			<excludeWhere
+				className="org.eclipse.search.internal.ui.text.ReplaceConfigurationPage"/>
+
+			<!-- 呼び出し元による除外（WTP JSF CCombo で選択時に訳されてしまうのを回避) 2007.07.28 -->
+			<excludeWhere
+				className="org.eclipse.swt.custom.CCombo"
+				methodName="setText"/>
+
+			<!-- 呼び出し元による除外（Mylyn CCombo で選択時に訳されてしまうのを回避) 2007.02.10 -->
+			<excludeWhere
+				className="org.eclipse.swt.custom.CCombo"
+				methodName="listEvent"/>
+			<excludeWhere
+				className="org.eclipse.swt.custom.CCombo"
+				methodName="select"/>
+
+			<!-- 呼び出し元による除外（Mylyn タスク編集画面のアカウント名）2007.02.09 -->
+			<excludeWhere
+				className="org.eclipse.ui.forms.widgets.FormToolkit"
+				methodName="createText"/>
+
+			<!-- 呼び出し元による除外（JUnit 起動構成の選択コンテナー名）2017.12.08 -->
+			<excludeWhere
+				className="org.eclipse.jdt.junit.launcher.JUnitLaunchConfigurationTab"/>
+
+			<!-- 呼び出し元による除外（Subversive プロジェクト名）2008.07.25 -->
+			<excludeWhere
+				className="org.eclipse.team.svn.ui.wizard.shareproject.SelectProjectNamePage"
+				methodName="setProjectsAndLocation"/>
+
+			<!-- 呼び出し元による除外（Subversive プロジェクト名）2009.03.05 -->
+			<excludeWhere
+				className="org.eclipse.team.svn.ui.wizard.shareproject.ShareProjectNameAdvancedModeComposite"/>
+
+			<!-- 呼び出し元による除外（Subversive 更新履歴の値） -->
+			<excludeWhere
+				className="org.polarion.team.svn.ui.composite.PropertiesComposite$5"
+				methodName="selectionChanged"/>
+
+			<!-- 呼び出し元による除外（Subversive テンプレート・コメント） -->
+			<excludeWhere
+				className="org.polarion.team.svn.ui.preferences.SVNTeamCommentTemplatesPreferencesPage"
+				methodName="selectionChanged"/>
+
+			<!-- 呼び出し元による除外（Apache Directory Studio のバッチ操作設定) 2008.11.15 -->
+			<excludeWhere
+				className="org.apache.directory.studio.ldapbrowser.common.widgets.search.BrowserConnectionWidget"/>
+
+			<!-- 呼び出し元による除外（EMecha の新規作成ウィザード) 2009.01.03 -->
+			<excludeWhere
+				className="org.seasar.dbflute.emecha"/>
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- JFace (before 第 3 引数[][]) - around にすると ComboFieldEditor が検出できない -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			for (int i = 0; i < $3.length; i++)
+				$3[i][0] = ?{Translationz}.translateIgnoreMnemonic($3[i][0], null);
+		]]></advice>
+
+		<!-- JFace コンボフィールドエディター: 設定 > XML (WWD) 2021.06.03 -->
+		<joinPoint className="org.eclipse.jface.preference.ComboFieldEditor" methodName="ComboFieldEditor"/>
+
+	</pointCut>
+
+	<!-- SWT (after) コンボ項目の復元 - READ_ONLY のみが対象 -->
+	<pointCut editPoint="call" timing="around" disabled="true"><!-- ===== disabled 2008.12.08 ===== -->
+		<advice><![CDATA[
+			$_ = $proceed($$);
+			if (($0.getStyle() & org.eclipse.swt.SWT.READ_ONLY) != 0)
+				$_ = ?{Translationz}.restoreBackup($_, null);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.widgets.Combo" methodName="getItem">
+
+			<!-- 呼び出し元による除外：クラス内部呼び出し -->
+			<excludeWhere className="org.eclipse.swt.widgets.Combo" methodName="indexOf"/>
+
+			<!--
+			呼び出し元による除外：ワークスペース選択ダイアログでの起動不可対応（org.eclipse.swt.SWT 未ロード？）
+			→ 現在、3.1.2、3.2.0 で発生しなくなっているためコメントアウト 2006.09.09
+			-->
+			<!--
+			<excludeWhere className="org.eclipse.ui.internal.ide.ChooseWorkspaceDialog"
+				methodName="setInitialTextValues"/>
+			-->
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- SWT (after) リスト項目の復元 -->
+	<!-- SwitchUnit の手入力するクラス接頭部リストが翻訳されてしまうため廃止 -->
+	<!--
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$_ = ?{Translationz}.restoreBackup($proceed($$), null);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.widgets.List" methodName="getItem">
+			<excludeWhere className="org.eclipse.swt.widgets.List" methodName="indexOf"/>
+		</joinPoint>
+
+	</pointCut>
+	-->
+
+	<!-- 特定のメニュー (before・第 1 引数) 2007.09.24 -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			if (!getClass().getName().equals("org.eclipse.wb.internal.core.utils.ui.MenuManagerEx"))
+				$1 = ?{Translationz}.translateMenu($1, null);
+			$_ = $proceed($$);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.widgets.MenuItem" methodName="setText">
+
+			<!-- 呼び出し元による限定（org.eclipse.ui.menus 拡張ポイント）2008.07.14 -->
+			<includeWhere className="org.eclipse.ui.menus.CommandContributionItem"/>
+			<includeWhere className="org.eclipse.jface.action.MenuManager"/>
+
+			<!-- 呼び出し元による限定（org.eclipse.ui.menus 拡張ポイント：DBeaver の追加メニューバー）2016.08.15 -->
+			<includeWhere className="org.eclipse.e4.ui.workbench.renderers.swt.HandledContributionItem"/>
+
+			<!-- 呼び出し元による限定（ヘルプ > Eclipse ユーザー・ストレージ > Sing Out）2017.05.26 -->
+			<includeWhere className="org.eclipse.userstorage.internal.oauth.ui.AccountDetails"/>
+
+			<!-- 呼び出し元による限定（Git リポジトリー > 切り替え）2021.04.30 -->
+			<includeWhere className="org.eclipse.egit.ui.internal.actions.SwitchToMenu" methodName="getNewBranchMenuItem"/>
+			<includeWhere className="org.eclipse.egit.ui.internal.actions.SwitchToMenu" methodName="createOtherMenuItem"/>
+			<includeWhere className="org.eclipse.egit.ui.internal.actions.SwitchToMenu" methodName="createSwitchToCommitItem"/>
+
+			<!-- 呼び出し元による限定（PyDev > インタープリター > Python インタープリター > 新規ボタン）2021.09.21 -->
+			<includeWhere className="org.python.copiedfromeclipsesrc.PythonListEditor"/>
+
+			<!-- 呼び出し元による限定（Endocing StatusBar のプルダウンメニュー）2016.07.02 -->
+			<!-- EncodingLabel の javassist.bytecode.BadBytecode: failed to resolve types 回避 2016.09.18
+			<includeWhere className="mergedoc.encoding."/>
+			-->
+
+			<!-- 呼び出し元による限定（RadRails メニューバーのプルダウンメニュー） -->
+			<includeWhere className="org.radrails.rails.internal.ui.actions.RunTestsPulldownDelegate"/>
+			<includeWhere className="org.radrails.rails.internal.ui.actions.ScriptConsolePulldownDelegate"/>
+
+			<!-- 呼び出し元による限定（RadRails ビューのプルダウンメニュー）2008.09.15 -->
+			<includeWhere className="org.rubypeople.rdt.internal.ui.RubyProjectSelectionAction"/>
+			<includeWhere className="org.radrails.rails.internal.ui.actions.RailsProjectSelectionAction"/>
+
+			<!-- 呼び出し元による限定（Aptana メニューバーの Jaxer プルダウンメニュー）2008.05.27 -->
+			<includeWhere className="com.aptana.ide.framework.jaxer.actions.JaxerToolbarAction"/>
+
+			<!-- 呼び出し元による限定（Android SDK マネージャーのメニュー）2012.08.12 -->
+			<includeWhere className="com.android.sdkuilib.internal."/>
+			<includeWhere className="com.android.menubar.MenuBarEnhancer"/>
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- 特定 (before・第 2 引数) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$2 = ?{Translationz}.translateMenu($2, null);
+			$_ = $proceed($$);
+		]]></advice>
+
+		<!-- 別の箇所で、このメソッドの除外あり -->
+		<joinPoint className="org.eclipse.ui.forms.widgets.FormToolkit" methodName="createHyperlink">
+
+			<!-- 呼び出し元による限定 (初回起動時のプロジェクト・エクスプローラー) 2019.03.23 -->
+			<includeWhere className="org.eclipse.ui.internal.views.helpers.EmptyWorkspaceHelper"/>
+
+			<!-- 呼び出し元による限定 (空の Git リポジトリー・ビュー) 2021.04.30 -->
+			<includeWhere className="org.eclipse.egit.ui.internal.repository.RepositoriesView"/>
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- 限定付き (after) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$_ = $proceed($$);
+			$_ = ?{Translationz}.translate($_, null);
+		]]></advice>
+
+ 		<joinPoint className="org.eclipse.ui.internal.util.Util" methodName="safeString">
+
+			<!-- 呼び出し元による限定 (特定ビュータイトル：デバッグ、進捗状況) [#65706] 2012.10.03 -->
+			<includeWhere className="org.eclipse.ui.part.WorkbenchPart" methodName="setInitializationData"/>
+
+		</joinPoint>
+
+ 		<joinPoint className="org.eclipse.debug.internal.ui.launchConfigurations.LaunchGroupExtension" methodName="getMode">
+
+			<!-- 呼び出し元による限定 (Eclipse Runner メニューラベル) 2016.07.01 -->
+			<includeWhere className="com.eclipserunner.views.impl.RunnerView" methodName="setupLaunchOpenActions"/>
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- length 保持翻訳 (before・第 1 引数) -->
+	<pointCut editPoint="call" timing="around">
+
+		<!-- StyledText#setStyleRange で色指定された場合に length が不正となるため、length 保持 -->
+		<!--
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translateKeepLength($1, null);
+			$_ = $proceed($$);
+		]]></advice>
+		-->
+		<!--
+			StyledText#setStyleRange で色指定された場合に length が不正となるため、空白追加。
+			Aptana 1.5 から翻訳済み文字列が渡ってくるため、この対応に変更。
+		-->
+		<advice><![CDATA[
+			if (getClass().getName().equals("com.aptana.ide.editors.preferences.CoreEditorPreferencePage")) {
+				$1 += "          ";
+			} else {
+				$1 = ?{Translationz}.translate($1, null);
+			}
+			$_ = $proceed($$);
+		]]></advice>
+		
+		<joinPoint className="org.eclipse.swt.custom.StyledText" methodName="setText">
+
+			<!-- 呼び出し元による限定 (Aptana エディター設定のヘッダー部分) 2009.03.09 -->
+			<includeWhere className="com.aptana.ide.editors.preferences.CoreEditorPreferencePage"/>
+
+			<!-- 呼び出し元による限定 (STS4 入門コンテンツのインポート > 説明) 2022.04.07 -->
+			<includeWhere className="org.springsource.ide.eclipse.commons.livexp.ui.DescriptionSection"/>
+
+		</joinPoint>
+		
+	</pointCut>
+
+	<!-- アドバイスなし (何もしない) -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+		]]></advice>
+
+		<!-- JDocEditor のビュー (ニーモニックには何もセットしない) -->
+		<joinPoint className="net.certiv.jDocEditor.utils.ViewActionFactory$ViewAction"
+			methodName="setMnemonic"/>
+
+	</pointCut>
+
+	<!--
+	###########################################################################
+	  翻訳：メソッド実行 (editPoint="execution")
+	###########################################################################
+	====================================
+	  before アドバイス
+	====================================
+	-->
+
+	<!-- 通常翻訳 (before・第 1 引数) 呼び出しトレースによる除外なし -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translate($1, null);
+		]]></advice>
+
+		<!-- SWT -->
+		<!--
+		 OS によりシグネチャが異なる複数のメソッドがある場合があることに注意。例えば
+		 Linux GTK では ToolItem#setToolTipText に引数が 1 つのものと 2 つのものが存在する。
+		-->
+		<joinPoint className="org.eclipse.swt.widgets.Group" methodName="setText"/>
+		<joinPoint className="org.eclipse.swt.widgets.ToolItem" methodName="setToolTipText" descriptor="(Ljava/lang/String;)V"/>
+		<joinPoint className="org.eclipse.swt.widgets.TabItem" methodName="setText"/>
+		<joinPoint className="org.eclipse.swt.widgets.TabItem" methodName="setToolTipText"/>
+		<joinPoint className="org.eclipse.swt.widgets.MenuItem" methodName="setToolTipText" descriptor="(Ljava/lang/String;)V"/>
+		<joinPoint className="org.eclipse.swt.widgets.Control" methodName="setToolTipText" descriptor="(Ljava/lang/String;)V"/>
+		<joinPoint className="org.eclipse.swt.widgets.DirectoryDialog" methodName="setMessage"/>
+		<!-- ナビゲーターの進む/戻るでプロジェクト名が訳されてしまうため call に変更 2007.07.23
+		<joinPoint className="org.eclipse.swt.widgets.Label" methodName="setText"/>
+		-->
+		<!-- ワークスペース名をタイトルに表示すると翻訳されるため call に変更 2016.05.22
+		<joinPoint className="org.eclipse.swt.widgets.Decorations" methodName="setText"/>
+		-->
+		<!-- インスタ検索フィルタープルダウン選択が翻訳されるため call に変更 2016.07.12
+		<joinPoint className="org.eclipse.swt.widgets.ToolItem" methodName="setText"/>
+		-->
+
+		<!-- SWT MessageBox 2011.09.18 追加 -->
+		<joinPoint className="org.eclipse.swt.widgets.Dialog" methodName="setText"/>
+		<joinPoint className="org.eclipse.swt.widgets.MessageBox" methodName="setMessage"/>
+
+		<!-- テキストプレースホルダ 2016.04.07 追加 -->
+		<joinPoint className="org.eclipse.swt.widgets.Text" methodName="setMessage"/>
+
+		<!-- SWT custom -->
+		<!-- DbEdit でステータスバーのテーブル名が訳されてしまうため editPoint="call" に変更 2006.10.08
+		<joinPoint className="org.eclipse.swt.custom.CLabel" methodName="setText"/>
+		-->
+		<!-- DbEdit テーブル・ビューのタブなどが訳されてしまうため editPoint="call" に変更 2006.10.07
+		<joinPoint className="org.eclipse.swt.custom.CTabItem" methodName="setToolTipText"/>
+		<joinPoint className="org.eclipse.swt.custom.CTabItem" methodName="setText"/>
+		-->
+		<!-- Aptana エディター設定のヘッダー部分 2007.11.04 -->
+		<!-- StyledText#setStyleRange で色指定された場合に幅が不正となりエラーになるため廃止  2007.11.04
+			translateKeppLenth に移動 2009.03.09
+		<joinPoint className="org.eclipse.swt.custom.StyledText" methodName="setText"/>
+		-->
+
+		<!-- JFace -->
+		<joinPoint className="org.eclipse.jface.dialogs.TitleAreaDialog" methodName="setMessage"/>
+		<joinPoint className="org.eclipse.jface.dialogs.DialogMessageArea" methodName="updateText"/>
+		<!-- PDT プロジェクト・プロパティーの Include Path Libraries 対応 2008.07.19 -->
+		<joinPoint className="org.eclipse.jface.dialogs.DialogPage" methodName="setTitle"/>
+
+		<!-- ハイパーリンク (Mylyn 初期値設定ウィザード) 2007.02.08 -->
+		<!-- 2009.04.22 around に変更
+		<joinPoint className="org.eclipse.ui.forms.widgets.Hyperlink" methodName="setText"/>
+		-->
+
+		<!-- テンプレート名 -->
+		<!-- テンプレート名は翻訳しない -->
+		<!--
+		<joinPoint className="org.eclipse.jface.text.templates.Template"
+			methodName="Template"
+			descriptor="(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V"/>
+		-->
+
+		<!-- クイック検索のダイアログタイトル 2016.06.03 -->
+		<joinPoint className="org.eclipse.ui.dialogs.SelectionDialog"
+			methodName="setTitle"/>
+
+		<!-- AbstractEditPartViewer ビューに直接文字列表示 2007.01.08 -->
+		<joinPoint className="org.eclipse.gef.ui.parts.AbstractEditPartViewer"
+			methodName="setContents"
+			descriptor="(Ljava/lang/Object;)V"/>
+
+		<!-- コンソール出力 2007.11.25 -->
+		<joinPoint className="org.eclipse.ui.console.AbstractConsole"
+			methodName="setName"/>
+		<joinPoint className="org.eclipse.ui.console.MessageConsoleStream"
+			methodName="println"
+			descriptor="(Ljava/lang/String;)V"/>
+
+		<!-- プラグイン・スパイのヘルプ説明 2008.07.13 -->
+		<joinPoint className="org.eclipse.help.ui.internal.StyledLineWrapper" methodName="setText"/>
+
+		<!-- インポート > Git > 既存ローカル・リポジトリー (NLS$MessagesProperties で除外しているため) 2021.04.26 -->
+		<joinPoint className="org.eclipse.egit.ui.internal.clone.GitCloneSourceProviderExtension$CloneSourceProvider"
+			methodName="CloneSourceProvider"/>
+
+		<!-- Eclipse Nebula PShelf 2008.03.16 -->
+		<joinPoint className="org.eclipse.nebula.widgets.pshelf.PShelfItem" methodName="setText"/>
+
+		<!-- JFreeChart (CAP) 2007.01.05 -->
+		<joinPoint className="org.jfree.text.TextUtilities" methodName="drawAlignedString"/>
+		<joinPoint className="org.jfree.text.TextUtilities" methodName="drawRotatedString"/>
+
+		<!-- JDocEditor のビュー -->
+		<joinPoint className="net.certiv.jDocEditor.utils.ViewActionFactory$ViewAction"
+			methodName="setShortDescription"/>
+
+	</pointCut>
+
+	<!-- 
+	通常翻訳 (before・第 1 引数) 呼び出しトレースによる除外なし、キャッシュ抑止条件あり
+	-->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			if (
+				$1 != null &&
+				
+				// Eclipse キーバインドの競合メッセージ 2021.07.19
+				// 例: A\ conflict\ occurred\ for\ CTRL+SHIFT+T ～ .WorkbenchHandlerServiceHandler@1ff65426,
+				!$1.startsWith("A conflict occurred for") &&
+				
+				// STS 起動時の遅延ロードを防ぐため条件付き (STS.properties の %REGEX% 対応もあり) 2021.06.08 
+				// 例: ClasspathListenerHandler addClasspathListener sts4.classpath.CSIPIcWCisBatched = true
+				!$1.contains(" sts4.classpath.")
+			)
+				$1 = ?{Translationz}.translate($1, null);
+		]]></advice>
+
+		<!-- エラー・ログ・ビューのメッセージ 2008.06.28 -->
+		<joinPoint className="org.eclipse.core.runtime.Status" methodName="setMessage"/>
+
+	</pointCut>
+
+	<!-- 通常翻訳 (before・第 1 引数) 呼び出し元による指定あり -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translate($1, ?{JOIN_POINT});
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.widgets.Label" methodName="setText">
+
+			<!-- EGit ステージング・ビューのラベル (Author, Committer) 2021.03.24 -->
+			<includeTrace className="org.eclipse.egit.ui.internal.staging.StagingView" methodName="createPartControl"/>
+
+			<!-- ADT 設定のラベル CannotCompileException 対応 (jar ロードが遅れるためクラスパス追加不可) 2014.04.05 -->
+			<includeTrace className="com.android.ide.eclipse"/>
+
+			<!-- NTail のビューアー設定ダイアログが訳されない対応 2014.06.27 -->
+			<includeTrace className="net.certiv.ntail.dialogs.ViewerDialog"/>
+
+		</joinPoint>
+
+		<!--
+		[github#59] VerifyErrorが発生する
+		以下の条件でエラーが発生するため廃止。(java.lang.VerifyError: Bad type on operand stack)
+		・Xverify=none 指定無し
+		・コンストラクタの before ウィービングで、$0 (this を表す) を参照
+		-->
+		<!-- JFace 装飾テキスト -->
+		<!--
+		<joinPoint
+			className="org.eclipse.jface.viewers.StyledString"
+			methodName="StyledString"
+			descriptor="(Ljava/lang/String;)V">
+
+			<!-@- 呼び出し元による限定 (Buildship 3.0 Gradle タスク・ビュー > グループ名) 2018.12.23 -@->
+			<!-@- → shadow など翻訳しないようほうが良いグループがあるため廃止
+			<includeTrace className="org.eclipse.buildship.ui.internal.view.task.TaskNameLabelProvider"
+				methodName="getGroupText"/>
+			-@->
+
+			<!-@- 呼び出し元による限定 (Kotlin プロジェクトのツリーラベル：Kotlin ランタイム・ライブラリー) 2017.05.26 -@->
+			<includeTrace className="org.eclipse.jdt.ui.JavaElementLabels"
+				methodName="getStyledContainerEntryLabel"/>
+
+			<!-@- 呼び出し元による限定 (インスタ検索ビュー) 2016.07.15 -@->
+			<includeTrace className="it.unibz.instasearch.ui.ResultLabelProvider"
+				methodName="getStyledText"/>
+
+		</joinPoint>
+		-->
+
+	</pointCut>
+
+	<!-- 通常翻訳 (before・第 1 引数) ニーモニック処理なし 2007.07.16 -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translateIgnoreMnemonic($1, null);
+		]]></advice>
+
+		<!-- スクロール付きラベル（更新マネージャーの説明など） -->
+		<joinPoint className="org.eclipse.ui.forms.widgets.ScrolledFormText" methodName="setText"/>
+
+		<!-- フォームテキスト 2007.05.18 -->
+		<joinPoint className="org.eclipse.ui.forms.widgets.FormText" methodName="setText"/>
+
+	</pointCut>
+
+	<!-- 通常翻訳 (before・第 2 引数) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$2 = ?{Translationz}.translate($2, null);
+		]]></advice>
+
+		<!-- NLS メッセージ・リソースのプロパティー (Eclipse3.2) -->
+		<joinPoint
+			className="org.eclipse.osgi.framework.internal.core.MessageResourceBundle$MessagesProperties"
+			methodName="put"/>
+		<!-- NLS メッセージ・リソースのプロパティー (Eclipse3.3) 2006.12.31 -->
+		<!-- 除外あり に移動 ← Taylor の GEF パレット・タイトルが訳されないため廃止。2008.01.20
+			<excludeTrace className="org.eclipse.gmf.runtime.diagram.ui.providers.DiagramContributionItemProvider"/>
+		-->
+
+		<!-- 警告/エラー・メッセージ 2007.10.20 -->
+		<!-- ResourceBundle#getString では HTTP 500 エラーになるためここでする -->
+		<!--
+		廃止。原因は org.apache.jasper プラグインに含まれる JDT コンパイラの重複のため
+		Pleiades 内部でこの jssper プラグインは AOP から除外するように変更。2008.01.19
+		<joinPoint
+			className="org.eclipse.jdt.internal.compiler.util.HashtableOfInt"
+			methodName="put"/>
+		-->
+
+		<!-- マルチ・エディター・パートのタブ -->
+		<joinPoint
+			className="org.eclipse.ui.part.MultiPageEditorPart"
+			methodName="setPageText"/>
+
+		<!-- 起動時にアクティブにされるプラグイン・リスト（テーブル項目） -->
+		<!-- 3.3M4 以降で起動不可となるため廃止し、get メソッドの after に変更 2007.01.20 -->
+		<!--
+		<joinPoint
+			className="org.eclipse.osgi.framework.util.Headers"
+			methodName="add"/>
+		-->
+
+		<!-- パースペクティブのカスタマイズ - ツール・バー可視性 2014.07.11 -->
+		<joinPoint className="org.eclipse.ui.internal.dialogs.CustomizePerspectiveDialog$DisplayItem"
+			methodName="CustomizePerspectiveDialog$DisplayItem"/>
+
+	</pointCut>
+
+	<!-- 通常翻訳 (before・第 2 引数) -->
+	<!--
+	起動時 MessagesProperties#put は数万回呼び出されるため、スタックトレースが発生する
+	?{JOIN_POINT} は使用せずに advice 内で if 判定する。
+	bundleName は MessagesProperties クラスのフィールド名
+	-->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			if (
+				// JBoss Tools 新規サーバーのサーバー名の Runtime が訳され起動できない対応 2011.10.01
+				!"org.jboss.ide.eclipse.as.core.Messages".equals(bundleName) &&
+				// SAP HANA のシステム作成ウィザードで Wizard#getPage の NPE に対応 2016.10.31
+				!"com.sap.ndb.studio.navigator.i18n.messages".equals(bundleName)
+
+				// プロジェクトの共用 > Git > 作成ボタン > repository 2020.03.28
+				// org.eclipse.egit.ui_*/org/eclipse/egit/ui/internal/uitext.properties
+				// && !"org.eclipse.egit.ui.internal.uitext".equals(bundleName)
+				// → Git リポジトリー・ビューの Remote Tracking などが訳されなくなるため下記に変更
+				// && !"repository".equals($2)
+				// → 「リポジトリー」が選択状態となり手入力用のため、対応不要 2021.10.11
+			)
+				$2 = ?{Translationz}.translate($2, null);
+		]]></advice>
+
+		<joinPoint
+			className="org.eclipse.osgi.util.NLS$MessagesProperties"
+			methodName="put">
+
+			<!-- パッケージ・エクスプローラーへのスニペット貼り付け 2008.12.27 -->
+			<!-- 名前変更リファクタリングのツールチップが訳されなくなるため、%EXCLUDE% に変更。
+			<excludeTrace className="org.eclipse.jdt.internal.ui.refactoring.reorg.PasteAction"/>
+			-->
+
+			<!-- advice 内の if 判定に移動 -->
+			<!--
+			<excludeTrace className="org.jboss.ide.eclipse.as.core.extensions.descriptors.XPathModel"/>
+			-->
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- 通常翻訳 (before・第 4 引数) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$4 = ?{Translationz}.translate($4, null);
+		]]></advice>
+
+		<!-- 設定 - 動的言語 のリンク文 2008.01.01 -->
+		<joinPoint
+			className="org.eclipse.ui.dialogs.PreferenceLinkArea"
+			methodName="PreferenceLinkArea"/>
+
+	</pointCut>
+
+	<!-- ヘルプ翻訳 (before・第 1 引数) InputStream 2008.12.28 -->
+	<!-- 不完全なため廃止 2009.09.10
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translateHelp($1, null);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.help.internal.webapp.servlet.EclipseConnector" methodName="transferContent"/>
+
+	</pointCut>
+	-->
+
+	<!-- ***** メニュー関連 ***** -->
+	<!-- メニュー項目の翻訳 (アクセラレーターのサポート) -->
+	<!-- XML エディターの設計タブの「子の追加」メニューで要素名が訳されるため Action#setText に変更 2007.07.08 -->
+	<!-- 特定のメニューのみ訳すように editPoint="call" で再定義 2007.09.24 -->
+	<!--
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translateMenu($1, null);
+		]]></advice>
+		<joinPoint className="org.eclipse.swt.widgets.MenuItem" methodName="setText"/>
+	</pointCut>
+	-->
+	<pointCut editPoint="execution" timing="before">
+
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translate($1, ?{JOIN_POINT});
+		]]></advice>
+
+		<!-- 子を持たないメニュー要素 -->
+		<joinPoint className="org.eclipse.jface.action.Action" methodName="setText">
+
+			<!-- 除外 (XML エディターの設計タブの「子の追加」メニューで要素名) -->
+			<excludeTrace className="org.eclipse.wst.xml.ui.internal.actions.AbstractNodeActionManager$AddNodeAction"/>
+			<excludeTrace className="org.eclipse.wst.xml.ui.internal.actions.AbstractNodeActionManager$ReplaceNodeAction"/>
+
+			<!-- 除外 (ワーキングセット名) 2007.07.09 -->
+			<excludeTrace className="org.eclipse.ui.internal.actions.SelectWorkingSetsAction"/>
+
+			<!-- 除外 (メニュー - 実行ヒストリー名) 2008.02.23 -->
+			<excludeTrace className="org.eclipse.debug.ui.actions.LaunchAction"/>
+
+			<!-- 除外 (メニュー - ワークスペースの切り替え) 2008.03.16 -->
+			<excludeTrace className="org.eclipse.ui.internal.ide.actions.OpenWorkspaceAction$WorkspaceMRUAction"/>
+
+			<!-- 除外 (メニュー - 外部ツール) 2009.01.03 -->
+			<excludeTrace className="org.eclipse.debug.ui.actions.AbstractLaunchHistoryAction"/>
+
+			<!-- 除外 (プラグイン開発 - 新規要素) 2009.08.01 -->
+			<excludeTrace className="org.eclipse.pde.internal.ui.editor.plugin.NewElementAction"/>
+
+			<!-- 除外 (ヒストリー・ビュー (SVN) - ツールバーの選択プルダウン) 2021.04.07 -->
+			<excludeTrace className="org.eclipse.team.internal.ui.history.GenericHistoryView$NavigationHistoryEntryAction"/>
+
+			<!-- 除外 (Git ステージング・ビューの右上リポジトリー選択プルダウンの要素) 2021.10.11 -->
+			<excludeTrace className="org.eclipse.egit.ui.internal.components.RepositoryMenuUtil"/>
+			
+			<!-- 除外 (RadRails ビューのプルダウンメニュー) 2008.09.15 -->
+			<excludeTrace className="org.rubypeople.rdt.internal.ui.RubyProjectSelectionAction"/>
+			<excludeTrace className="org.radrails.rails.internal.ui.actions.RailsProjectSelectionAction"/>
+			<excludeTrace className="org.radrails.rails.internal.ui.console.RailsShellProjectSelectionAction$RailsProjectAction"/>
+
+			<!-- 除外 (インスタ検索 - フィルタープルダウン項目) 2016.07.12 -->
+			<excludeTrace className="it.unibz.instasearch.ui.SearchViewControl$FieldFilterAction"
+				methodName="addAction"/>
+
+		</joinPoint>
+
+		<!--
+		ワークベンチ・パートのタブ
+		2006.10.07 editPoint="execution" から変更 DbEdit 対応
+		2011.06.19 editPoint="call" から変更 SDE excludeTrace 対応
+		-->
+		<joinPoint className="org.eclipse.ui.part.WorkbenchPart" methodName="setPartName">
+
+			<!-- 呼び出し元による除外（エディターのタブ）2016.08.03 -->
+			<excludeTrace className="org.eclipse.ui.part.EditorPart"/>
+
+			<!-- 呼び出し元による除外（DbEdit テーブル・ビューのタブ） -->
+			<excludeTrace className="dbedit.ui.editor.table.TableEditor" methodName="createPages"/>
+
+			<!-- 呼び出し元による除外（SDE ダイアグラムのタブ） -->
+			<excludeTrace className="v.cbye"/>
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- 日本用ニーモニックを除去して翻訳 / 英日混在用 (before・第 1 引数) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translateWithoutJaMnemonic($1, ?{JOIN_POINT});
+		]]></advice>
+
+		<!-- SWT リンク (Mylyn 設定) 2007.02.08 -->
+		<joinPoint className="org.eclipse.swt.widgets.Link" methodName="setText">
+			<!-- 除外 (ワークスペース選択ダイアログの workspace ディレクトリリンク) 2018.12.22 -->
+			<excludeTrace className="org.eclipse.ui.internal.ide.ChooseWorkspaceDialog"/>
+			<!-- 除外 (DBeaver テーブルエディターの右上テーブル名) 2016.08.15 -->
+			<excludeTrace className="org.jkiss.dbeaver.ui.editors.entity.EntityEditor"/>
+		</joinPoint>
+
+	</pointCut>
+	<!-- ***** /メニュー関連 ***** -->
+
+	<!-- SWT コンボ項目の翻訳 - READ_ONLY のみが対象 -->
+	<pointCut editPoint="execution" timing="before" disabled="true"><!-- ===== disabled 2008.12.08 ===== -->
+		<advice><![CDATA[
+			if ((getStyle() & org.eclipse.swt.SWT.READ_ONLY) != 0)
+				$1 = ?{Translationz}.translateBackupIgnoreMnemonic($1, ?{JOIN_POINT});
+		]]></advice>
+
+		<!-- SWT -->
+		<joinPoint className="org.eclipse.swt.widgets.Combo" methodName="add">
+			<!-- 除外 (DTP SQL エディターのプロファイル選択ダイアログ) 2008.01.12 -->
+			<excludeTrace className="org.eclipse.datatools.sqltools.internal.sqlscrapbook.connection.AbstractConnectionInfoComposite"/>
+			<!-- 除外 (DTP のドライバー定義名、接続名) 2008.01.27 -->
+			<excludeTrace className="org.eclipse.datatools.connectivity.internal.ui.DriverListCombo"/>
+			<excludeTrace className="org.eclipse.jpt.ui.internal.properties.JpaProjectPropertiesPage$ConnectionGroup"/>
+			<!-- 除外 (CDT プロジェクトのプロパティー > 環境 > 構成) 2008.09.15 -->
+			<excludeTrace className="org.eclipse.cdt.ui.newui.AbstractPage"/>
+			<!-- 除外 (RadRails プロジェクト作成ウィザード) 2008.08.02 -->
+			<excludeTrace className="org.radrails.rails.internal.ui.wizards.pages.WizardNewRailsProjectPage"/>
+			<!-- 除外 (RadRails サーバーの追加 > プロジェクト名) 2008.09.15 -->
+			<excludeTrace className="org.radrails.server.ui.dialogs.EditServerDialog"/>
+			<!-- 除外 (3rdRail '必須' カラムの検証の設定 （binary）-->
+			<excludeTrace className="com.codegear.rails.ui.a.gb"/>
+			<!-- 除外 (3rdRail '必須' カラムの検証の設定 （update）-->
+			<excludeTrace className="com.codegear.rails.ui.a.AbstractValidationEditDialog"/>
+		</joinPoint>
+
+		<joinPoint className="org.eclipse.swt.widgets.Combo" methodName="setText">
+			<!-- 除外 (クリーンアップのプロファイル名) 2007.12.16 -->
+			<excludeTrace className="org.eclipse.jdt.internal.ui.preferences.formatter.ProfileConfigurationBlock$ProfileComboController"/>
+			<!-- 除外 (RadRails プロジェクト作成ウィザード) 2008.08.02 -->
+			<excludeTrace className="org.radrails.rails.internal.ui.wizards.pages.WizardNewRailsProjectPage"/>
+			<!-- 除外 (RadRails サーバーの追加 > プロジェクト名) 2008.09.15 -->
+			<excludeTrace className="org.radrails.server.ui.dialogs.EditServerDialog"/>
+			<!-- 除外：3rdRail プロジェクト名が一般用語の場合（例：test） -->
+			<excludeTrace className="com.codegear.rails.ui.a.qb" />
+		</joinPoint>
+
+		<!-- indexOf は setText 内部でも呼び出されているため、setText で除外した場合はこちらも必要 -->
+		<joinPoint className="org.eclipse.swt.widgets.Combo" methodName="indexOf"
+			descriptor="(Ljava/lang/String;I)I">
+			<!-- 除外 (クリーンアップのプロファイル名) 2007.12.16 -->
+			<excludeTrace className="org.eclipse.jdt.internal.ui.preferences.formatter.ProfileConfigurationBlock$ProfileComboController"/>
+			<!-- 除外 (RadRails プロジェクト作成ウィザード) 2008.08.02 -->
+			<excludeTrace className="org.radrails.rails.internal.ui.wizards.pages.WizardNewRailsProjectPage"/>
+			<!-- 除外 (RadRails サーバーの追加 > プロジェクト名) 2008.09.15 -->
+			<excludeTrace className="org.radrails.server.ui.dialogs.EditServerDialog"/>
+			<!-- 除外：3rdRail プロジェクト名が一般用語の場合（例：test） -->
+			<excludeTrace className="com.codegear.rails.ui.a.qb" />
+		</joinPoint>
+
+		<joinPoint className="org.eclipse.swt.widgets.Combo" methodName="setItems">
+			<!-- 除外 (クリーンアップのプロファイル名) 2007.12.16 -->
+			<excludeTrace className="org.eclipse.jdt.internal.ui.preferences.formatter.ProfileConfigurationBlock$ProfileComboController"/>
+			<!-- 除外 (DTP SQL エディターのプロファイル選択ダイアログ) 2008.01.12 -->
+			<excludeTrace className="org.eclipse.datatools.sqltools.internal.sqlscrapbook.connection.AbstractConnectionInfoComposite"/>
+			<!-- 除外 (CDT プロジェクトのプロパティー > 環境 > 構成) 2008.09.15 -->
+			<excludeTrace className="org.eclipse.cdt.managedbuilder.ui.properties.NewCfgDialog$LocalDialog"/>
+			<!-- 除外 (Dolteng scaffold の生成ダイアログのコンボ) 2007.08.17 -->
+			<excludeTrace className="org.seasar.dolteng.eclipse.wigets.OutputLocationDialog"/>
+			<!-- 除外 (RadRails サーバーの追加 > プロジェクト名) 2008.09.15 -->
+			<excludeTrace className="org.radrails.server.ui.dialogs.EditServerDialog"/>
+			<!-- 除外：3rdRail プロジェクト名が一般用語の場合（例：test） -->
+			<excludeTrace className="com.codegear.rails.ui.a.qb" />
+		</joinPoint>
+
+		<!-- SWT カスタム -->
+		<!-- Combo と同じように後で get で復元すると、表示上訳されない 2007.02.10
+		<joinPoint className="org.eclipse.swt.custom.CCombo" methodName="add"/>
+		<joinPoint className="org.eclipse.swt.custom.CCombo" methodName="setText"/>
+		<joinPoint className="org.eclipse.swt.custom.CCombo" methodName="setItems"/>
+		<joinPoint className="org.eclipse.swt.custom.CCombo" methodName="indexOf"/>
+		-->
+	</pointCut>
+
+	<!-- SWT コンボ項目の復元 - READ_ONLY のみが対象 -->
+	<pointCut editPoint="execution" timing="after" disabled="true"><!-- ===== disabled 2008.12.08 ===== -->
+		<advice><![CDATA[
+			if ((getStyle() & org.eclipse.swt.SWT.READ_ONLY) != 0)
+				return ?{Translationz}.restoreBackup($_, null);
+		]]></advice>
+
+		<!-- SWT (Mac OSX では getText(int, int) があるため descriptor を指定 2008.05.01) -->
+		<joinPoint className="org.eclipse.swt.widgets.Combo" methodName="getText"
+			descriptor="()Ljava/lang/String;"/>
+
+		<!-- SWT カスタム -->
+		<!-- Combo と同じように後で get で復元すると、表示上訳されない 2007.02.10
+		<joinPoint className="org.eclipse.swt.custom.CCombo" methodName="getText"/>
+		<joinPoint className="org.eclipse.swt.custom.CCombo" methodName="getItem"/>
+		<joinPoint className="org.eclipse.swt.custom.CCombo" methodName="getItems"/>
+		-->
+	</pointCut>
+
+	<!-- SWT リスト項目の翻訳 -->
+	<!-- SwitchUnit の手入力するクラス接頭部リストが翻訳されてしまうため廃止 -->
+	<!-- Callist のミラーサイトのリストは URLEntryModel や FeatureModel で代替 -->
+	<!--
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$1 = ?{Translationz}.translateBackupIgnoreMnemonic($1, null);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.widgets.List" methodName="add"/>
+		<joinPoint className="org.eclipse.swt.widgets.List" methodName="setText"/>
+		<joinPoint className="org.eclipse.swt.widgets.List" methodName="setItems"/>
+		<joinPoint className="org.eclipse.swt.widgets.List" methodName="indexOf"
+			descriptor="(Ljava/lang/String;I)I"/>
+
+	</pointCut>
+	-->
+
+	<!-- SWT リスト項目の復元 -->
+	<!-- SwitchUnit の手入力するクラス接頭部リストが翻訳されてしまうため廃止 -->
+	<!-- Callist のミラーサイトのリストは URLEntryModel や FeatureModel で代替 -->
+	<!--
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			if ((getStyle() & org.eclipse.swt.SWT.READ_ONLY) != 0)
+				return ?{Translationz}.restoreBackup($_, null);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.swt.widgets.List" methodName="getText"/>
+
+	</pointCut>
+	-->
+
+	<!-- 文章翻訳 (before・第 2 引数) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			$2 = ?{Translationz}.translateSentence($2, null);
+		]]></advice>
+
+		<!-- テーブル項目 -->
+		<!-- 更新先アクセス・サイト一覧で手入力したものも含まれるため SiteBookmark で代替
+		<joinPoint
+			className="org.eclipse.swt.widgets.TableItem"
+			methodName="setText"
+			descriptor="(ILjava/lang/String;)V"/>
+		-->
+
+	</pointCut>
+
+	<!-- マーカー (before・第 2 引数) 2007.07.08 -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			if (org.eclipse.core.resources.IMarker.MESSAGE.equals($1))
+				$2 = ?{Translationz}.translate($2, null);
+		]]></advice>
+
+		<joinPoint
+			className="org.eclipse.core.internal.resources.Marker"
+			methodName="setAttribute"
+			descriptor="(Ljava/lang/String;Ljava/lang/Object;)V"/>
+
+	</pointCut>
+
+	<!-- マーカー (after: 言語サーバーのメッセージ) 2021.04.17 -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			if (org.eclipse.core.resources.IMarker.MESSAGE.equals($1))
+				$_ = ?{Translationz}.translate($_, null);
+			return $_;
+		]]></advice>
+
+		<joinPoint className="org.eclipse.core.internal.resources.Marker"
+			methodName="getAttribute"
+			descriptor="(Ljava/lang/String;)Ljava/lang/Object;"/>
+			
+	</pointCut>
+
+	<!--
+	====================================
+	  after アドバイス
+	====================================
+	-->
+
+	<!-- 通常翻訳 (after) -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			return ?{Translationz}.translate($_, null);
+		]]></advice>
+
+		<!-- JFace -->
+		<!-- PDT プロパティーの一部が訳されないため setTitle に変更 2008.07.19
+		<joinPoint className="org.eclipse.jface.dialogs.DialogPage" methodName="getTitle"/>
+		-->
+		<joinPoint className="org.eclipse.jface.dialogs.DialogPage" methodName="getMessage"/>
+		<joinPoint className="org.eclipse.jface.dialogs.DialogPage" methodName="getDescription"/>
+		<joinPoint className="org.eclipse.jface.wizard.Wizard" methodName="getWindowTitle"/>
+
+		<!-- ワークベンチ・パート（拡張ポイント以外）のタブ -->
+		<!-- 呼び出し元による除外を行うためにeditPoint="call" に変更 2006.10.07
+		<joinPoint className="org.eclipse.ui.part.WorkbenchPart" methodName="getPartName"/>
+		-->
+		<!-- ナビゲータ上部のプロジェクト名が訳されてしまうため廃止 (Label で代替済み) 2007.07.23
+		<joinPoint className="org.eclipse.ui.part.WorkbenchPart" methodName="getContentDescription"/>
+		-->
+
+		<!-- 設定ダイアログのツリー・ノード -->
+		<joinPoint
+			className="org.eclipse.ui.internal.preferences.WorkbenchPreferenceExtensionNode"
+			methodName="getLabelText"/>
+
+		<!-- プロパティー・ダイアログのツリー・ラベル (DBeaver の接続設定) 2016.08.15-->
+		<joinPoint
+			className="org.eclipse.jface.preference.PreferenceLabelProvider"
+			methodName="getText"/>
+
+		<!-- 設定：テンプレートのテーブル・ラベル・プロバイダー -->
+		<!-- テンプレート名は翻訳しない -->
+		<!--
+		<joinPoint
+			className="org.eclipse.ui.texteditor.templates.TemplatePreferencePage$TemplateLabelProvider"
+			methodName="getColumnText"/>
+		-->
+		<!-- 設定：テンプレート一覧の説明列 -->
+		<joinPoint className="org.eclipse.jface.text.templates.Template"
+			methodName="getDescription"/>
+
+		<!-- 設定：色とフォント設定のラベル・プロバイダー -->
+		<joinPoint
+			className="org.eclipse.ui.internal.themes.ColorsAndFontsPreferencePage$PresentationLabelProvider"
+			methodName="getText"/>
+
+		<!-- ビューの表示ダイアログのリスト表示用のラベル・プロバイダー -->
+		<joinPoint
+			className="org.eclipse.ui.internal.dialogs.ViewLabelProvider"
+			methodName="getText"/>
+
+		<!-- パースペクティブのカスタマイズ・ダイアログ1 -->
+		<joinPoint
+			className="org.eclipse.ui.internal.dialogs.CustomizePerspectiveDialog$ActionSetLabelProvider"
+			methodName="getText"/>
+		<joinPoint
+			className="org.eclipse.ui.internal.dialogs.CustomizePerspectiveDialog$ShortcutMenuItemLabelProvider"
+			methodName="getText"/>
+		<!-- ショートカット・タブの説明 2006.10.09 -->
+		<joinPoint
+			className="org.eclipse.ui.internal.dialogs.CustomizePerspectiveDialog$ShortcutMenuItemLabelProvider"
+			methodName="getColumnText"/>
+		<!-- ショートカット・タブ - ビューの表示 - ツリー 2006.10.09 -->
+		<joinPoint
+			className="org.eclipse.ui.internal.dialogs.CustomizePerspectiveDialog$ShortcutMenu"
+			methodName="toString"/>
+		<!-- コマンド・タブの使用可能なコマンド・グループ 2006.10.09 -->
+		<!-- WorkbenchLabelProvider で訳しているが translateSentence であるため。 -->
+		<joinPoint
+			className="org.eclipse.ui.internal.registry.ActionSetDescriptor"
+			methodName="getLabel"/>
+
+		<!-- インポート/エクスポート・ウィザードの選択ツリー 2006.10.09 -->
+		<!-- WorkbenchLabelProvider で訳しているが translateSentence であるため。 -->
+		<joinPoint
+			className="org.eclipse.ui.internal.dialogs.WizardCollectionElement"
+			methodName="getLabel"/>
+		<joinPoint
+			className="org.eclipse.ui.internal.dialogs.WorkbenchWizardElement"
+			methodName="getLabel"/>
+		<joinPoint
+			className="org.eclipse.ui.internal.dialogs.WorkbenchWizardElement"
+			methodName="getDescription"/><!-- クイック・アクセスのダイアログ 2021.04.16 -->
+
+		<!-- コマンド拡張ポイントの name 属性 (org.eclipse.ui.commands.*) -->
+		<joinPoint
+			className="org.eclipse.core.commands.common.NamedHandleObject"
+			methodName="getName"/>
+
+		<!-- ようこその拡張データ（テーブル項目） -->
+		<joinPoint
+			className="org.eclipse.ui.internal.intro.universal.ExtensionData"
+			methodName="getName"/>
+
+		<!-- クイック・アクセスのラベル (Debug) 2021.11.18 -->
+		<joinPoint
+			className="org.eclipse.ui.internal.quickaccess.QuickAccessExtensionManager$QuickAccessProviderExtensionProxy"
+			methodName="getName"/>
+
+		<!-- 実行およびデバッグ起動構成のツリー -->
+		<!-- ユーザーによる起動構成名まで翻訳されるため getDefaultText に変更
+		<joinPoint className="org.eclipse.debug.internal.ui.DelegatingModelPresentation" methodName="getText"/>
+		-->
+		<!-- 実行/デバッグ - パースペクティブ (Eclipse3.3) 2007.02.12 -->
+		<joinPoint className="org.eclipse.debug.internal.ui.DelegatingModelPresentation" methodName="getDefaultText"
+			descriptor="protected"/>
+
+		<!-- ツールバー > デバッグ > [デバッグ]の構成... 2008.10.24 -->
+		<joinPoint className="org.eclipse.debug.internal.ui.launchConfigurations.LaunchGroupExtension" methodName="getLabel"/>
+
+		<!-- 問題フィルターのタイプ・ラベル・プロバイダー -->
+		<joinPoint
+			className="org.eclipse.ui.views.markers.internal.DialogMarkerFilter$TypesLabelProvider"
+			methodName="getColumnText"/>
+
+		<!-- 更新マネージャーのツリー・ラベル・プロバイダー -->
+		<!-- (Eclipse 3.3 以前) -->
+		<joinPoint
+			className="org.eclipse.update.internal.ui.wizards.ReviewPage$TreeLabelProvider"
+			methodName="getText"/>
+		<!-- (Eclipse 3.4) -->
+		<joinPoint
+			className="org.eclipse.equinox.internal.p2.ui.viewers.IUDetailsLabelProvider"
+			methodName="getColumnText"/>
+		<joinPoint
+			className="org.eclipse.equinox.internal.p2.ui.viewers.IUDetailsLabelProvider"
+			methodName="getToolTipText"/>
+		<joinPoint
+			className="org.eclipse.equinox.internal.provisional.p2.ui.viewers.ProvElementLabelProvider"
+			methodName="getColumnText"/>
+		<!-- (Eclipse 3.5) -->
+		<joinPoint
+			className="org.eclipse.equinox.internal.p2.ui.viewers.RepositoryDetailsLabelProvider"
+			methodName="getColumnText"/>
+
+		<!-- 更新マネージャー・ミラーサイトのリスト項目 -->
+		<joinPoint
+			className="org.eclipse.update.core.model.URLEntryModel"
+			methodName="getAnnotation"/>
+
+		<!-- 更新マネージャー・ライセンス・ページのフィーチャー・リスト項目 -->
+		<joinPoint
+			className="org.eclipse.update.core.model.FeatureModel"
+			methodName="getLabel"/>
+
+		<!-- 製品構成のツリー・ラベル・プロバイダー -->
+		<joinPoint
+			className="org.eclipse.update.internal.ui.views.ConfigurationView$LocalSiteLabelProvider"
+			methodName="getText"/>
+
+		<!-- 注釈設定のリスト 2007.11.04 -->
+		<joinPoint
+			className="org.eclipse.ui.texteditor.AnnotationPreference"
+			methodName="getPreferenceLabel"/>
+
+		<!-- タブ付きプロパティー・シートのタブ (Eclpse3.2) 2006.09.22 -->
+		<joinPoint className="org.eclipse.ui.internal.views.properties.tabbed.view.TabDescriptor"
+			methodName="getLabel"/>
+		<joinPoint className="org.eclipse.ui.internal.views.properties.tabbed.view.TabDescriptor"
+			methodName="getText"/>
+		<!-- タブ付きプロパティー・シートの名前列（子）Taylor 2008.01.20 -->
+		<joinPoint className="org.eclipse.emf.edit.provider.ItemPropertyDescriptor"
+			methodName="getDisplayName"/>
+		<joinPoint className="org.eclipse.emf.edit.provider.ItemPropertyDescriptor"
+			methodName="getCategory"/>
+		<joinPoint className="org.eclipse.emf.edit.provider.ItemPropertyDescriptor"
+			methodName="getDescription"/>
+
+		<!-- ようこそ 2006.12.31 -->
+		<joinPoint className="org.eclipse.ui.internal.intro.impl.model.IntroText" methodName="getText"/>
+		<joinPoint className="org.eclipse.ui.internal.intro.impl.model.IntroLink" methodName="getLabel"/>
+		<joinPoint className="org.eclipse.ui.internal.intro.impl.model.IntroGroup" methodName="getLabel"/>
+
+		<!-- パースぺクティブを開くダイアログのリスト (Eclipse3.3) 2007.02.11 -->
+		<joinPoint className="org.eclipse.ui.model.PerspectiveLabelProvider" methodName="getText"/>
+
+		<!-- 垂直ルーラーのツールチップ 2007.09.30 -->
+		<joinPoint className="org.eclipse.ui.texteditor.MarkerUtilities" methodName="getMessage"/>
+
+		<!-- ラベル装飾設定パネル 2007.11.13 -->
+		<joinPoint className="org.eclipse.ui.internal.decorators.DecoratorDefinition" methodName="getName"/>
+
+		<!-- ステータスバーに表示されるジョブ名 2008.09.15 -->
+		<joinPoint className="org.eclipse.core.runtime.jobs.Job" methodName="getName"/>
+
+		<!-- ヘルプ 2008.11.08 -->
+		<joinPoint className="org.eclipse.help.internal.toc.Toc" methodName="getLabel"/>
+		<joinPoint className="org.eclipse.help.internal.Topic" methodName="getLabel"/>
+
+		<!-- 設定およびプロジェクトプロパティーの検証 - バリデーター名 2016.08.03 -->
+		<joinPoint className="org.eclipse.wst.validation.internal.ValidatorMutable" methodName="getName"/>
+
+		<!-- 問題ビュー - 内容の構成 - タイプ - 問題マーカー名 2016.08.03 -->
+		<joinPoint className="org.eclipse.ui.views.markers.internal.MarkerType" methodName="getLabel"/>
+
+		<!-- チーム - モデル - モデル名 2016.09.12 -->
+		<joinPoint
+			className="org.eclipse.team.internal.ui.mapping.ModelEnablementPreferencePage$2"
+			methodName="getText"/>
+
+		<!-- Mylyn リポジトリー追加ウィザードのリスト 2007.02.08 -->
+		<joinPoint
+			className="org.eclipse.mylyn.internal.tasks.ui.views.TaskRepositoryLabelProvider"
+			methodName="getText"/>
+		<!-- Mylyn リポジトリー・アクティビティー・ビュー 2007.02.10 -->
+		<joinPoint className="org.eclipse.mylyn.tasks.core.AbstractTaskContainer" methodName="getSummary"/>
+		<!-- Mylyn タスク・リスト・ビュー 2007.07.08 -->
+		<joinPoint className="org.eclipse.mylyn.internal.tasks.core.UnfiledCategory" methodName="getSummary"/>
+		<joinPoint className="org.eclipse.mylyn.internal.tasks.core.TaskArchive" methodName="getSummary"/>
+		<!-- Mylyn タスク・リスト・ビュー 2008.02.26 -->
+		<joinPoint className="org.eclipse.mylyn.internal.tasks.core.UncategorizedTaskContainer" methodName="getSummary"/>
+		<!-- Mylyn タスク・リスト・ビュー - コンテキストメニュー - スケジュール 2008.07.14 -->
+		<joinPoint className="org.eclipse.mylyn.internal.tasks.core.DateRange" methodName="toString"/>
+
+		<!-- CDT プロジェクト作成ウィザード、プロジェクト・タイプのツリー 2008.01.22 -->
+		<joinPoint className="org.eclipse.cdt.ui.wizards.EntryDescriptor" methodName="getName"/>
+
+		<!-- BIRT パラメーター作成ダイアログのコンボ 2007.04.18 -->
+		<joinPoint className="org.eclipse.birt.core.i18n.ResourceHandle" methodName="getMessage"/>
+
+		<!-- ハイパーリンク設定のテーブル 2007.07.08 -->
+		<joinPoint
+			className="org.eclipse.ui.internal.editors.text.HyperlinkDetectorsConfigurationBlock$ItemLabelProvider"
+			methodName="getColumnText"/>
+
+		<!-- パースペクティブ設定のテーブル 2007.07.08 -->
+		<joinPoint
+			className="org.eclipse.ui.internal.registry.PerspectiveDescriptor"
+			methodName="getLabel"/>
+
+		<!-- ファイルを開くときのエディター選択ダイアログの一覧 2016.08.24 -->
+		<joinPoint
+			className="org.eclipse.ui.internal.registry.EditorDescriptor"
+			methodName="getLabel"/>
+
+		<!-- DSDP ターゲット管理 - 設定 - リモートシステム 2007.09.30 -->
+		<joinPoint className="org.eclipse.rse.core.AbstractRSESystemType" methodName="getLabel"/>
+		<joinPoint className="org.eclipse.rse.core.AbstractRSESystemType" methodName="getDescription"/>
+
+		<!-- DLTK - Javascript - エディター - 構文の色指定 - ツリー 2008.01.01 -->
+		<joinPoint
+			className="org.eclipse.dltk.ui.preferences.AbstractScriptEditorColoringConfigurationBlock$ColorListLabelProvider"
+			methodName="getText"/>
+
+		<!-- PHP - プロジェクトのプロパティー - ライブラリー名 (PHP 言語ライブラリー) 2008.07.20 -->
+		<!-- クラス名変更 2016.08.20 -->
+		<joinPoint
+			className="org.eclipse.php.internal.core.language.LanguageModelContainer"
+			methodName="getDescription"/>
+
+		<!-- PHP - プロジェクトのプロパティー - ライブラリー名 (コア API) 2016.08.20 -->
+		<joinPoint
+			className="org.eclipse.php.internal.core.language.DefaultLanguageModelProvider"
+			methodName="getName"/>
+
+		<!-- JST JSP タグレジストリーの順序設定 2008.06.15 -->
+		<joinPoint
+			className="org.eclipse.jst.jsf.ui.internal.preferences.JSPTagRegistryPreferencePage$MyLabelProvider"
+			methodName="getColumnText"/>
+
+		<!-- ICU MessageFormat 翻訳 format(String, Object[]) 2007.09.29 -->
+		<!-- Java 階層ビューの階層タイトルのクラス名が訳されるため廃止 2007.10.20 -->
+		<!--
+		<joinPoint className="com.ibm.icu.text.MessageFormat" methodName="format"
+			descriptor="(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;"/>
+		-->
+
+		<!-- QuickREx の正規表現ライブラリー・ビュー -->
+		<joinPoint className="de.babe.eclipse.plugins.quickREx.objects.RELibraryEntry" methodName="getTitle"/>
+		<joinPoint className="de.babe.eclipse.plugins.quickREx.objects.RELibraryEntry" methodName="getDescription"/>
+		<joinPoint className="de.babe.eclipse.plugins.quickREx.objects.RECategory" methodName="getName"/>
+
+		<!-- RDT の評価式テンプレート -->
+		<joinPoint className="org.rubypeople.rdt.internal.debug.ui.evaluation.EvaluationExpressionReaderWriter"
+			methodName="translateString"/>
+
+		<!-- RDT "Ruby System Library" 2008.09.15 -->
+		<joinPoint className="org.rubypeople.rdt.internal.launching.RubyVMContainer" methodName="getDescription"/>
+
+		<!-- Tikal Update Manager のツリーラベル 2006.09.24 -->
+		<joinPoint className="com.tikal.eclipse.updatemanager.ui.CategoriesComposite$InfoLabelProvider"
+			methodName="getText"/>
+		<joinPoint className="com.tikal.eclipse.updatemanager.ui.CategoriesComposite$ListLabelProvider"
+			methodName="getText"/>
+		<joinPoint className="com.tikal.eclipse.updatemanager.ui.InstallComposite$ListLabelProvider"
+			methodName="getText"/>
+		<joinPoint className="com.tikal.eclipse.updatemanager.ui.QueueComposite$TreeLabelProvider"
+			methodName="getText"/>
+		<joinPoint className="com.tikal.eclipse.updatemanager.ui.RemoveComposite$ListLabelProvider"
+			methodName="getText"/>
+		<joinPoint className="com.tikal.eclipse.updatemanager.ui.ReposComposite$ListLabelProvider"
+			methodName="getText"/>
+		<joinPoint className="com.tikal.eclipse.updatemanager.ui.UpdateComposite$ListLabelProvider"
+			methodName="getText"/>
+
+		<!-- XMind プロパティー・ビューのコンボ選択時 2008.11.29 -->
+		<joinPoint className="org.xmind.ui.internal.properties.DecorationLabelProvider"
+			methodName="getText"/>
+		<joinPoint className="org.xmind.ui.internal.properties.StructurePropertySectionPart$BranchPolicyLabelProvider"
+			methodName="getText"/>
+		<joinPoint className="org.xmind.ui.internal.properties.NumberingPropertySectionPart$NumberFormatLabelProvider"
+			methodName="getText"/>
+
+		<!-- JD-Eclipse の "Attach Source..." Action (匿名クラスの匿名クラス) 2012.08.11 -->
+		<joinPoint className="jd.ide.eclipse.realignment.menu.OpenClassWith$1$2"
+			methodName="getText"/>
+
+		<!-- Gradle IDE のパッケージ・エクスプローラー Gralde 依存関係 2014.09.23 -->
+		<joinPoint className="org.springsource.ide.eclipse.gradle.core.classpathcontainer.GradleClassPathContainer"
+			methodName="getDescription"/>
+
+		<!-- Buildship 2.0 Gradle タスク・ビュー 2015.06.23 -->
+		<joinPoint className="org.eclipse.buildship.ui.view.task.TaskDescriptionLabelProvider"
+			methodName="getText"/>
+		<joinPoint className="org.eclipse.buildship.core.workspace.internal.GradleClasspathContainerInitializer$GradleClasspathContainer"
+			methodName="getDescription"/>
+
+		<!-- Buildship 3.0 Gradle タスク・ビュー 2018.12.23 -->
+		<joinPoint className="org.eclipse.buildship.ui.internal.view.task.TaskDescriptionLabelProvider"
+			methodName="getText"/>
+
+		<!-- Spring IDE の入門コンテンツ・インポート・ウィザードの一覧 2016.04.19 -->
+		<joinPoint className="org.springframework.ide.eclipse.wizard.gettingstarted.content.GettingStartedGuide"
+			methodName="getDisplayName"/>
+		<joinPoint className="org.springframework.ide.eclipse.wizard.gettingstarted.content.ContentType"
+			methodName="getDisplayName"/>
+
+		<!-- STS4 Boot ダッシュボードのリンク 2019.03.14 -->
+		<joinPoint className="org.springframework.ide.eclipse.boot.dash.model.BootDashHyperlink"
+			methodName="getLabel"/>
+			
+		<!-- STS4 Boot ダッシュボードのフィルター 2021.06.22 -->
+		<joinPoint className="org.springframework.ide.eclipse.boot.dash.model.ToggleFiltersModel$FilterChoice"
+			methodName="getLabel"/>
+		<joinPoint className="org.springframework.ide.eclipse.boot.dash.model.ToggleFiltersModel$FilterChoice"
+			methodName="getDescription"/>
+
+		<!-- STS4 Ctrl + 3 > "Show live data for:" 2021.11.09 -->
+		<joinPoint className="org.springframework.tooling.boot.ls.commands.LiveProcessCommandElement"
+			methodName="getLabel"/>
+
+	</pointCut>
+
+	<!-- 通常翻訳 (after) 呼び出しトレースによる除外付き -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			return ?{Translationz}.translate($_, ?{JOIN_POINT});
+		]]></advice>
+
+		<!-- ワークベンチ・パート（拡張ポイント）のタブ 追加 2006.10.08 -->
+		<joinPoint className="org.eclipse.ui.internal.WorkbenchPartReference" methodName="getPartName">
+
+			<!-- 呼び出しトレースによる除外：DbEdit テーブル・ビューのタブ -->
+			<excludeTrace className="dbedit.ui.editor.table.OpenEditorAction"/>
+
+			<!-- 呼び出しトレースによる除外：SDE ダイアグラムのタブ -->
+			<excludeTrace className="v.cbye"/>
+
+		</joinPoint>
+
+		<!-- GEF パレット -->
+		<joinPoint className="org.eclipse.gef.palette.PaletteEntry" methodName="getDescription"/>
+		<joinPoint className="org.eclipse.gef.palette.PaletteEntry" methodName="getLabel">
+
+			<!-- 呼び出しトレースによる除外：JBossTools のパレット 2007.12.30 -->
+			<excludeTrace className="org.jboss.tools.vpe.ui.palette.PaletteAdapter"/>
+
+			<!-- 呼び出しトレースによる除外：VE のパレット 2008.07.19 -->
+			<excludeTrace className="org.eclipse.ve.internal.java.codegen.editorpart.JavaVisualEditorPart"/>
+
+			<!-- 呼び出しトレースによる除外：DBeaver ダイアグラムの左側テーブル一覧  2016.08.26 -->
+			<excludeTrace className="org.jkiss.dbeaver.ext.erd.editor.ERDGraphicalViewer"/>
+
+		</joinPoint>
+
+	</pointCut>
+
+	<!-- 通常翻訳 (after) バンドル名のみ 追加 2007.01.20 -->
+	<!-- 起動時にアクティブにされるプラグイン・リスト（テーブル項目） -->
+	<!-- → リスト表示に使用されていないため廃止 (起動高速化) 2021.09.24
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			if ("Bundle-Name".equals($1))
+				return ?{Translationz}.translate($_, null);
+		]]></advice>
+
+		<joinPoint
+			className="org.eclipse.osgi.framework.util.Headers"
+			methodName="get"/>
+
+	</pointCut>
+	-->
+
+	<!-- 通常翻訳 (after) 進捗状況ビュー、デバッグ・ビューのタブラベル対応 追加 2012.07.08 -->
+	<!--  ⇒ [#64557] プロジェクト作成でエラーになるため Progress, Debug に限定 2012.08.04 -->
+	<!--  ⇒ [#65706] CPP でデバッグになるため org.eclipse.ui.internal.util.Util#safeString に変更 2012.10.03 -->
+	<!--
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			if ("name".equals($1) && ("Progress".equals($_) || "Debug".equals($_)))
+				return ?{Translationz}.translate($_, null);
+		]]></advice>
+
+		<joinPoint
+			className="org.eclipse.core.internal.registry.ConfigurationElementHandle"
+			methodName="getAttribute"/>
+
+	</pointCut>
+	-->
+
+	<!-- 文章翻訳 (after) -->
+	<!-- クラス・エディターでエラーになるため拡張子を表す文字列は除外 ExtensionsParser (*.class with resource) 2012.08.22 -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			if ($_ == null || $_.startsWith("*.")) return $_;
+			return ?{Translationz}.translateSentence($_, null);
+		]]></advice>
+
+		<!-- プラグイン拡張ポイントの翻訳 -->
+		<!-- translate にするとプロジェクトが開けなくなる -->
+		<!-- エディター右クリックメニューの単語が翻訳されないため ConfigurationElement に変更 2016.07.01
+		<joinPoint
+			className="org.eclipse.core.internal.registry.ExtensionsParser"
+			methodName="translate"/>
+		-->
+
+		<!-- ナビゲーター・ビューの "Log Files" などが訳されるため廃止
+			 無くてもパースペクティブのカスタマイズ・ダイアログは訳される 2008.01.12
+		<joinPoint
+			className="org.eclipse.ui.model.WorkbenchLabelProvider"
+			methodName="getText"/>
+		-->
+
+	</pointCut>
+
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			return ?{Translationz}.translateSentence($_, null);
+		]]></advice>
+
+		<!-- パースペクティブのカスタマイズ・ダイアログ2 -->
+		<!-- translate にするとパッケージ・エクスプローラー・ツリーが訳される -->
+		<joinPoint
+			className="org.eclipse.jface.viewers.LabelProvider"
+			methodName="getText"/>
+
+		<!-- Gradle IDE の Gradle ビューのタスク説明 (空白が無い場合はタスク名とみなし除外) 2015.05.28 -->
+		<joinPoint className="org.springsource.ide.eclipse.gradle.ui.taskview.TaskLabelProvider"
+			methodName="getColumnText"
+			descriptor="(Ljava/lang/Object;I)Ljava/lang/String;"/>
+
+		<!-- エラー・ログ・ビューのメッセージ 2016.07.14 -->
+		<joinPoint className="org.eclipse.ui.internal.views.log.LogEntry" methodName="getMessage"/>
+
+	</pointCut>
+
+	<!-- プラグイン拡張ポイント：コマンドメニューのラベルなど (ExtensionsParser から変更) 2016.07.01 -->
+	<pointCut editPoint="execution" timing="after">
+		<!--
+		・クラス・エディターでエラーになるため拡張子を表す文字列は除外 (*.class with resource や *.class with source)
+		・plugin.xml に定義された属性名が "label" の場合は通常翻訳
+		・"label" 以外は文章翻訳
+		-->
+		<advice><![CDATA[
+			if ($_ == null || $_.startsWith("*.class with")) return $_;
+			if ("label".equals($1)) return ?{Translationz}.translate($_, null);
+			return ?{Translationz}.translateSentence($_, null);
+		]]></advice>
+
+		<joinPoint className="org.eclipse.core.internal.registry.ConfigurationElement"
+			methodName="getAttribute"/>
+
+	</pointCut>
+
+	<!-- 更新サイト名 (after)。isReadOnly つまり編集不可のもののみ。 -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			if (isReadOnly())
+				return ?{Translationz}.translate($_, null);
+		]]></advice>
+
+		<joinPoint
+			className="org.eclipse.update.internal.ui.model.SiteBookmark"
+			methodName="getLabel"/>
+
+	</pointCut>
+
+	<!-- 通常復元 (after) -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			return ?{Translationz}.restoreBackup($_, null);
+		]]></advice>
+
+		<!-- Mylyn の SWT.RADIO の場合、ラベル文字列での判定対応 2007.02.09 -->
+		<joinPoint className="org.eclipse.swt.widgets.Button" methodName="getText"/>
+
+	</pointCut>
+
+	<!--
+	###########################################################################
+	  デバッグ
+	###########################################################################
+	-->
+
+	<!-- 時間計測ログ -->
+	<pointCut editPoint="call" timing="around" level="debug">
+		<advice><![CDATA[
+			?{Analyses}.start(?{TARGET_STRING});
+			$_ = $proceed($$);
+			?{Analyses}.end(?{TARGET_STRING});
+		]]></advice>
+
+		<joinPoint className="jp.sourceforge.mergedoc.pleiades"/>
+
+	</pointCut>
+
+	<!-- デバッグ (before) [呼び出し部分] -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			?{Translationz}.debug($1, ?{JOIN_POINT});
+			$_ = $proceed($$);
+		]]></advice>
+	</pointCut>
+
+	<!-- デバッグ (after) [呼び出し部分] -->
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$_ = $proceed($$);
+			?{Translationz}.debug($_, ?{JOIN_POINT});
+		]]></advice>
+	</pointCut>
+
+	<!-- デバッグ (before-after) [呼び出し部分] -->
+	<!--
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			?{Translationz}.debug($1, ?{JOIN_POINT});
+			$_ = $proceed($$);
+			?{Translationz}.debug($_, ?{JOIN_POINT});
+		]]></advice>
+		<joinPoint className="org.eclipse.core.internal.registry.ExtensionsParser"
+			methodName="translate"
+			descriptor="(Ljava/lang/String;)Ljava/lang/String;"/>
+	</pointCut>
+	-->
+
+	<!-- デバッグ (after) [呼び出し部分] -->
+	<!--
+	<pointCut editPoint="call" timing="around">
+		<advice><![CDATA[
+			$_ = $proceed($$);
+			if ($1.toLowerCase().startsWith("preferencekeywords."))
+				?{Translationz}.debug($_, ?{JOIN_POINT}, $1);
+		]]></advice>
+		<joinPoint className="java.util.ResourceBundle" methodName="getString">
+			<includeWhere className="org.eclipse.core.internal.runtime.ResourceTranslator" methodName="getResourceString"/>
+		</joinPoint>
+	</pointCut>
+	-->
+
+	<!-- デバッグ (before・引数指定なし) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			?{Translationz}.debug(null, ?{JOIN_POINT});
+		]]></advice>
+	</pointCut>
+
+	<!-- デバッグ (before・第 1 引数) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			?{Translationz}.debug($1, ?{JOIN_POINT});
+		]]></advice>
+	</pointCut>
+
+	<!-- デバッグ (before・第 2 引数) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			?{Translationz}.debug($2, ?{JOIN_POINT});
+		]]></advice>
+	</pointCut>
+
+	<!-- デバッグ (before・第 3 引数) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			?{Translationz}.debug($3, ?{JOIN_POINT});
+		]]></advice>
+	</pointCut>
+
+	<!-- デバッグ (before・第 4 引数) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			?{Translationz}.debug($4, ?{JOIN_POINT});
+		]]></advice>
+	</pointCut>
+
+	<!-- デバッグ (after) -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			?{Translationz}.debug($_, ?{JOIN_POINT});
+			return $_;
+		]]></advice>
+	</pointCut>
+
+	<!-- スタックトレース (after) -->
+	<pointCut editPoint="execution" timing="after">
+		<advice><![CDATA[
+			?{Translationz}.printStackTrace($_, ?{JOIN_POINT});
+			return $_;
+		]]></advice>
+	</pointCut>
+
+	<!-- スタックトレース (before) -->
+	<pointCut editPoint="execution" timing="before">
+		<advice><![CDATA[
+			?{Translationz}.printStackTrace($1, ?{JOIN_POINT});
+		]]></advice>
+	</pointCut>
+
+	<!--
+	###########################################################################
+	  翻訳トレース (Pleiades 起動オプション debug 時のみ有効)
+	###########################################################################
+	TraceConfig 参照
+	-->
+
+	<trace>
+		<param name="pattern" value=""/>
+		<param name="is.ja" value="false"/>
+		<param name="disabled" value="false"/>
+		<param name="desc.class" value=""/>
+	</trace>
+
+</pleiades>
