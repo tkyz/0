@@ -1,0 +1,1117 @@
+#!/bin/bash
+: << 'END_OF_BATCH'
+@rem ================================ windows batch [ms932, crlf] ================================
+@echo off
+setlocal
+
+  cd /d "%USERPROFILE%"
+
+  set dist=debian
+
+  wsl --unregister %dist%
+  wsl --set-default-version 2
+  wsl --install --distribution %dist%
+
+  echo.
+  echo 1. このwindow(a)とは別にwslのwindow(b)が起動します。
+  echo 2. window(a)はこのままにして、window(b)に"Enter new UNIX username:"が表示されるまで待機してください。
+  echo 3. 2のメッセージが表示されたらwindow(b)で[ctrl+c]を押して中断するか、xボタンを押して閉じてください。
+  echo 4. window(a)で何かキーを押してください。
+  echo 待機中...
+  pause > nul
+
+  wsl --terminate    %dist%
+  wsl --set-version  %dist% 2
+  wsl --distribution %dist% -- sed -i 's#:/root:#:/mnt/c/Users/%USERNAME%:#' /etc/passwd
+: wsl --distribution %dist% -- ^( curl https://setup.0 ^|^| curl https://raw.githubusercontent.com/tkyz/0/main/setup ^) ^| bash
+  wsl --distribution %dist% -- $^(wslpath -u %~0^)
+  wsl --terminate    %dist%
+
+endlocal
+exit /b
+END_OF_BATCH
+# ================================ linux shell script [utf8, lf] ================================
+set -o errexit
+set -o nounset
+set -o pipefail
+shopt -s expand_aliases
+
+source /etc/os-release
+test 'debian' == "${ID_LIKE:-${ID}}"
+test 'bash'   == "${SHELL##*/}"
+
+# sudo
+if [[ '0' == "$(id -u)" ]]; then
+  readonly SUDO=
+elif type sudo &> /dev/null && sudo -v -n > /dev/null; then
+  readonly SUDO=sudo
+else
+  sudo -k
+  false
+fi
+
+export   DEBIAN_FRONTEND=noninteractive
+export   KIND_EXPERIMENTAL_PROVIDER=podman
+
+readonly DEBIAN_FRONTEND
+readonly KIND_EXPERIMENTAL_PROVIDER
+readonly arch="$(dpkg --print-architecture)"
+readonly context='latest'
+readonly external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | sort | head -n 1)"
+readonly resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
+readonly tld="$(cat "${HOME}/.tld" 2> /dev/null || hostname -d)"
+readonly setup_yml="$(cat << EOS
+0:
+
+  # TODO: checksum
+  opt:
+    # https://kind.sigs.k8s.io/docs/user/quick-start/#installing-from-release-binaries
+    io.k8s.sigs.kind:
+      - {type: raw,           url: https://kind.sigs.k8s.io/dl/v0.26.0/kind-linux-amd64}
+#     - {type: raw,           url: https://kind.sigs.k8s.io/dl/v0.26.0/kind-windows-amd64}
+    # https://docs.usacloud.jp/usacloud/installation/start_guide/
+    jp.usacloud:
+      - {type: zip, depth: 0, url: https://github.com/sacloud/usacloud/releases/latest/download/usacloud_linux-${arch}.zip}
+    org.eclipse:
+      - {type: tgz, depth: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2024-12/R/eclipse-java-2024-12-R-linux-gtk-x86_64.tar.gz&mirror_id=1}
+#     - {type: tgz, depth: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2024-12/R/eclipse-java-2024-12-R-win32-x86_64.zip&mirror_id=1}
+      - {type: zip, depth: 0, url: https://ftp.jaist.ac.jp/pub/mergedoc/pleiades/build/stable/pleiades.zip}
+    net.java.jdk:
+#     - {type: tgz, depth: 1, url: https://download.java.net/java/GA/jdk9/9.0.4/binaries/openjdk-9.0.4_linux-x64_bin.tar.gz}
+#     - {type: zip, depth: 1, url: https://download.java.net/java/GA/jdk9/9.0.4/binaries/openjdk-9.0.4_windows-x64_bin.tar.gz}
+#     - {type: tgz, depth: 1, url: https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz}
+#     - {type: zip, depth: 1, url: https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_windows-x64_bin.zip}
+      - {type: tgz, depth: 1, url: https://download.java.net/java/GA/jdk23/3c5b90190c68498b986a97f276efd28a/37/GPL/openjdk-23_linux-x64_bin.tar.gz}
+#     - {type: zip, depth: 1, url: https://download.java.net/java/GA/jdk23/3c5b90190c68498b986a97f276efd28a/37/GPL/openjdk-23_windows-x64_bin.zip}
+      - {type: tgz, depth: 1, url: https://download.java.net/java/GA/javafx23/343fae14109c42b09c0437fc90a10d4b/29/openjfx-23_linux-x64_bin-sdk.tar.gz}
+#     - {type: zip, depth: 1, url: https://download.java.net/java/GA/javafx23/343fae14109c42b09c0437fc90a10d4b/29/openjfx-23_windows-x64_bin-sdk.zip}
+    com.visualstudio.code:
+      - {type: zip, depth: 1, url: https://code.visualstudio.com/sha/download?build=stable&os=linux-x64}
+#     - {type: zip, depth: 1, url: https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive}
+    io.dbeaver:
+      - {type: tgz, depth: 1, url: https://dbeaver.io/files/dbeaver-ce-latest-linux.gtk.x86_64-nojdk.tar.gz}
+#     - {type: zip, depth: 1, url: https://dbeaver.io/files/dbeaver-ce-latest-win32.win32.x86_64.zip}
+    org.apache.ant:
+      - {type: tgz, depth: 1, url: https://dlcdn.apache.org/ant/binaries/apache-ant-1.10.15-bin.tar.gz}
+    org.apache.maven:
+      - {type: tgz, depth: 1, url: https://dlcdn.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz}
+    org.apache.ivy:
+      - {type: tgz, depth: 1, url: https://dlcdn.apache.org/ant/ivy/2.5.2/apache-ivy-2.5.2-bin.tar.gz}
+    org.squirrelsql:
+      - {type: zip, depth: 1, url: https://sourceforge.net/projects/squirrel-sql/files/1-stable/4.7.1-plainzip/squirrelsql-4.7.1-standard.zip}
+#     - {type: raw,           url: http://sourceforge.net/p/squirrel-sql/git/ci/cf32722c6974108e5fdddff1c53d519205347617/tree/sql12/squirrelsql-translations/src/main/resources/squirrel-sql_ja_JP.jar?format=raw}
+    org.embulk:
+      - {type: raw,           url: https://dl.embulk.org/embulk-latest.jar}
+
+  k8s:
+    - 0.dns
+    - 0.ntp
+    - 0.pgsql
+    - 0.mariadb
+    - 0.redis
+    - 0.git
+    - 0.container
+    - 0.apt
+    - 0.mvn
+    - 0.doc
+    - 0.pub
+    - 0.minecraft
+    - 0.btc
+    - 0.eth
+EOS
+)"
+
+#----------------------------------------------------------------
+# func
+
+function is_cmd() {
+  test 'file' == "$(type -t "${1}" || ${SUDO} bash -c "type -t '${1}'" || true)"
+} &> /dev/null
+
+function is_func() {
+  test 'function' == "$(type -t "${1}" || true)"
+} &> /dev/null
+
+function is_deb() {
+# test 'debian' == "${ID_LIKE}" ||
+  test 'debian' == "${ID}"
+} &> /dev/null
+
+# 重複: ./bin/is_container
+function is_container() {
+  test 'podman' == "${container:-}" ||
+  test -f '/run/.containerenv' ||
+  test -f '/.dockerenv' ||
+  test "$(cat '/proc/1/cgroup')" == '0::/' ||
+  test "$(cat '/proc/1/cgroup')" == '0::/system.slice/containerd.service'
+} &> /dev/null
+
+# 重複: ./bin/is_wsl
+function is_wsl() {
+  test -v WSLENV &&
+  type wslpath
+} &> /dev/null
+
+# 重複: ./bin/is_x11
+function is_x11() {
+  test -v DISPLAY
+} &> /dev/null
+
+# envsubst
+function env_replace() {
+  sed \
+    -e "s|\${HOME}|${HOME}|g" \
+    -e "s|\${context}|${context}|g" \
+    -e "s|\${external_ip}|${external_ip}|g" \
+    -e "s|\${tld}|${tld}|g" \
+    -e "s|\${resolve}|${resolve}|g"
+}
+
+function git_remote_set() {
+  (
+    name="${1}"
+    uri="${2}"
+    git remote add "${name}" "${uri}" 2> /dev/null || git remote set-url "${name}" "${uri}"
+  )
+}
+
+function fpr_list() {
+  {
+    echo "${openpgp4fpr}"
+    find "./src/0.fpr" -mindepth 1 -maxdepth 1 -type d | sed 's#.*/##g'
+    find "./src/0.gpw" -mindepth 1 -maxdepth 1 -type f | sed 's#.*/##g'
+#   gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10
+    gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10
+  } | grep -iE '^[0-9a-f]{40}$' | sort -u
+}
+
+function license() {
+  cat << EOS > './LICENSE'
+MIT License
+
+Copyright (c) $(date +'%Y') fpr:${openpgp4fpr}
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+EOS
+}
+
+#----------------------------------------------------------------
+# setup
+
+function _etc() {
+
+  # /etc/wsl.conf
+  if is_wsl; then
+    cat << EOS | ${SUDO} tee /etc/wsl.conf > /dev/null
+[automount]
+options            = "uid=0,gid=0,umask=0077,fmask=0177,metadata"
+[network]
+#generateResolvConf = false
+[interop]
+enabled            = false
+appendWindowsPath  = false
+[user]
+default            = root
+EOS
+  fi
+
+  # /etc/default/keyboard
+  cat << EOS | ${SUDO} tee /etc/default/keyboard > /dev/null
+XKBMODEL=pc105
+XKBLAYOUT=jp
+XKBVARIANT=
+XKBOPTIONS=ctrl:nocaps
+BACKSPACE=guess
+EOS
+
+  # /etc/apt/apt.conf.d/00default
+  if is_deb; then
+    echo 'APT::Default-Release "stable";' | ${SUDO} tee /etc/apt/apt.conf.d/00default > /dev/null
+  fi
+
+  # /etc/apt/sources.list
+  if is_deb; then
+    cat << EOS | ${SUDO} tee /etc/apt/sources.list > /dev/null
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb     http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+EOS
+  fi
+
+  ${SUDO} sysctl --write fs.inotify.max_user_instances=1024 #  128
+  ${SUDO} sysctl --write fs.inotify.max_user_watches=65536  # 8192
+
+}
+
+function _apt() {
+  (
+
+    arr=()
+    arr+=('gnupg2')
+    arr+=('uuid-runtime')
+    arr+=('git')
+    arr+=('curl')
+    arr+=('faketime')
+
+    ${SUDO} apt-get update
+    ${SUDO} apt-get upgrade -y
+    ${SUDO} apt-get install -y "${arr[@]}"
+
+  )
+}
+
+function _fpr() {
+  (
+    if [[ ! -v openpgp4fpr ]]; then
+
+#     export GNUPGHOME="$(mktemp -d)"
+
+      gpg_dir="${GNUPGHOME:-${HOME}/.gnupg}"
+      mkdir -p "${gpg_dir}"
+
+      gpg_conf="${gpg_dir}/gpg.conf"
+      touch "${gpg_conf}"
+
+      openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
+      if [[ -z "${openpgp4fpr}" || '0000000000000000000000000000000000000000' == "${openpgp4fpr}" ]]; then
+        openpgp4fpr="$(gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | sort | head -n 1 || true)"
+      fi
+
+      # generate
+      if [[ -z "${openpgp4fpr}" ]]; then
+
+        tmp_uuid="$(uuidgen)"
+        passphrase=''
+
+        unix_epoch='1970-01-01 00:00:00'
+        export TZ='utc'
+
+        faketime -f "${unix_epoch}" gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-generate-key "${tmp_uuid}" ed25519 sign,cert 0
+
+        openpgp4fpr="$(gpg --with-colons --list-secret-keys "=${tmp_uuid}" 2> /dev/null | grep ^fpr | cut -d ':' -f 10)"
+
+        faketime -f "${unix_epoch}" gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key    "0x${openpgp4fpr}" ed25519 sign 0
+#       faketime -f "${unix_epoch}" gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key    "0x${openpgp4fpr}" ed25519 cert 0
+        faketime -f "${unix_epoch}" gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key    "0x${openpgp4fpr}" cv25519 encr 0
+        faketime -f "${unix_epoch}" gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key    "0x${openpgp4fpr}" ed25519 auth 0
+
+        faketime -f "${unix_epoch}" gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    "0x${openpgp4fpr}" "${openpgp4fpr}"
+#       faketime -f "${unix_epoch}" gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    "0x${openpgp4fpr}" "${USER:-}@$(hostname -f)"
+        faketime -f "${unix_epoch}" gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-revoke-uid "0x${openpgp4fpr}" "${tmp_uuid}"
+
+      fi
+
+      # default
+      ! grep -q default-key       "${gpg_conf}" && echo "default-key       0x${openpgp4fpr}" >> "${gpg_conf}"
+      ! grep -q default-recipient "${gpg_conf}" && echo "default-recipient 0x${openpgp4fpr}" >> "${gpg_conf}"
+      sed -i -r -e "s/^(default-key).*/\1       0x${openpgp4fpr}/g" "${gpg_conf}"
+      sed -i -r -e "s/^(default-recipient).*/\1 0x${openpgp4fpr}/g" "${gpg_conf}"
+
+      license
+
+      # fpr
+      fpr_list | while read fpr; do
+
+        uri="openpgp4fpr:${fpr}"
+        echo "${uri}"
+
+        fpr_dir="./src/0.fpr/${fpr}"
+        gpg_pub="${fpr_dir}/pub"
+
+        mkdir -p "${fpr_dir}"
+        test -v gpg_key && gpg --with-colons --list-secret-keys "0x${fpr}" &> /dev/null && gpg --export-secret-keys         --output "${gpg_key}" --yes "0x${fpr}"
+        test -v gpg_pub && gpg --with-colons --list-keys        "0x${fpr}" &> /dev/null && gpg --export             --armor --output "${gpg_pub}" --yes "0x${fpr}"
+        test -v gpg_key && test -f "${gpg_key}"                                         && gpg --import "${gpg_key}"
+        test -v gpg_pub && test -f "${gpg_pub}"                                         && gpg --import "${gpg_pub}"
+
+        if [[ "${openpgp4fpr}" == "${fpr}" ]] && is_cmd qrencode; then
+          echo -n "${uri}" | qrencode -t ansi
+        fi
+
+      done
+
+      chmod    go-rwx '.'        &> /dev/null || true
+      chmod -R go-rwx './.gnupg' &> /dev/null || true
+      chmod -R go-rwx './.ssh'   &> /dev/null || true
+
+    fi
+  )
+  openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
+  readonly openpgp4fpr
+  export   openpgp4fpr
+}
+
+function _home() {
+
+  git config --global init.defaultBranch main
+  git config --global core.ignorecase    false
+  git config --global core.quotepath     false
+  git config --global core.autocrlf      false
+  git config --global core.safecrlf      true
+  git config --global core.filemode      true
+  git config --global gpg.program        "$(type -p gpg)"
+  git config --global commit.gpgsign     true
+  git config --global color.ui           auto
+  git config --global color.diff         auto
+  git config --global color.status       auto
+  git config --global color.branch       auto
+  git config --global rebase.autostash   true
+  git config --global merge.ff           false
+  git config --global pull.ff            only
+  git config --global pull.rebase        true
+  git config --global diff.sjis.textconv 'iconv -f sjis'
+  git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+# git config --global user.name          "${USER:-}"
+# git config --global user.email         "${USER:-}@$(hostname -f)"
+  git config --global user.signingkey    "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+
+  # TODO: --object-format=sha256
+  git init
+
+  git config --local core.hooksPath '.git-hooks'
+
+# git_remote_set 'public'   'https://git.0/0.git'
+  git_remote_set 'public'   'https://github.com/tkyz/0.git'
+# git_remote_set 'upstream' 'ssh://git.0/0.git'
+  git_remote_set 'upstream' 'git://git.0/0.git'
+  git_remote_set 'github'   'ssh://git@github.com/tkyz/0.git'
+  git_remote_set 'origin'   "${HOME}/lib/0.git/0.git"
+
+  git fetch --all --prune || true
+  git remote set-head 'public' 'main'
+
+  # TODO: merge
+
+}
+
+function _apt_ext() {
+  (
+
+    # nvidia        https://nvidia.github.io/nvidia-container-runtime/
+    # k8s           https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+    # nordvpn       https://support.nordvpn.com/hc/ja/articles/20196094470929
+    # bigtop
+    # docker        https://docs.docker.com/engine/install/debian/
+    # google-cloud  https://cloud.google.com/storage/docs/gcsfuse-install
+    # google-chrome
+    # bazel
+    # dotnet        https://learn.microsoft.com/ja-jp/dotnet/core/install/linux-debian
+    # unity         https://docs.unity3d.com/hub/manual/InstallHub.html
+    # virtualbox    https://www.virtualbox.org/wiki/Linux_Downloads
+
+    # /etc/apt/keyrings/*
+    curl -fsSL 'https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key'           | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/io.k8s.pkgs.gpg
+    curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey'               | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.nvidia.gpg
+#   curl -fsSL 'https://repo.nordvpn.com/gpg/nordvpn_public.asc'                   | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.nordvpn.gpg
+#   curl -fsSL 'https://dlcdn.apache.org/bigtop/bigtop-3.3.0/repos/GPG-KEY-bigtop' | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.apache.bigtop.gpg
+#   curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                       | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.docker.download.gpg
+    curl -fsSL 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'             | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.google.cloud.packages.gpg
+#   curl -fsSL 'https://dl-ssl.google.com/linux/linux_signing_key.pub'             | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.google.gpg
+#   curl -fsSL 'https://bazel.build/bazel-release.pub.gpg'                         | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/build.bazel.gpg
+    curl -fsSL 'https://packages.microsoft.com/keys/microsoft.asc'                 | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.microsoft.gpg
+    curl -fsSL 'https://hub.unity3d.com/linux/keys/public'                         | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.unity.gpg
+    curl -fsSL 'https://www.virtualbox.org/download/oracle_vbox_2016.asc'          | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.virtualbox.gpg
+
+    # /etc/apt/sources.list.d/*
+    echo 'deb [signed-by=/etc/apt/keyrings/io.k8s.pkgs.gpg                           ] https://pkgs.k8s.io/core:/stable:/v1.32/deb/                          /'                                   | ${SUDO} tee    /etc/apt/sources.list.d/io.k8s.pkgs.list               > /dev/null
+    echo 'deb [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)       /'                                   | ${SUDO} tee    /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+#   echo 'deb [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/experimental/deb/$(ARCH) /'                                   | ${SUDO} tee -a /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+#   echo "deb [signed-by=/etc/apt/keyrings/com.nordvpn.gpg                           ] https://repo.nordvpn.com/deb/nordvpn/${ID}                            stable                      main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.nordvpn.list               > /dev/null
+#   echo "deb [signed-by=/etc/apt/keyrings/org.apache.bigtop.gpg                     ] http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH)       bigtop                      contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.apache.bigtop.list         > /dev/null # TODO: debian 12
+#   echo "deb [signed-by=/etc/apt/keyrings/com.docker.download.gpg       arch=${arch}] https://download.docker.com/linux/${ID}                               ${VERSION_CODENAME}         stable"  | ${SUDO} tee    /etc/apt/sources.list.d/com.docker.download.list       > /dev/null
+    echo 'deb [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 cloud-sdk                   main'    | ${SUDO} tee    /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
+    echo "deb [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 gcsfuse-${VERSION_CODENAME} main"    | ${SUDO} tee -a /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
+#   echo "deb [signed-by=/etc/apt/keyrings/com.google.gpg                arch=${arch}] https://dl.google.com/linux/chrome/deb                                stable                      main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.google.list                > /dev/null
+#   echo "deb [signed-by=/etc/apt/keyrings/build.bazel.gpg               arch=${arch}] http://storage.googleapis.com/bazel-apt                               stable                      jdk1.8"  | ${SUDO} tee    /etc/apt/sources.list.d/build.bazel.list               > /dev/null
+    echo "deb [signed-by=/etc/apt/keyrings/com.microsoft.gpg             arch=${arch}] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod               bookworm                    main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.microsoft.list             > /dev/null
+    echo 'deb [signed-by=/etc/apt/keyrings/com.unity.gpg                             ] https://hub.unity3d.com/linux/repos/deb                               stable                      main'    | ${SUDO} tee    /etc/apt/sources.list.d/com.unity.list                 > /dev/null
+    echo "deb [signed-by=/etc/apt/keyrings/org.virtualbox.gpg            arch=${arch}] https://download.virtualbox.org/virtualbox/${ID}                      ${VERSION_CODENAME}         contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.virtualbox.list            > /dev/null
+
+#   arr+=('bash')
+#   arr+=('zsh')
+#   arr+=('fish')
+    arr+=('bash-completion')
+    arr+=('python3')
+    arr+=('python3-pip')
+    arr+=('python3.11-venv')
+    arr+=('openssl')
+    arr+=('lshw')
+    arr+=('lsscsi')
+    arr+=('usbutils')
+    arr+=('parted')
+    arr+=('cryptsetup')
+    arr+=('lvm2')
+    arr+=('pkg-config')
+    arr+=('util-linux')
+    arr+=('fuse')
+    arr+=('archivemount')
+    arr+=('gettext-base')
+    arr+=('procps')
+    arr+=('parallel')
+    arr+=('openssh-client')
+    arr+=('openssh-server')
+    arr+=('git-crypt')
+    arr+=('git-lfs')
+    arr+=('gocryptfs')
+    arr+=('jq')
+    arr+=('nmap')
+    arr+=('tcpdump')
+    arr+=('cifs-utils')
+    arr+=('libarchive-tools')
+    arr+=('unar')
+    arr+=('zip')
+    arr+=('rsync')
+    arr+=('xsel')
+    arr+=('tmux')
+    arr+=('vim')
+    arr+=('emacs')
+    arr+=('htop')
+    arr+=('nkf')
+    arr+=('cups')
+    arr+=('locales-all')
+    arr+=('task-japanese')
+    arr+=('fonts-dejavu-core')
+    arr+=('moreutils')
+    arr+=('aria2')
+    arr+=('ffmpeg')
+    arr+=('webp-pixbuf-loader')
+    arr+=('libcairo2')
+    arr+=('build-essential')
+    arr+=('libglfw3-dev')
+    arr+=('libgles2-mesa-dev')
+    arr+=('libcairo2-dev')
+    arr+=('kubectl')
+#   arr+=('kubelet')
+#   arr+=('kubeadm')
+    arr+=('firmware-linux')
+    arr+=('firmware-realtek')
+    arr+=('firmware-iwlwifi')
+    arr+=('podman')
+    arr+=('nvidia-container-toolkit')
+    arr+=('virt-manager')
+    if ! is_container; then
+      arr+=('ufw')
+      arr+=('rkhunter')
+      arr+=('clamav')
+      arr+=('containerd.io')
+      arr+=('nvidia-kernel-dkms')
+      arr+=('nvidia-driver')
+      arr+=('nvidia-detect')
+      arr+=('nvidia-smi')
+    fi
+
+    ${SUDO} apt-get update
+    ${SUDO} apt-get install -y "${arr[@]}"
+
+  )
+
+  # ufw
+  if is_cmd ufw; then
+    echo y | ${SUDO} ufw enable
+    ${SUDO} ufw default deny
+#   ${SUDO} ufw allow 22
+    ${SUDO} ufw reload
+  fi
+
+  # rkhunter
+  if [[ -f /etc/rkhunter.conf ]]; then
+    ${SUDO} sed -i -r \
+      -e 's/^#?LANGUAGE=.*$/LANGUAGE=ja/g' \
+      -e 's/^#?UPDATE_LANG=.*$/UPDATE_LANG=ja/g' \
+      -e 's/^#?WEB_CMD=.*$/WEB_CMD=""/g' \
+      -e 's/^#?UPDATE_MIRRORS=.*$/UPDATE_MIRRORS=1/g' \
+      -e 's/^#?MIRRORS_MODE=.*$/MIRRORS_MODE=0/g' \
+      -e 's/^#?PKGMGR=.*$/PKGMGR=DPKG/g' \
+      /etc/rkhunter.conf
+  fi
+  if is_cmd rkhunter; then
+    set +e
+      ${SUDO} rkhunter --update
+      ${SUDO} rkhunter --propupd
+#     ${SUDO} rkhunter --versioncheck
+#     ${SUDO} rkhunter --check --skip-keypress
+    set -e
+  fi
+
+  # clamav
+  if is_cmd freshclam; then
+    ${SUDO} systemctl stop  clamav-freshclam
+    ${SUDO} freshclam
+    ${SUDO} systemctl start clamav-freshclam
+  fi
+
+  # sshd
+  if [[ -f /etc/ssh/sshd_config ]]; then
+    ${SUDO} sed -i -r \
+      -e 's/#?PermitRootLogin .*/PermitRootLogin no/g' \
+      -e 's/#?PermitEmptyPasswords .*/PermitEmptyPasswords no/g' \
+      -e 's/#?PasswordAuthentication .*/PasswordAuthentication no/g' \
+      -e 's/#?PubkeyAuthentication .*/PubkeyAuthentication yes/g' \
+      -e 's/#?StrictModes .*/StrictModes yes/g' \
+      /etc/ssh/sshd_config
+  fi
+  if ! is_container; then
+    ${SUDO} systemctl reload sshd
+  fi
+
+  # podman
+  if ! is_container; then
+    : # echo "unqualified-search-registries = ['container.0', 'docker.io']" | ${SUDO} tee /etc/containers/registries.conf > /dev/null
+  fi
+
+  # locale
+  if is_cmd locale-gen; then
+    ${SUDO} locale-gen ja_JP.UTF-8
+    ${SUDO} localedef -f UTF-8 -i ja_JP ja_JP.utf8
+    ${SUDO} update-locale LANG='ja_JP.UTF-8'
+  fi
+
+}
+
+function _enc() {
+  (
+    fpr_list | while read fpr; do
+
+      gpw_dir="./src/0.gpw"
+      enc_dir="./src/0.fpr/${fpr}/enc"
+
+      mkdir -p \
+        "${gpw_dir}" \
+        "${enc_dir}"
+
+      # gpw
+      gpw_file="${gpw_dir}/${fpr}"
+      if [[ ! -f "${gpw_file}" ]]; then
+        cat /dev/urandom | tr --complement --delete '[:graph:]' | head -c 2048 | gpg --encrypt --throw-keyids > "${gpw_file}" || true
+      fi
+
+      # init
+      conf_file_org="${enc_dir}/gocryptfs.conf"
+      conf_file_gpg="${conf_file_org}.gpg"
+      test ! -f "${conf_file_org}" &&   test -f "${conf_file_gpg}" && cat "${conf_file_gpg}" | gpg --decrypt                > "${conf_file_org}" || true
+      if [[ ! -f "${conf_file_org}" ]]; then
+        gocryptfs \
+          -extpass 'gpg' \
+          -extpass '--decrypt' \
+          -extpass "${gpw_file}" \
+          -init    "${enc_dir}"
+      fi
+      test   -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && cat "${conf_file_org}" | gpg --encrypt --throw-keyids > "${conf_file_gpg}" || true
+
+    done
+
+  )
+
+}
+
+function _mnt() {
+
+  # enc
+  (
+    fpr_list | while read fpr; do
+
+      gpw_dir="./src/0.gpw"
+      enc_dir="./src/0.fpr/${fpr}/enc"
+      mnt_dir="./mnt/${fpr}"
+
+      gpw_file="${gpw_dir}/${fpr}"
+      if [[ ! -f "${gpw_file}" ]]; then
+        continue
+      fi
+
+      if mountpoint "${mnt_dir}" &> /dev/null; then
+        continue
+      fi
+
+      conf_file="${enc_dir}/gocryptfs.conf"
+      if [[ ! -f "${conf_file}" ]]; then
+        continue
+      fi
+
+      mkdir -p "${mnt_dir}"
+      gocryptfs \
+        -extpass 'gpg' \
+        -extpass '--decrypt' \
+        -extpass "${gpw_file}" \
+        "${enc_dir}" \
+        "${mnt_dir}"
+
+    done
+  )
+
+  # luks
+  (
+    lsblk --all --fs --paths --json | jq -cr '.. | objects | select(.uuid != null and .fstype == "crypto_LUKS")' | while read item; do
+
+      name="$(echo "${item}" | jq -cr .name)"
+      uuid="$(echo "${item}" | jq -cr .uuid)"
+
+      gpw_file="./src/0.gpw/${uuid}"
+      if [[ ! -f "${gpw_file}" ]]; then
+        continue
+      fi
+
+      map_dir="/dev/mapper/${uuid}"
+      if [[ -e "${map_dir}" ]]; then
+        continue
+      fi
+
+      gpg --decrypt "${gpw_file}" | ${SUDO} cryptsetup open "${name}" "${uuid}" || true
+
+    done
+  )
+
+  # uuid
+  (
+    lsblk --all --fs --paths --json | jq -cr '.. | objects | select(.uuid != null and .fstype != "crypto_LUKS")' | while read item; do
+
+      name="$(echo "${item}" | jq -cr .name)"
+      uuid="$(echo "${item}" | jq -cr .uuid)"
+
+      mnt_dir="./mnt/${uuid}"
+      if mountpoint "${mnt_dir}" &> /dev/null; then
+        continue
+      fi
+
+      mnt_opts=''
+#     mnt_opts+='file_mode=0600'
+#     mnt_opts+=',dir_mode=0700'
+#     mnt_opts+=",uid=$(id -u)"
+#     mnt_opts+=",gid=$(id -g)"
+
+      mkdir -p "${mnt_dir}"
+      ${SUDO} mount --options "${mnt_opts}" UUID="${uuid}" "${mnt_dir}" || rm -d "${mnt_dir}"
+
+    done
+  )
+
+}
+
+function _umnt() {
+
+  (
+    find ./mnt -mindepth 1 -maxdepth 1 -type d | while read item; do
+
+      mnt_dir="${item}"
+      if ! mountpoint "${mnt_dir}" &> /dev/null; then
+        rm -d "${mnt_dir}"
+        continue
+      fi
+
+      fusermount -u "${mnt_dir}" 2> /dev/null || ${SUDO} fusermount -u "${mnt_dir}"
+      rm -d "${mnt_dir}"
+
+    done
+  )
+
+  (
+    lsblk --all --fs --paths --json | jq -cr '.. | objects | select(.uuid != null and .fstype == "crypto_LUKS")' | while read item; do
+
+      name="$(echo "${item}" | jq -cr .name)"
+      uuid="$(echo "${item}" | jq -cr .uuid)"
+
+      ${SUDO} cryptsetup close "${uuid}" 2> /dev/null || true
+
+    done
+  )
+
+}
+
+function _venv() {
+  (
+
+    venv_dir='./.venv'
+
+    python3 -m venv "${venv_dir}"
+    source "${venv_dir}/bin/activate"
+
+    req_file="${venv_dir}/requirements.txt"
+    touch "${req_file}"
+
+    {
+      echo yq
+      cat "${req_file}"
+      pip freeze
+    } 2> /dev/null | sed -e 's/[!=<> #].*//g' -e 's/\r//g' | sort -u > "${req_file}.tmp"
+    mv "${req_file}.tmp" "${req_file}"
+
+    pip install --upgrade --requirement "${req_file}"
+
+  )
+  source './.venv/bin/activate'
+}
+
+function _src() {
+
+  if is_container; then
+    return
+  fi
+
+  set +e
+    find "${1:-src}" -type d -name .git 2> /dev/null | while read item; do
+      pushd "${item}/.." &> /dev/null
+
+        echo ---
+        pwd
+
+        git fetch --all --prune
+
+        # TODO: conflict
+        if ! git rebase --no-autostash 2> /dev/null; then
+          git status
+        fi
+
+        git gc
+
+      popd &> /dev/null
+    done
+  set -e
+
+}
+
+function _lib() {
+  _src lib
+}
+
+function _opt() {
+
+  if is_container; then
+    return
+  fi
+
+  (
+    echo "${setup_yml}" | yq -cr '."0".opt | keys[]' | while read key; do
+
+      opt_dir="./opt/${key}"
+      if [[ -d "${opt_dir}" ]]; then
+        continue
+      fi
+
+      echo "${setup_yml}" | yq -cr ".\"0\".opt.\"${key}\"[]" | while read item; do
+
+        type="$( echo "${item}" | yq -cr '.type')"
+        depth="$(echo "${item}" | yq -cr '.depth')"
+        url="$(  echo "${item}" | yq -cr '.url')"
+
+        mkdir -p "${opt_dir}"
+        pushd "${opt_dir}" &> /dev/null
+
+          echo ---
+          pwd
+
+          if [[ 'raw' == "${type}" ]]; then
+            curl -fsSLO "${url}" 2> /dev/null
+          elif [[ 'tgz' == "${type}" ]]; then
+            curl -fsSL  "${url}" 2> /dev/null | tar    zxf - --strip-components "${depth}" --no-same-permissions --no-same-owner
+          elif [[ 'zip' == "${type}" ]]; then
+            curl -fsSL  "${url}" 2> /dev/null | bsdtar  xf - --strip-components "${depth}"
+          else
+            echo "unsupported. ${type} ${url}"
+          fi
+
+        popd &> /dev/null
+
+      done
+
+    done
+  )
+
+}
+
+function _build() {
+
+  if is_container; then
+    return
+  fi
+  if ! is_cmd podman; then
+    return
+  fi
+
+  (
+    find ./src -name Makefile -or -name pom.xml -or -name build.xml -or -name Dockerfile | while read item; do
+
+      type="${item##*/}"
+      name="$(echo "${item}" | sed -r 's|^\./src/(.*)/[^/]+$|\1|g')"
+
+      if [[ "${name}" =~ ^com.github/ ]]; then
+        continue
+      fi
+      if [[ "${name}" =~ ^com.gitlab/ ]]; then
+        continue
+      fi
+      if [[ "${name}" =~ ^org.golang/ ]]; then
+        continue
+      fi
+
+      pushd "./src/${name}" &> /dev/null
+
+        echo ---
+        pwd
+
+        if [[ 'Dockerfile' == "${type}" ]]; then
+
+          image="container.0/${name}:${context}"
+
+          if [[ -z "$(podman images --noheading "${image}")" ]]; then
+
+            opts=()
+            opts+=('--pull')
+            opts+=('--no-cache')
+
+            podman build "${opts[@]}" --tag "${image}" .
+#           podman push --tls-verify=false "${image}" || true
+
+          fi
+
+        fi
+
+      popd &> /dev/null
+
+    done
+  )
+
+}
+
+function _k8s() {
+
+  if is_wsl; then
+    return
+  fi
+  if is_container; then
+    return
+  fi
+  if ! is_cmd containerd; then
+    return
+  fi
+  if ! is_cmd podman; then
+    return
+  fi
+  if ! is_cmd kubectl; then
+    return
+  fi
+  if ! is_cmd kind; then
+    return
+  fi
+
+  (
+
+    kind delete cluster --name "${context}" || true
+
+    ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53
+    cat './src/0.kind/kind.yml' | env_replace | kind create cluster --name "${context}" --config -
+    ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+
+    kubectl config set-context     "kind-${context}"
+    kubectl cluster-info --context "kind-${context}"
+
+    kubectl get configmap kube-proxy --namespace kube-system --output yaml | sed 's/strictARP: false/strictARP: true/' | kubectl apply -f -
+
+    # loadbalancer
+#   cat  './src/com.github/metallb/metallb/config/manifests/metallb-native.yaml'                          | kubectl apply -f -
+    curl 'https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml' | kubectl apply -f -
+    kubectl wait pod --namespace metallb-system --for condition=ready --selector component=controller --timeout 60s
+
+    # ingress
+#   cat  './src/com.github/kubernetes/ingress-nginx/deploy/static/provider/kind/deploy.yaml'                                     | kubectl apply -f -
+    curl 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/kind/deploy.yaml' | kubectl apply -f -
+    kubectl wait pod --namespace ingress-nginx --for condition=ready --selector app.kubernetes.io/component=controller --timeout 60s
+
+    # dashboard
+#   cat  './src/com.github/kubernetes/dashboard/aio/deploy/recommended.yaml'                         | kubectl apply -f -
+    curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
+
+    kubectl delete namespace 0 2> /dev/null || true
+    kubectl create namespace 0              || true
+
+    echo "${setup_yml}" | yq -cr '."0".k8s[]' | while read item; do
+
+      src_dir="./src/${item}"
+      if [[ ! -f "${src_dir}/deploy.yml" ]]; then
+        continue
+      fi
+
+      pushd "${src_dir}" &> /dev/null
+
+        echo ---
+        pwd
+
+        # TODO: ImagePullBackOff
+        yq -cr '.. | objects | select(.image != null) | .image' deploy.yml | env_replace | while read image; do
+
+          if [[ -z "$(podman images --noheading "${image}")" ]]; then
+            continue
+          fi
+          if podman exec "${context}-control-plane" crictl images | awk -F ' ' '{print $1":"$2}' | grep -q "${image}"; then
+            continue
+          fi
+
+          tmpfile="$(mktemp)"
+          podman save --format oci-archive "${image}" --output "${tmpfile}"
+          kind load image-archive --name "${context}" "${tmpfile}" || true
+          rm "${tmpfile}"
+
+        done
+
+        cat './deploy.yml' | env_replace | kubectl apply -f -
+
+      popd &> /dev/null
+
+    done
+
+  )
+
+}
+
+function _doc() {
+  (
+
+    doc_dir='./doc'
+    doc_uri="http://doc.${tld}/"
+
+    mkdir -p "${doc_dir}"
+
+    if is_cmd qrencode; then
+      echo -n "${doc_uri}"                    | qrencode -t png -o './doc/logo.png'
+      gpg --export --armor "0x${openpgp4fpr}" | qrencode -t png -o './doc/pub.png'
+    fi
+
+    # browser
+    if is_x11; then
+      cat << EOS | python3 &
+from selenium                           import webdriver
+from selenium.webdriver.firefox.options import Options
+
+def main():
+
+  opts = Options()
+  opts.set_preference('general.useragent.override',    'Mozilla/5.0')
+  opts.set_preference('browser.cache.memory.enable',   True)
+  opts.set_preference('browser.cache.disk.enable',     False)
+  opts.set_preference('browser.tabs.animate',          False)
+  opts.set_preference('browser.panorama.animate_zoom', False)
+  opts.set_preference('geo.enabled',                   False)
+
+  driver = webdriver.Firefox(opts)
+  driver.maximize_window();
+  driver.get('${doc_uri}')
+
+if __name__ == '__main__':
+  main()
+EOS
+    fi
+
+#   if is_cmd java; then
+#     java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint # "${@}"
+#   fi
+
+  )
+}
+
+function _clean() {
+
+  ${SUDO} apt-get autoremove -y
+  ${SUDO} apt-get clean
+
+  if is_cmd podman; then
+    podman system  prune --force || true
+    podman volume  prune --force || true
+    podman network prune --force || true
+  fi
+  if is_cmd docker; then
+    docker system  prune --force || true
+    docker volume  prune --force || true
+    docker network prune --force || true
+  fi
+  if is_cmd pip3; then
+    pip3 cache purge
+  fi
+
+}
+
+#----------------------------------------------------------------
+# main
+
+function main() {
+  (
+    pushd "${HOME}" &> /dev/null
+
+      if [[ "${BASH_SOURCE:-}" =~ ^.*/fpr$ ]]; then
+        arg1="${1:-}"
+        shift || true
+      else
+        arg1='setup'
+      fi
+
+      if ! is_func 'deactivate' && [[ -f './.venv/bin/activate' ]]; then
+        source './.venv/bin/activate'
+      fi
+
+      if [[ -z "${arg1}" ]]; then
+        _fpr
+
+      elif [[ 'setup' == "${arg1}" ]]; then
+        _etc
+        _apt
+        _fpr
+        _home
+        _apt_ext
+        _enc
+        _mnt
+        _venv
+        _src
+        _lib
+        _opt
+        _build
+        _k8s
+        _doc
+        _clean
+
+      elif [[ '-' == "${arg1}" ]]; then
+        _fpr
+        kind delete clusters --all
+        _umnt
+        _clean
+
+      elif is_func "_${arg1}"; then
+        _fpr
+        "_${arg1}" "${@}"
+
+#     elif is_cmd "_${arg1}"; then
+#       _fpr
+#       "${arg1}" "${@}"
+
+      else
+        false
+      fi
+
+    popd &> /dev/null
+  )
+}
+main "${@}"

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+java \
+  -Xmx1G \
+  -Xms1G \
+  -jar /net.minecraft/server.jar \
+  nogui
