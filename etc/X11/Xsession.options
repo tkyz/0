@@ -1,0 +1,6 @@
+allow-failsafe
+allow-user-resources
+allow-user-xsession
+
+no-use-ssh-agent
+use-session-dbus

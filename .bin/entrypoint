@@ -1,0 +1,33 @@
+#!/bin/bash
+
+if false; then
+
+  /home/0/bin/keygen
+
+  # TODO: login
+
+  if type gcloud > /dev/null 2>&1 && [[ ! -f "${HOME}/.config/gcloud/configurations/config_default" ]]; then
+
+    gcloud auth login --no-launch-browser
+#   gcloud auth application-default login
+
+#   gcloud config set account        xxx
+#   gcloud config set project        xxx
+#   gcloud config set compute/region xxx
+#   gcloud config set compute/zone   xxx
+
+#   gcloud container clusters get-credentials xxx --project xxx --zone xxx
+
+  fi
+
+  if type clasp > /dev/null 2>&1 && [[ ! -f "${HOME}/.clasprc.json" ]]; then
+    clasp login --no-localhost
+  fi
+
+fi
+
+if [[ '0' == "${#}" ]]; then
+  exec /bin/bash -l
+else
+  exec "${@}"
+fi

@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+source /etc/os-release
+
+if true; then
+
+  repos=()
+  repos+=("${HOME}")
+  repos+=("${HOME}/.0/$(openpgp4fpr)")
+
+  for repo in "${repos[@]}"; do
+    git -C "${repo}" fetch --all --prune || true
+  done
+
+fi
+
+if [[ 0 == "$(id -u)" ]]; then
+
+  if [[ 'debian' == "${ID}" ]]; then apt update; apt upgrade -y; apt autoremove -y; apt clean; fi
+  if [[ 'alpine' == "${ID}" ]]; then apk update; apk upgrade; fi
+
+  if type rkhunter &> /dev/null; then
+    rkhunter --update
+    rkhunter --propupd
+  fi
+
+  if false && type freshclam > /dev/null 2>&1; then
+    systemctl stop  clamav-freshclam
+    freshclam
+    systemctl start clamav-freshclam
+  fi
+
+  if type docker &> /dev/null; then
+
+    while read -a item; do
+      docker pull "${item}" || true
+    done < <(docker images --format "{{.Repository}}:{{.Tag}}")
+
+    docker volume  prune --force
+    docker network prune --force
+    docker system  prune --force
+
+  fi
+
+fi

@@ -1,0 +1,229 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+if true; then
+
+  source /etc/os-release
+  test 'debian' == "${ID}"
+
+  readonly arch="$(dpkg --print-architecture)"
+
+fi
+
+apt_pkgs=()
+pip_pkgs=()
+npm_pkgs=()
+declare -A opts
+
+#----------------------------------------------------------------
+# pkgs
+
+# apt repository
+if true; then
+
+  curl -fsSL "https://download.docker.com/linux/${ID}/gpg"           | gpg --dearmor --output '/etc/apt/trusted.gpg.d/com.docker.download.gpg'
+  curl -fsSL 'https://packages.cloud.google.com/apt/doc/apt-key.gpg' | gpg --dearmor --output '/etc/apt/trusted.gpg.d/com.google.cloud.packages.gpg'
+  curl -fsSL 'https://bazel.build/bazel-release.pub.gpg'             | gpg --dearmor --output '/etc/apt/trusted.gpg.d/build.bazel.gpg'
+
+  echo "deb [arch=${arch}] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable" | tee    '/etc/apt/sources.list.d/com.docker.download.list'
+  echo 'deb https://packages.cloud.google.com/apt cloud-sdk       main'                        | tee    '/etc/apt/sources.list.d/com.google.cloud.packages.list'
+  echo 'deb https://packages.cloud.google.com/apt gcsfuse-stretch main'                        | tee -a '/etc/apt/sources.list.d/com.google.cloud.packages.list'
+  echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main'                                  | tee    '/etc/apt/sources.list.d/io.kubernetes.apt.list'
+  echo "deb [arch=${arch}] http://storage.googleapis.com/bazel-apt stable jdk1.8"              | tee    '/etc/apt/sources.list.d/build.bazel.list'
+
+  apt update || true
+
+fi
+
+# tty
+if true; then
+
+  apt_pkgs+=('util-linux')
+  apt_pkgs+=('procps')
+  apt_pkgs+=('unar')
+  apt_pkgs+=('zip')
+  apt_pkgs+=('jq')
+  apt_pkgs+=('tmux')
+  apt_pkgs+=('vim')
+  apt_pkgs+=('nkf')
+  apt_pkgs+=('htop')
+  apt_pkgs+=('tree')
+  apt_pkgs+=('tig')
+
+  apt_pkgs+=('bash-completion')
+  apt_pkgs+=('zsh')
+  apt_pkgs+=('tcsh')
+  apt_pkgs+=('fish')
+
+  apt_pkgs+=('locales')
+  apt_pkgs+=('locales-all')
+  apt_pkgs+=('task-japanese')
+
+  apt_pkgs+=('openssh-client')
+  apt_pkgs+=('tcpdump')
+  apt_pkgs+=('nmap')
+  apt_pkgs+=('dnsutils')
+  apt_pkgs+=('netcat')
+  apt_pkgs+=('cifs-utils')
+  apt_pkgs+=('nfs-common')
+  apt_pkgs+=('sshfs')
+  apt_pkgs+=('rsync')
+  apt_pkgs+=('wget')
+  apt_pkgs+=('gocryptfs')
+
+fi
+
+if ! is_docker_build && ! is_wsl; then
+
+  apt_pkgs+=('ufw')
+  apt_pkgs+=('rkhunter')
+  apt_pkgs+=('clamav')
+
+fi
+
+# dev
+if ! is_wsl; then
+  apt_pkgs+=("linux-headers-$(uname --kernel-release)")
+fi
+if is_docker_build || is_wsl; then
+
+  apt_pkgs+=('libssl-dev')
+  apt_pkgs+=('libncurses-dev')
+  apt_pkgs+=('musl-dev')
+  apt_pkgs+=('libboost-all-dev')
+  apt_pkgs+=('libtool')
+  apt_pkgs+=('linux-libc-dev')
+  apt_pkgs+=('libevent-dev')
+  apt_pkgs+=('libxt-dev')
+  apt_pkgs+=('bison')
+  apt_pkgs+=('flex')
+  apt_pkgs+=('groff')
+  apt_pkgs+=('libc6')
+
+  apt_pkgs+=('gcc')
+  apt_pkgs+=('g++')
+  apt_pkgs+=('autoconf')
+  apt_pkgs+=('automake')
+  apt_pkgs+=('pkg-config')
+  apt_pkgs+=('make')
+  apt_pkgs+=('patch')
+
+  apt_pkgs+=('golang')
+  apt_pkgs+=('python3')
+  apt_pkgs+=('python3-pip')
+  apt_pkgs+=('nodejs')
+  apt_pkgs+=('npm')
+  apt_pkgs+=('ruby')
+  apt_pkgs+=('rubygems')
+  apt_pkgs+=('perl')
+  apt_pkgs+=('bazel')
+
+  apt_pkgs+=('google-cloud-cli')
+  apt_pkgs+=('gcsfuse')
+  apt_pkgs+=('kubectl')
+
+  apt_pkgs+=('docker-ce-cli')
+
+  pip_pkgs+=('yq')
+  pip_pkgs+=('pyyaml')
+
+  pip_pkgs+=('kubernetes')
+  pip_pkgs+=('docker')
+  pip_pkgs+=('ansible')
+
+  pip_pkgs+=('gspread')
+  pip_pkgs+=('oauth2client')
+  pip_pkgs+=('google-auth-oauthlib')
+  pip_pkgs+=('google-auth-httplib2 ')
+  pip_pkgs+=('google-api-python-client')
+
+  npm_pkgs+=('npm@latest')
+  npm_pkgs+=('clasp@latest')
+
+fi
+
+# install
+if type apt  &> /dev/null; then apt  install --fix-missing -y "${apt_pkgs[@]}" || true; fi
+if type pip3 &> /dev/null; then pip3 install --upgrade        "${pip_pkgs[@]}" || true; fi
+if type npm  &> /dev/null; then npm  install -g               "${npm_pkgs[@]}" || true; fi
+
+#----------------------------------------------------------------
+# /opt
+
+# TODO: 0.yml/opt
+if true; then
+
+  # openjdk
+  # https://jdk.java.net/archive/
+  opts['/opt/net.java.jdk/11.0.2']='https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz'
+  opts['/opt/net.java.jdk/13.0.2']='https://download.java.net/java/GA/jdk13.0.2/d4173c853231432d94f001e99d882ca7/8/GPL/openjdk-13.0.2_linux-x64_bin.tar.gz'
+  opts['/opt/net.java.jdk/18.0.2']='https://download.java.net/java/GA/jdk18.0.2/f6ad4b4450fd4d298113270ec84f30ee/9/GPL/openjdk-18.0.2_linux-x64_bin.tar.gz'
+  opts['/opt/net.java.jdk/19']='https://download.java.net/java/GA/jdk19/877d6127e982470ba2a7faa31cc93d04/36/GPL/openjdk-19_linux-x64_bin.tar.gz'
+
+  # eclipse
+  # TODO: キー重複
+  opts['/opt/org.eclipse']='https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2022-09/R/eclipse-java-2022-09-R-linux-gtk-x86_64.tar.gz&mirror_id=1'
+  opts['/opt/org.eclipse/.']='https://ftp.jaist.ac.jp/pub/mergedoc/pleiades/build/stable/pleiades.zip'
+
+  opts['/opt/org.apache.ant/1.10.12']='https://dlcdn.apache.org/ant/binaries/apache-ant-1.10.12-bin.tar.gz'
+  opts['/opt/org.apache.maven/3.8.6']='https://dlcdn.apache.org/maven/maven-3/3.8.6/binaries/apache-maven-3.8.6-bin.tar.gz'
+  opts['/opt/org.apache.drill/1.20.2']='https://dlcdn.apache.org/drill/1.20.2/apache-drill-1.20.2.tar.gz'
+  opts['/opt/org.apache.hadoop/3.3.4']='https://dlcdn.apache.org/hadoop/common/hadoop-3.3.4/hadoop-3.3.4.tar.gz'
+  opts['/opt/org.apache.spark/3.3.1']='https://dlcdn.apache.org/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz'
+  # TODO: hive
+  # ...
+
+  for key in "${!opts[@]}"; do
+
+    if [[ -d "${key}" ]]; then
+      continue
+    fi
+    mkdir -p "${key}"
+
+    val="${opts["${key}"]}"
+
+    # TODO: pipe unzip
+    if [[ "${val}" =~ .*\.zip$ ]]; then
+      pushd "${key}" > /dev/null
+        curl -SL "${val}" | /opt/net.java.jdk/latest/bin/jar x
+      popd > /dev/null
+
+    else
+      curl -SL "${val}" | tar zx --strip-components 1 --no-same-permissions --no-same-owner -C "${key}"
+    fi
+
+  done
+
+fi
+
+: <<'COMMENT'
+  # TODO: dotnet
+
+  apt_pkgs+=('docker-ce')
+  apt_pkgs+=('docker-compose-plugin')
+
+  apt_pkgs+=('kubeadm')
+  apt_pkgs+=('kubelet')
+
+# TODO: package manager
+# kind
+#   https://kind.sigs.k8s.io/docs/user/quick-start#installation
+#   https://github.com/kubernetes-sigs/kind/releases
+file='/usr/local/bin/kind'
+if [[ ! -f "${file}" ]]; then
+  curl -fsSL -o "${file}" 'https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64'
+  chmod +x "${file}"
+fi
+COMMENT
+
+#----------------------------------------------------------------
+# config
+
+if type locale-gen &> /dev/null; then
+  locale-gen ja_JP.UTF-8
+  localedef -f UTF-8 -i ja_JP ja_JP.utf8
+  update-locale LANG="ja_JP.UTF-8"
+fi

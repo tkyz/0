@@ -1,0 +1,147 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+test -f "${HOME}/0.yml"
+
+if true; then
+
+  readonly kind_yml="$(yq ".\"0\".kind" "${HOME}/0.yml")"
+
+  readonly kindest_image="$(echo "${kind_yml}" | yq -r .kindest.image)"
+
+  readonly openpgp4fpr="$(openpgp4fpr)"
+  readonly external_ip="$(echo "${kind_yml}" | yq -r .envsubst.external_ip)"
+  readonly gateway_ip="$( echo "${kind_yml}" | yq -r .envsubst.gateway_ip)"
+  readonly resolve_ip="$( echo "${kind_yml}" | yq -r .envsubst.resolve_ip)"
+  readonly webui_tld="$(  echo "${kind_yml}" | yq -r .envsubst.webui_tld)"
+
+# readonly kindname="${openpgp4fpr,,}.kind"
+  readonly kindname='0.kind'
+  readonly srcdir="${HOME}/src"
+  readonly datdir="${HOME}/.0/${openpgp4fpr}"
+
+fi
+
+# envsubst
+function envsubst() {
+  sed \
+    -r \
+    -e "s#\\$\{srcdir\}#${srcdir}#" \
+    -e "s#\\$\{datdir\}#${datdir}#" \
+    -e "s/\\$\{external_ip\}/${external_ip}/" \
+    -e "s/\\$\{gateway_ip\}/${gateway_ip}/" \
+    -e "s/\\$\{resolve_ip\}/${resolve_ip}/" \
+    -e "s/\\$\{webui_tld\}/${webui_tld}/" \
+    "${1}"
+}
+
+# kind
+if true; then
+
+# docker pull "${kindest_image}" || true
+
+  kind delete cluster --name "${kindname}"
+
+  envsubst "${srcdir}/0.kind/kind.yml" | kind create cluster --name "${kindname}" --image "${kindest_image}" --config -
+
+fi
+
+kubectl cluster-info
+
+#----------------------------------------------------------------
+# kube-system
+
+kubectl -n kube-system get configmap kube-proxy -o yaml | \
+  sed 's/strictARP: false/strictARP: true/' | \
+  kubectl apply -f -
+
+#----------------------------------------------------------------
+# 0
+
+#kubectl delete ns '0' || true
+kubectl create ns '0' || true
+
+# hosts定義順
+cat "${srcdir}/0.dns/config/dnsmasq/hosts" | sed -e 's/#.*//' -e '/^$/d' | awk -F ' ' '{print $NF}' | while read -a name; do
+
+  id="$(echo "${name}" | tr '.' $'\n' | tac | paste -s -d '.')"
+
+  manifest="${srcdir}/${id}/k8s/deploy.yml"
+  if [[ ! -f "${manifest}" ]]; then
+    continue
+  fi
+echo "${id}"
+
+  # イメージ転送
+  # TODO: ローカルキャッシュの共有ができないか
+  set +e
+
+    cat "${manifest}" | grep image: | sed 's/.* //' | sort -u | while read image; do
+
+#     docker pull "${image}"
+
+      kind load --name "${kindname}" docker-image "${image}"
+
+    done
+
+#   docker/whalesay:latest
+
+  set -e
+
+  # configmap
+  if [[ -d "${srcdir}/${id}/config" ]]; then
+
+    fromfiles=()
+    while read -a file; do
+      fromfiles+=("--from-file=${file}")
+    done < <(find "${srcdir}/${id}/config" -type f 2> /dev/null)
+
+    if [[ 0 != "${#fromfiles[@]}" ]]; then
+      kubectl -n '0' create configmap "${id}-configmap" "${fromfiles[@]}" || true
+    fi
+
+  fi
+
+  # deploy
+  envsubst "${manifest}" | kubectl apply -f -
+
+done
+
+#----------------------------------------------------------------
+# manifests
+
+# TODO: cache
+cnt="$(echo "${kind_yml}" | yq -r '.manifests | length')"
+for ((i = 0; i < "${cnt}"; i++)); do
+
+  name="$(     echo "${kind_yml}" | yq -r ".manifests["${i}"].name")"
+  namespace="$(echo "${kind_yml}" | yq -r ".manifests["${i}"].namespace")"
+  manifest="$( echo "${kind_yml}" | yq -r ".manifests["${i}"].url")"
+
+  if [[ 'null' == "${namespace}" ]]; then
+    kubectl apply -f "${manifest}"
+
+  else
+    kubectl create ns "${namespace}"
+    kubectl -n "${namespace}" apply -f "${manifest}"
+  fi
+
+done
+
+if false; then
+
+  false
+
+  # TODO: service, ingress
+# kubectl -n default create token default
+# kubectl proxy
+# http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/#/login
+
+  # TODO: service, ingress
+# kubectl -n argo port-forward deployment/argo-server 2746:2746
+# curl https://localhost:2746
+
+fi

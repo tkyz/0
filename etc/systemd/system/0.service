@@ -1,0 +1,13 @@
+[Unit]
+Description=0
+After=local-fs.target
+
+[Service]
+ExecStartPre=true
+ExecStart=true
+ExecStop=true
+Restart=no
+Type=forking
+
+[Install]
+WantedBy=multi-user.target

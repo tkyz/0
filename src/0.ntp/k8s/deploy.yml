@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: "0"
+  name: ntp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ntp
+  template:
+    metadata:
+      labels:
+        app: ntp
+    spec:
+      volumes:
+        - name: configmap-volume
+          configMap:
+            name: 0.ntp-configmap
+      containers:
+        - name: ntp
+          image: container.0/org.tuxfamily.chrony:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            capabilities:
+              add:
+                - SYS_TIME
+          ports:
+            - {protocol: UDP, containerPort: 123}
+          volumeMounts:
+            - {name: configmap-volume, subPath: chrony.conf, mountPath: /etc/chrony/chrony.conf}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: "0"
+  name: ntp
+spec:
+  type: LoadBalancer
+  selector:
+    app: ntp
+  ports:
+    - {protocol: UDP, port: 123, nodePort: 123}

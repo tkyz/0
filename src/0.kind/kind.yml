@@ -1,0 +1,48 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+kubeadmConfigPatches:
+  - |
+    kind: ClusterConfiguration
+    apiServer:
+      extraArgs:
+        service-node-port-range: 1-65535
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+#     - {containerPort:   22, hostPort:   22, listenAddress: ${external_ip}, protocol: TCP}
+#     - {containerPort:   25, hostPort:   25, listenAddress: ${external_ip}, protocol: TCP}
+      - {containerPort:   53, hostPort:   53, listenAddress: ${external_ip}, protocol: UDP} # dns
+      - {containerPort:   80, hostPort:   80, listenAddress: ${external_ip}, protocol: TCP} # http
+#     - {containerPort:  110, hostPort:  110, listenAddress: ${external_ip}, protocol: TCP}
+      - {containerPort:  123, hostPort:  123, listenAddress: ${external_ip}, protocol: UDP} # ntp
+#     - {containerPort:  389, hostPort:  389, listenAddress: ${external_ip}, protocol: TCP}
+      - {containerPort:  443, hostPort:  443, listenAddress: ${external_ip}, protocol: TCP} # tls
+#     - {containerPort:  587, hostPort:  587, listenAddress: ${external_ip}, protocol: UDP}
+#     - {containerPort:  995, hostPort:  995, listenAddress: ${external_ip}, protocol: TCP}
+      - {containerPort: 3306, hostPort: 3306, listenAddress: ${external_ip}, protocol: TCP} # mysql,mariadb
+      - {containerPort: 5432, hostPort: 5432, listenAddress: ${external_ip}, protocol: TCP} # postgresql
+#     - {containerPort: 6667, hostPort: 6667, listenAddress: ${external_ip}, protocol: TCP}
+      - {containerPort: 9418, hostPort: 9418, listenAddress: ${external_ip}, protocol: TCP} # git
+  - role: worker
+    # TODO: pv, pvc
+    extraMounts:
+      # src
+      - {hostPath: ${srcdir}/0.wiki/volume, containerPath: /home/0.wiki}
+      - {hostPath: ${srcdir}/org.dokuwiki,  containerPath: /home/org.dokuwiki}
+      # data
+      - {hostPath: ${datdir}/container,     containerPath: /home/0.container}
+      - {hostPath: ${datdir}/git,           containerPath: /home/0.git,             readOnly: true}
+      - {hostPath: ${datdir}/apt,           containerPath: /home/0.apt}
+      - {hostPath: ${datdir}/mvn,           containerPath: /home/0.mvn}
+      - {hostPath: ${datdir}/mariadb,       containerPath: /home/0.mariadb}
+      - {hostPath: ${datdir}/pgsql,         containerPath: /home/0.pgsql}
+      - {hostPath: /setup,                  containerPath: /home/0.setup/setup,     readOnly: true}
+      - {hostPath: /setup.bat,              containerPath: /home/0.setup/setup.bat, readOnly: true}
+#     - {hostPath: /home/com.docker,        containerPath: /home/com.docker,       readOnly: true}
+#     - {hostPath: /home/org.apache.maven,  containerPath: /home/org.apache.maven, readOnly: true}

@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+image='container.0/0:latest'
+workdir='/.sandbox'
+
+docker run \
+  --interactive \
+  --tty \
+  --rm \
+  --name    "0.$(uuidgen)" \
+  --network host \
+  --volume  '/.bin:/.bin:ro' \
+  --volume  '/opt:/opt:ro' \
+  --volume  '/home/org.apache.maven:/home/org.apache.maven' \
+  --volume  "${HOME}/.Xauthority:/root/.Xauthority:ro" \
+  --volume  "${PWD}:${workdir}:ro" \
+  --workdir "${workdir}" \
+  --env     "UID=$(id -u)" \
+  --env     "DISPLAY=${DISPLAY:-:0.0}" \
+  "${image}"
+
+# --volume  '/var/run/docker.sock:/var/run/docker.sock' \
+# --volume  "/home/0.sandbox:/home/0.sandbox" \

@@ -1,0 +1,14 @@
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+#  .---------------- minute (0 - 59)
+#  |  .------------- hour   (0 - 23)
+#  |  |  .---------- day    (1 - 31)
+#  |  |  |  .------- month  (1 - 12) OR jan,feb,mar,apr ...
+#  |  |  |  |  .---- week   (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+#  |  |  |  |  |
+# mm hh dd MM ee user command
+   0  *  *  *  * root                              ( cd / && run-parts --report /etc/cron.hourly  )
+  15  0  *  *  * root test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.daily   )
+  30  0  *  *  7 root test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.weekly  )
+  45  0  1  *  * root test -x /usr/sbin/anacron || ( cd / && run-parts --report /etc/cron.monthly )

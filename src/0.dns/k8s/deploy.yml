@@ -1,0 +1,51 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: "0"
+  name: dns
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dns
+  template:
+    metadata:
+      labels:
+        app: dns
+    spec:
+      volumes:
+        - name: configmap-volume
+          configMap:
+            name: 0.dns-configmap
+      containers:
+        - name: dns
+          image: container.0/uk.org.thekelleys/dnsmasq:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {protocol: UDP, containerPort: 53}
+          volumeMounts:
+            - {name: configmap-volume, subPath: dnsmasq.conf, mountPath: /etc/dnsmasq.conf}
+            - {name: configmap-volume, subPath: hosts,        mountPath: /etc/hosts.dnsmasq.org}
+            - {name: configmap-volume, subPath: resolv.conf,  mountPath: /etc/resolv.conf.dnsmasq.org}
+          command: [/bin/sh, -c]
+          args:
+            - |
+              cat /etc/hosts.dnsmasq.org       | sed "s/127.0.0.1/${external_ip}/" >  /etc/hosts.dnsmasq1
+              cat /etc/hosts.dnsmasq1          | sed "s/0$/${webui_tld}/"          >  /etc/hosts.dnsmasq
+              cat /etc/hosts.dnsmasq1                                              >> /etc/hosts.dnsmasq
+              cat /etc/resolv.conf.dnsmasq.org | sed "s/127.0.0.1/${resolve_ip}/"  >  /etc/resolv.conf.dnsmasq
+              dnsmasq -k
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: "0"
+  name: dns
+spec:
+  type: LoadBalancer
+  selector:
+    app: dns
+  ports:
+    - {protocol: UDP, port: 53, nodePort: 53}

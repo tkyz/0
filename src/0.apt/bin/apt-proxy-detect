@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -euo pipefail
+
+host='apt.0'
+port='80'
+
+uri='DIRECT'
+
+{
+  if cat /dev/null > "/dev/tcp/${host}/${port}"; then
+    uri="http://${host}:${port}"
+  fi
+} 2> /dev/null
+
+echo -n "${uri}"

@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+curr_name="$(basename "${BASH_SOURCE:-${0}}")"
+
+jdk_ver='latest'
+opt_ver='latest'
+opt_dir="${HOME}/opt/org.apache.${curr_name}/${opt_ver}"
+
+export JAVA_HOME="${HOME}/opt/net.java.jdk/${jdk_ver}"
+export PATH="${JAVA_HOME}/bin:${PATH}"
+
+"${opt_dir}/bin/${curr_name}" "${@}"

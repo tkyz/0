@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+readonly openpgp4fpr="$(openpgp4fpr)"
+
+readonly remote_origin="$(git remote get-url origin)"
+readonly curr_branch="$(git branch --show-current)"
+
+tmpdir="$(mktemp -d)"
+pushd "${tmpdir}"
+
+  git clone --branch "${curr_branch}" "${remote_origin}" .
+
+  # fixup
+  EDITOR='sed -i "2,\$s/^pick/fixup/"' git rebase --interactive --root
+# EDITOR='sed -i "2,\$s/^pick/fixup/"' git rebase --interactive "$(git log --pretty=oneline | tail -n 1 | cut -d ' ' -f 1)"
+
+  git commit --no-verify --amend --message 'auto fixup'
+
+  git push --no-verify --force origin
+
+popd
+
+if true; then
+
+  git fetch --all --prune
+
+  git branch --move "${curr_branch}_$(date "+%Y%m%d_%H%M%S_%N")"
+
+  git checkout -b "${curr_branch}" "origin/${curr_branch}"
+
+# git branch --set-upstream-to="origin/${curr_branch}" "${openpgp4fpr}" || \
+  git branch --set-upstream-to='upstream/main'         "${openpgp4fpr}" || \
+  git branch --set-upstream-to='github/main'           "${openpgp4fpr}"
+
+fi

@@ -1,0 +1,59 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+version=${1:-0}
+
+#----------------------------------------------------------------
+# mvn
+if [[ -f ./pom.xml ]]; then
+
+  if ! is_container && ! is_wsl; then
+
+    workdir="/tmp/$(uuidgen)"
+
+    docker run \
+      --interactive \
+      --tty \
+      --rm \
+      --network host \
+      --volume '/.bin:/usr/local/bin:ro' \
+      --volume '/etc/profile.d/0.sh:/etc/profile.d/0.sh:ro' \
+      --volume '/opt/net.java.jdk:/opt/net.java.jdk:ro' \
+      --volume '/opt/org.apache.maven:/opt/org.apache.maven:ro' \
+      --volume '/home/org.apache.maven:/home/org.apache.maven' \
+      --volume "${PWD}:${workdir}" \
+      --workdir "${workdir}" \
+      debian:latest bash -l -c "
+        build "${@}"
+        chown -R $(id -u):$(id -g) .
+      "
+
+#     --hostname builder \
+#     --name "build_$(date '+%Y%m%d_%H%M%S')" \
+
+  else
+
+    export MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData'
+
+    define=()
+    defune+=("--define" "version=${version}")
+    if ! grep -q '<packaging>pom</packaging>' ./pom.xml; then
+      defune+=("--define" "checkstyle.skip=false")
+      defune+=("--define" "maven.test.skip=false")
+      defune+=("--define" "maven.javadoc.skip=false")
+      defune+=("--define" "assembly.skipAssembly=false")
+    fi
+
+    mvn \
+      --threads 1C \
+      "${defune[@]}" \
+      clean \
+      package \
+      install
+
+  fi
+
+fi

@@ -1,0 +1,9 @@
+{
+  "data-root": "/home/com.docker",
+  "insecure-registries": ["container.0"],
+  "features": {"buildkit": true},
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "storage-driver": "overlay2",
+  "log-driver": "json-file",
+  "log-opts": {"max-size": "100m"}
+}

@@ -1,0 +1,183 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+# debug
+if true; then
+  printf "\e[2m"
+  echo   '---'
+  echo   'exec:'
+  echo   "  pwd: ${PWD}"
+  echo   "  cmd: ${BASH_SOURCE:-0}"
+  # TODO: indent
+  echo   '  export:'
+  export
+  printf "\e[0m"
+fi
+
+bare_dir="${PWD}"
+
+if [[ ! -v is_git_hooks ]]; then
+
+  bare_dir="$(git remote get-url origin)"
+
+  readonly bef_commit_sha="$(git rev-parse HEAD)"
+  readonly aft_commit_sha=''
+  readonly branch_refs="$(git show-ref | grep "${bef_commit_sha}" | head -n 1 | cut -d ' ' -f 2)"
+
+  echo "  bef_commit_sha: ${bef_commit_sha}"
+  echo "  aft_commit_sha: ${aft_commit_sha}"
+  echo "  branch_refs:    ${branch_refs}"
+
+fi
+
+#----------------------------------------------------------------
+# protected branch
+if [[ -v is_git_hooks ]]; then
+
+  protected_branch_names=()
+# protected_branch_names+=('main')
+
+  for protected_branch_name in "${protected_branch_names[@]}"; do
+
+    if [[ "refs/heads/${protected_branch_name}" != "${branch_refs}" ]]; then
+      continue
+    fi
+
+    printf "\e[1;91m%s\e[0m\n" 'locked branch.'
+    false
+
+  done
+
+fi
+
+#----------------------------------------------------------------
+# archive
+
+tmpdir="$(mktemp -d)"
+tmpfile="$(mktemp)"
+
+if [[ -v is_git_hooks ]]; then
+  pushd "${tmpdir}" &> /dev/null
+
+    # TODO: prev-curr
+    if true; then
+      git --git-dir='.git' init
+      git --git-dir='.git' remote add origin "${bare_dir}"
+      git --git-dir='.git' fetch --depth 1 origin "${aft_commit_sha}"
+      git --git-dir='.git' checkout FETCH_HEAD
+    fi
+
+    # TODO: verify sign
+    if true; then
+      echo 'verify sign.'
+    fi
+
+    # banned words
+    if true; then
+
+      echo 'banned words.'
+
+      # TODO: words list
+      words=()
+#     words+=("${USER}")
+      words+=("$(hostname -f)")
+      words+=('PGP PRIVATE KEY')
+      words+=('RSA PRIVATE KEY')
+      for word in "${words[@]}"; do
+        ! grep --recursive --with-filename --line-number --line-buffered --exclude=ci --exclude-dir=.git "${word}" .
+      done
+
+    fi
+
+    tar --exclude '.git' -czf - . > "${tmpfile}"
+
+  popd &> /dev/null
+fi
+
+#----------------------------------------------------------------
+# ci/cd
+
+# TODO; local ci
+if [[ ! -v is_git_hooks ]]; then
+  printf "\e[1;91m%s\e[0m\n" 'unsupported local ci.'
+  false
+fi
+
+kubectl create ns "${aft_commit_sha}"
+if true; then
+
+  kubectl -n "${aft_commit_sha}" run cowsay --image docker/whalesay:latest --restart=Never --rm -it -- cowsay "${aft_commit_sha}"
+  kubectl -n "${aft_commit_sha}" run export --image alpine:latest          --restart=Never --rm -it -- sh -c export
+
+  # TODO: dag
+: <<'EOF'
+  target_ids=()
+# target_ids+=('0')
+# target_ids+=('uk.org.thekelleys/dnsmasq')
+# target_ids+=('org.tuxfamily.chrony')
+# target_ids+=('com.git-scm/git-daemon')
+# target_ids+=('org.debian/apt-cacher-ng')
+# target_ids+=('org.apache.archiva')
+# target_ids+=('net.php.fpm')
+# target_ids+=('org.nethack')
+
+  for target_id in "${target_ids[@]}"; do
+    pushd "${tmpdir}/home/${target_id}" &> /dev/null
+
+      # TODO: diff prev-curr
+      if true; then
+        docker build --tag "container.0/${target_id}:${aft_commit_sha}" . # --no-cache --pull
+        docker push        "container.0/${target_id}:${aft_commit_sha}"
+
+      else
+        docker pull "container.0/${target_id}:${bef_commit_sha}"
+        docker tag  "container.0/${target_id}:${bef_commit_sha}" "container.0/${target_id}:${aft_commit_sha}"
+      fi
+
+    popd &> /dev/null
+  done
+
+  # test
+
+  # switch tag
+  for target_id in "${target_ids[@]}"; do
+
+    docker tag  "container.0/${target_id}:${aft_commit_sha}" "container.0/${target_id}:latest"
+    docker push "container.0/${target_id}:latest"
+
+    docker rmi \
+      "container.0/${target_id}:${bef_commit_sha}" \
+      "container.0/${target_id}:${aft_commit_sha}" \
+      "container.0/${target_id}:latest"
+
+  done
+
+EOF
+
+  # docs
+  set +e
+
+    pages_dir="${HOME}/src/0.wiki/volume/pages"
+    mkdir -p "${pages_dir}"
+
+    grep --recursive --with-filename --line-number --line-buffered --exclude=ci --exclude-dir=.git 'ISSUE: ' "${tmpdir}" | sed "s#^${tmpdir}##" > "${pages_dir}/issue.txt"
+    grep --recursive --with-filename --line-number --line-buffered --exclude=ci --exclude-dir=.git 'TODO: '  "${tmpdir}" | sed "s#^${tmpdir}##" > "${pages_dir}/todo.txt"
+
+    truncate -s 0 '/etc/issue'
+    truncate -s 0 '/etc/issue.net'
+    truncate -s 0 '/etc/motd'
+
+    cat "${pages_dir}/issue.txt" >> '/etc/motd'
+    cat "${pages_dir}/todo.txt"  >> '/etc/motd'
+
+  set -e
+
+  docker volume  prune --force
+  docker network prune --force
+  docker system  prune --force
+
+fi
+kubectl delete ns "${aft_commit_sha}"

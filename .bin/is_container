@@ -1,0 +1,21 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+cgroup="$(tail -n 1 /proc/1/cgroup)"
+
+# containerd
+if [[ "${cgroup}" == '0::/system.slice/containerd.service' ]]; then
+  true
+
+# docker run
+elif [[ "${cgroup}" == '0::/' ]]; then
+  true
+
+elif is_docker_build; then
+  true
+fi
+
+false

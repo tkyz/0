@@ -1,0 +1,39 @@
+# deb.0
+deb     http://deb.0/debian                        bullseye          main contrib non-free
+deb-src http://deb.0/debian                        bullseye          main contrib non-free
+
+deb     http://deb.debian.org/debian               bullseye          main contrib non-free
+deb-src http://deb.debian.org/debian               bullseye          main contrib non-free
+deb     http://deb.debian.org/debian               bullseye-updates  main contrib non-free
+deb-src http://deb.debian.org/debian               bullseye-updates  main contrib non-free
+deb     http://security.debian.org/debian-security bullseye-security main contrib non-free
+deb-src http://security.debian.org/debian-security bullseye-security main contrib non-free
+
+# cdn
+deb     http://cdn.debian.or.jp/debian             bullseye          main contrib non-free
+deb-src http://cdn.debian.or.jp/debian             bullseye          main contrib non-free
+
+# https://www.debian.org/mirror/list.ja.html
+deb     http://ftp.jp.debian.org/debian            bullseye          main contrib non-free
+deb-src http://ftp.jp.debian.org/debian            bullseye          main contrib non-free
+
+#deb     http://debian-mirror.sakura.ne.jp/debian   bullseye          main contrib non-free
+#seb-src http://debian-mirror.sakura.ne.jp/debian   bullseye          main contrib non-free
+#deb     http://dennou-k.gfd-dennou.org/debian      bullseye          main contrib non-free
+#deb-src http://dennou-k.gfd-dennou.org/debian      bullseye          main contrib non-free
+#deb     http://dennou-q.gfd-dennou.org/debian      bullseye          main contrib non-free
+#deb-src http://dennou-q.gfd-dennou.org/debian      bullseye          main contrib non-free
+#deb     http://ftp.jaist.ac.jp/debian              bullseye          main contrib non-free
+#deb-src http://ftp.jaist.ac.jp/debian              bullseye          main contrib non-free
+#deb     http://ftp.kddilabs.jp/pub/debian          bullseye          main contrib non-free
+#deb-src http://ftp.kddilabs.jp/pub/debian          bullseye          main contrib non-free
+#deb     http://ftp.nara.wide.ad.jp/debian          bullseye          main contrib non-free
+#deb-src http://ftp.nara.wide.ad.jp/debian          bullseye          main contrib non-free
+#deb     http://ftp.riken.jp/Linux/debian/debian    bullseye          main contrib non-free
+#deb-src http://ftp.riken.jp/Linux/debian/debian    bullseye          main contrib non-free
+#deb     http://ftp.yz.yamagata-u.ac.jp/debian      bullseye          main contrib non-free
+#deb-src http://ftp.yz.yamagata-u.ac.jp/debian      bullseye          main contrib non-free
+#deb     http://hanzubon.jp/debian                  bullseye          main contrib non-free
+#deb-src http://hanzubon.jp/debian                  bullseye          main contrib non-free
+#deb     http://mirrors.xtom.jp/debian              bullseye          main contrib non-free
+#deb-src http://mirrors.xtom.jp/debian              bullseye          main contrib non-free

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+# debug
+if true; then
+  printf "\e[2m"
+  echo   '---'
+  echo   'exec:'
+  echo   "  pwd: ${PWD}"
+  echo   "  cmd: ${BASH_SOURCE:-0}"
+  echo   '  args:'
+  for item in "${@}"; do
+    echo "    - ${item}"
+  done
+  # TODO: indent
+  echo   '  export:'
+  export
+  printf "\e[0m"
+fi
+
+#----------------------------------------------------------------
+# TODO: コミットメッセージの動的作成
+if true; then
+  cat "${1}"
+fi

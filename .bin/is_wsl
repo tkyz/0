@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+type wslpath > /dev/null 2>&1

@@ -1,0 +1,3 @@
+#Acquire::http { Proxy "http://apt.0/"; }
+# TODO: docker build中にapt.0につながらない
+#Acquire::http::Proxy-Auto-Detect "/home/0.apt/bin/apt-proxy-detect";

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+declare -A map
+
+target_dir="${1:-.}"
+while read item; do
+
+  key=''
+  key+="_$(sha512sum "${item}" | cut -b 1-128)"
+  key+="_$(sha256sum "${item}" | cut -b 1-64)"
+
+  if [[ -v map["${key}"] ]]; then
+    echo "${item}"
+    continue
+  fi
+
+  map["${key}"]=
+
+done < <(find "${target_dir}" -type f)

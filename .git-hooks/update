@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+# debug
+if true; then
+  printf "\e[2m"
+  echo   '---'
+  echo   'exec:'
+  echo   "  pwd: ${PWD}"
+  echo   "  cmd: ${BASH_SOURCE:-0}"
+  echo   '  args:'
+  for item in "${@}"; do
+    echo "    - ${item}"
+  done
+  # TODO: indent
+  echo   '  export:'
+  export
+  printf "\e[0m"
+fi
+
+#----------------------------------------------------------------
+# ci
+
+export is_git_hooks="${BASH_SOURCE:-0}"
+export branch_refs="${1}"
+export bef_commit_sha="${2}"
+export aft_commit_sha="${3}"
+
+ci

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -euo pipefail
+
+chown -R "$(id -u apt-cacher-ng):$(id -g apt-cacher-ng)" /var/cache/apt-cacher-ng
+
+/etc/init.d/apt-cacher-ng start
+
+tail -f /var/log/apt*/*

@@ -1,0 +1,108 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+openpgp4fpr="$(openpgp4fpr)"
+
+name="${1:-}"
+shift || true
+
+#----------------------------------------------------------------
+# enc
+if type gocryptfs &> /dev/null && ! is_wsl; then
+
+# enc_dir="${HOME}/src/0.enc/${openpgp4fpr}"
+  enc_dir="${HOME}/.0/${openpgp4fpr}/enc"
+  dec_dir="${HOME}/mnt/enc"
+
+  gpw_file="${enc_dir}/gocryptfs.gpw"
+  cnf_file="${enc_dir}/gocryptfs.conf"
+
+  mkdir -p \
+    "${enc_dir}" \
+    "${dec_dir}"
+
+  # init
+  if [[ ! -f "${gpw_file}" ]]; then
+
+#   randpw="$(cat /dev/urandom | head -c 16777216 | sha512sum | sed 's/ .*//' || true)"
+#   randpw="$(cat /dev/urandom | tr -d -c '[:alnum:]' | head -c 128           || true)"
+    randpw="$(cat /dev/urandom | tr -d -c '[:graph:]' | head -c 128           || true)"
+
+    echo -n "${randpw}" | gocryptfs -init "${enc_dir}"
+    echo -n "${randpw}" | gpg --encrypt --armor --output "${gpw_file}"
+
+  fi
+
+  # config
+  if   [[   -f "${cnf_file}" && ! -f "${cnf_file}.gpg" ]]; then gpg --encrypt --armor --output "${cnf_file}.gpg" "${cnf_file}"
+  elif [[ ! -f "${cnf_file}" &&   -f "${cnf_file}.gpg" ]]; then gpg --decrypt         --output "${cnf_file}"     "${cnf_file}.gpg"
+  fi
+
+  # mount
+  if ! mountpoint "${dec_dir}" &> /dev/null; then
+
+    gocryptfs \
+      -extpass 'gpg' \
+      -extpass '--decrypt' \
+      -extpass "${gpw_file}" \
+      "${enc_dir}" \
+      "${dec_dir}"
+#     -allow_other
+
+  fi
+
+fi
+
+#----------------------------------------------------------------
+# mount
+if [[ -n "${name}" && -f "${HOME}/0.yml" ]]; then
+
+  mnt_target="${HOME}/mnt/${name}"
+
+  if ! mountpoint "${mnt_target}" &> /dev/null; then
+
+    mnt_yml="$(yq ".\"0\".mnt[] | select(.name == \"${name}\")" "${HOME}/0.yml")"
+
+    type="$(echo "${mnt_yml}" | yq -r .type)"
+    vers="$(echo "${mnt_yml}" | yq -r .vers)"
+    host="$(echo "${mnt_yml}" | yq -r .host)"
+    path="$(echo "${mnt_yml}" | yq -r .path)"
+    user="$(echo "${mnt_yml}" | yq -r .user)"
+    pass="$(echo "${mnt_yml}" | yq -r .pass)"
+
+    mnt_source="//${host}${path}"
+
+    mnt_opts=''
+    mnt_opts+="vers=${vers}"
+    mnt_opts+=',defaults'
+    mnt_opts+=',iocharset=utf8'
+    mnt_opts+=',nounix'
+    mnt_opts+=',file_mode=0600'
+    mnt_opts+=',dir_mode=0700'
+    mnt_opts+=",uid=$(id -u)"
+    mnt_opts+=",gid=$(id -g)"
+    mnt_opts+=",ro"
+    if [[ -n "${user}" && -n "${pass}" ]]; then
+
+      credentials="$(mktemp)"
+      echo "username=${user}" >> "${credentials}"
+      echo "password=${pass}" >> "${credentials}"
+
+      mnt_opts+=",credentials=${credentials}"
+
+    fi
+
+    mkdir -p "${mnt_target}"
+
+    # TODO: sudo
+    sudo mount --types "${type}" --options "${mnt_opts}" "${mnt_source}" "${mnt_target}"
+#   echo "${mnt_source} ${mnt_target} ${type} ${mnt_opts} 0 0" | tee --append /etc/fstab
+
+    rm "${credentials}"
+
+  fi
+
+fi

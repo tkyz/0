@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+cgroup="$(tail -n 1 /proc/1/cgroup)"
+
+if [[ "${cgroup}" =~ ^0::/system.slice/system.slice:docker:.*$ ]]; then
+  true
+fi
+
+false

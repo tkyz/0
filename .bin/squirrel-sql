@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+curr_name="$(basename "${BASH_SOURCE:-${0}}")"
+
+jdk_ver='latest'
+opt_ver='4.5.0'
+opt_dir="${HOME}/opt/io.sourceforge.${curr_name}/${opt_ver}"
+
+export JAVA_HOME="${HOME}/opt/net.java.jdk/${jdk_ver}"
+export PATH="${JAVA_HOME}/bin:${PATH}"
+
+export CLASSPATH="./*"
+CLASSPATH+=":${opt_dir}/${curr_name}.jar"
+CLASSPATH+=":${opt_dir}/lib/*"
+
+# TODO: version
+CLASSPATH+=":${HOME}/var/org.apache.maven/com/h2database/h2/2.1.214/h2-2.1.214.jar"
+CLASSPATH+=":${HOME}/var/org.apache.maven/com/microsoft/sqlserver/mssql-jdbc/11.2.1.jre18/mssql-jdbc-11.2.1.jre18.jar"
+CLASSPATH+=":${HOME}/var/org.apache.maven/com/oracle/database/jdbc/ojdbc10/19.16.0.0/ojdbc10-19.16.0.0.jar"
+CLASSPATH+=":${HOME}/var/org.apache.maven/org/mariadb/jdbc/mariadb-java-client/3.0.8/mariadb-java-client-3.0.8.jar"
+CLASSPATH+=":${HOME}/var/org.apache.maven/org/postgresql/postgresql/42.5.0/postgresql-42.5.0.jar"
+CLASSPATH+=":${HOME}/var/org.apache.maven/org/xerial/sqlite-jdbc/3.39.4.0/sqlite-jdbc-3.39.4.0.jar"
+CLASSPATH+=":${HOME}/var/org.apache.maven/mysql/mysql-connector-java/8.0.31/mysql-connector-java-8.0.31.jar"
+
+java net.sourceforge.squirrel_sql.client.Main "${@}"
