@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  tmp_dir="$(mktemp -d)"
+  git_uri="$(git -C "${HOME}" remote get-url 'origin')"
+
+  pushd "${tmp_dir}" &> '/dev/null'
+
+    git clone "${git_uri}" .
+
+    EDITOR='sed -i "2,\$s/^pick/fixup/"' git rebase --interactive --root
+    git commit --no-verify --amend --no-edit --message 'squash'
+
+    git push --no-verify --force
+
+  popd &> '/dev/null'
+  rm -rf "${tmp_dir}"
+
+  pushd "${HOME}" &> '/dev/null'
+    git fetch 'origin'
+    git reset --mixed 'origin/main'
+  popd &> '/dev/null'
+
+)

@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  source '/etc/os-release'
+
+  uuid="$(uuidgen)"
+  image="${ID}:${VERSION_CODENAME:-latest}"
+
+  opts=()
+  opts+=('--interactive')
+  opts+=('--tty')
+  opts+=('--rm')
+  opts+=('--name'     "${uuid}")
+  opts+=('--hostname' "${uuid}")
+# opts+=('--network'  'host')
+  opts+=('--device'   'nvidia.com/gpu=all')
+# opts+=('--device'   '/dev/fuse')
+# opts+=('--cap-add'  'SYS_ADMIN')
+# opts+=('--env'      "UID=$(id -u)")
+  opts+=('--env'      "DISPLAY=${DISPLAY:-:0.0}")
+  opts+=('--workdir'  '/root')
+  opts+=('--volume'   "$(printf '%s:%s'    '/tmp/.X11-unix/X0'  '/tmp/.X11-unix/X0')")
+  opts+=('--volume'   "$(printf '%s:%s'    "${HOME}/.cache/pip" '/root/.cache/pip')")
+  opts+=('--volume'   "$(printf '%s:%s'    "${HOME}/.m2"        '/root/.m2')")
+  opts+=('--volume'   "$(printf '%s:%s:ro' "${HOME}/bin"        '/root/bin')")
+# opts+=('--volume'   "$(printf '%s:%s'    "${HOME}/opt"        '/root/opt')")
+  opts+=('--volume'   "$(printf '%s:%s:ro' "${HOME}/.bashrc"    '/root/.bashrc')")
+  opts+=('--volume'   "$(printf '%s:%s:ro' "${HOME}/.profile"   '/root/.profile')")
+
+  podman run "${opts[@]}" "${image}" bash -l
+
+# kubectl -n "$(hostname)" run -it --rm --image="${image}" -- bash
+
+)

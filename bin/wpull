@@ -1,0 +1,143 @@
+#!/bin/bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  uri="${1:-}"
+
+  function type_container() {
+
+    uri="${1}"
+
+    echo '---'
+    echo "${uri}"
+
+    podman pull "${uri}"
+
+  }
+
+  function type_git() {
+
+    git_dir="${1}"
+    remote="${2}"
+    uri="${3}"
+
+    mkdir -p "${git_dir}"
+    pushd "${git_dir}" &> /dev/null
+
+      echo '---'
+      echo "${PWD}"
+
+      if [[ 'origin' == "${remote}" ]]; then
+#       git init --bare --object-format=sha256 "${uri}" || true
+        git init --bare                        "${uri}" || true
+      fi
+#     git init --object-format=sha256
+      git init
+
+      git remote add     "${remote}" "${uri}" 2> /dev/null || \
+      git remote set-url "${remote}" "${uri}" 2> /dev/null || \
+      true
+
+      git fetch --prune "${remote}"
+
+      git remote set-head "${remote}" 'main'   2> /dev/null || \
+      git remote set-head "${remote}" 'master' 2> /dev/null || \
+      git remote set-head "${remote}" 'trunk'  2> /dev/null || \
+      true
+
+      if git checkout --orphan 'main'; then
+        git checkout -b 'main' "${remote}/main"   2> /dev/null || \
+        git checkout -b 'main' "${remote}/master" 2> /dev/null || \
+        git checkout -b 'main' "${remote}/trunk"  2> /dev/null || \
+        true
+      fi
+
+      if ! git rebase --no-autostash "${remote}" 2> /dev/null; then
+
+        git reset --mixed "${remote}/main"   2> /dev/null || \
+        git reset --mixed "${remote}/master" 2> /dev/null || \
+        git reset --mixed "${remote}/trunk"  2> /dev/null || \
+        true
+
+        git status
+
+      fi
+
+      git branch --set-upstream-to='origin/main'      2> /dev/null || \
+      git branch --set-upstream-to='origin/master'    2> /dev/null || \
+      git branch --set-upstream-to="${remote}/main"   2> /dev/null || \
+      git branch --set-upstream-to="${remote}/master" 2> /dev/null || \
+      true
+
+      git gc
+
+    popd &> /dev/null
+
+  }
+
+  # list...
+  if [[ -z "${uri}" ]]; then
+
+    {
+
+      cat "${HOME}/list" || true
+
+      find "${HOME}/lib" "${HOME}/src" -type d -name '.git' 2> /dev/null | while read base_dir; do
+        git -C "${base_dir}" remote -v | awk '{ print $2 }'
+      done | sort --unique | grep -E -e '^(https?)://.*\.git$' || true
+
+      podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>'
+
+    } 2> /dev/null | sort --unique --output "${HOME}/list" || true
+
+    cat "${HOME}/list" | while read item; do
+      "${BASH_SOURCE}" "${item}"
+    done
+
+# elif [[ "${uri}" =~ ^.*\.tar\.gz$ || "${uri}" =~ ^.*\.tgz$ ]]; then
+#   curl -fsSL "${uri}" | tar zxf - --strip-components 1 --no-same-permissions --no-same-owner
+
+# elif [[ "${uri}" =~ ^.*\.zip$ ]]; then
+#   curl -fsSL "${uri}" | bsdtar xf - --strip-components 0
+
+# elif [[ "${uri}" =~ ^.*\.7z$ ]]; then
+#   curl -fsSL  "${url}" 2> /dev/null > file
+#   7z x file
+#   rm file
+
+  elif [[ "${uri}" =~ ^docker\.io/[^/]+/[^:]+:.+$ ]]; then
+    type_container "${uri}"
+
+  elif [[ "${uri}" =~ ^ghcr\.io/[^/]+/[^:]+:.+$ ]]; then
+    type_container "${uri}"
+
+  elif [[ "${uri}" =~ ^https://github\.com/.+\.git$ ]]; then
+
+    git_dir="${HOME}/src"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+    type_git "${git_dir}" 'github' "${uri}"
+
+  elif [[ "${uri}" =~ ^https://gitlab\.com/.+\.git$ ]]; then
+
+    git_dir="${HOME}/src"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+    type_git "${git_dir}" 'gitlab' "${uri}"
+
+  elif [[ "${uri}" =~ ^https://huggingface\.co/.+\.git$ ]]; then
+
+    git_dir="${HOME}/lib"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+    type_git "${git_dir}" 'huggingface' "${uri}"
+
+  fi
+
+)
