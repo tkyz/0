@@ -1,0 +1,517 @@
+# podman image inspect "${image}" --format='ENTRYPOINT: {{.Config.Entrypoint}}, CMD: {{.Config.Cmd}}'
+version: 3
+services:
+
+  echo:
+    image: docker.io/alpine/socat:latest
+    container_name: echo
+    ports:
+      - '${external_ip}:7:7'
+      - '${external_ip}:7:7/udp'
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        socat -v -x TCP-LISTEN:7,fork,reuseaddr PIPE &
+        socat -v -x UDP-LISTEN:7,fork           PIPE
+
+  dns:
+    image: docker.io/library/alpine:latest
+    container_name: dns
+    ports:
+      - '${external_ip}:53:53'
+      - '${external_ip}:53:53/udp'
+#   cap_add:
+#     - NET_ADMIN
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.apk', target: /etc/apk/cache}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add dnsmasq
+        cat << EOS | tee '/etc/dnsmasq.conf'
+        no-resolv
+        no-hosts
+        domain-needed
+        expand-hosts
+        bogus-priv
+        server=1.1.1.1
+        #server=8.8.8.8
+        domain=${domain}
+        address=/.example/${external_ip}
+        address=/.${domain}/${external_ip}
+        addn-hosts=/etc/hosts.${domain}
+        EOS
+        cat << EOS | tee '/etc/hosts.${domain}'
+        EOS
+        dnsmasq -k
+
+  ntp:
+    image: docker.io/library/alpine:latest
+    container_name: ntp
+    ports:
+      - '${external_ip}:123:123'
+      - '${external_ip}:123:123/udp'
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.apk',  target: /etc/apk/cache}
+      - {type: bind, source: '${HOME}/src/0.ntp/chrony.conf', target: /etc/chrony/chrony.conf, read_only: true}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add chrony
+        chronyd -d -x
+
+  tor:
+    image: docker.io/library/alpine:latest
+    container_name: tor
+    ports:
+      - '${external_ip}:9050:9050'
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.apk',  target: /etc/apk/cache}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add tor
+        cat << EOS | tor -f '/dev/stdin'
+        EOS
+
+  setup:
+    image: docker.io/busybox:latest
+    container_name: setup
+    expose:
+      - 8080
+    depends_on:
+      - git
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        echo 'P:/:http://git:8080/?p=0.git;a=blob_plain;f=setup;hb=HEAD' | httpd -f -p 8080 -c '/dev/stdin'
+
+  irc:
+    image: docker.io/busybox:latest
+    container_name: irc
+    ports:
+#     - '${external_ip}:194:194'
+#     - '${external_ip}:994:994'
+      - '${external_ip}:6665:6665'
+      - '${external_ip}:6666:6666'
+      - '${external_ip}:6667:6667'
+      - '${external_ip}:6668:6668'
+      - '${external_ip}:6669:6669'
+
+  proxy:
+    image: docker.io/nginx:latest
+    container_name: proxy
+    ports:
+      - '${external_ip}:80:80'
+      - '${external_ip}:443:443'
+    volumes:
+      - {type: bind, source: '${HOME}/src/0.proxy/nginx.conf',     target: /etc/nginx/nginx.conf,            read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/default.conf',   target: /etc/nginx/conf.d/default.conf,   read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/apt.conf',       target: /etc/nginx/conf.d/apt.conf,       read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/container.conf', target: /etc/nginx/conf.d/container.conf, read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/git.conf',       target: /etc/nginx/conf.d/git.conf,       read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/doc.conf',       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/setup.conf',     target: /etc/nginx/conf.d/setup.conf,     read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/chat.conf',      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
+#     - {type: bind, source: '${HOME}/src/0.proxy/comfyui.conf',   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
+#     - {type: bind, source: '${HOME}/src/0.proxy/evidence.conf',  target: /etc/nginx/conf.d/evidence.conf,  read_only: true}
+    depends_on:
+      - apt
+      - container
+      - git
+      - doc
+      - setup
+      - chat
+#     - comfyui
+#     - evidence
+
+  #----------------------------------------------------------------
+  # blockchain
+
+  btc:
+    image: docker.io/debian:latest
+    container_name: btc
+#   ports:
+#     - '${external_ip}:8332:8332'
+#     - '${external_ip}:8333:8333'
+    volumes:
+      - {type: bind, source: '${HOME}/src/com.github/bitcoin/bitcoin', target: /org.bitcoin}
+      - {type: bind, source: '${HOME}/lib/${namespace}.btc',           target: /root/.bitcoin}
+#     - {type: bind, source: '${HOME}/.bitcoin/wallet',                target: /root/.bitcoin/wallet}
+    depends_on:
+      - apt
+    working_dir: /org.bitcoin
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        echo 'Acquire::http::Proxy "http://apt:3142/";' | tee '/etc/apt/apt.conf.d/00proxy'
+        apt-get update
+        apt-get install -y \
+          pkg-config \
+          build-essential \
+          python3 \
+          cmake \
+          capnproto \
+          libboost-dev \
+          libevent-dev \
+          libsqlite3-dev \
+          libcapnp-dev
+        cmake -B build
+        cmake --build build -j $(nproc)
+        cat << EOS | tee '/root/.bitcoin/bitcoin.conf'
+        # proxy
+        #proxy=tor.${domain}:9050
+        # node
+        txindex=1
+        port=8333
+        # rpc
+        server=1
+        rpcuser=btc
+        rpcpassword=password
+        rest=1
+        #rpcallowip=0.0.0.0
+        #rpcallowip=10.0.0.0/8
+        #rpcallowip=172.16.0.0/12
+        #rpcallowip=192.168.0.0/16
+        rpcport=8332
+        # log
+        logips=1
+        #debug=1
+        EOS
+        './build/bin/bitcoind'
+
+  eth:
+    image: docker.io/debian:latest
+    container_name: eth
+#   ports:
+#     - '${external_ip}:30303:30303'
+    volumes:
+      - {type: bind, source: '${HOME}/go',                                  target: /root/go}
+      - {type: bind, source: '${HOME}/src/com.github/ethereum/go-ethereum', target: /org.ethereum}
+      - {type: bind, source: '${HOME}/lib/${namespace}.eth',                target: /root/.ethereum}
+    depends_on:
+      - apt
+    working_dir: /org.ethereum
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        echo 'Acquire::http::Proxy "http://apt:3142/";' | tee '/etc/apt/apt.conf.d/00proxy'
+        apt-get update
+        apt-get install -y \
+          make \
+          golang
+        make all
+        './build/bin/geth'
+
+  #----------------------------------------------------------------
+  # database
+
+  mariadb:
+    image: docker.io/mariadb:latest
+    container_name: mariadb
+    ports:
+      - '${external_ip}:3306:3306'
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.mariadb', target: /var/lib/mysql}
+    environment:
+      MARIADB_ROOT_PASSWORD: password
+
+  pgsql:
+    image: docker.io/postgres:alpine
+    container_name: pgsql
+    ports:
+      - '${external_ip}:5432:5432'
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.pgsql', target: /var/lib/postgresql}
+    environment:
+      POSTGRES_PASSWORD: password
+
+  redis:
+    image: docker.io/redis:alpine
+    container_name: redis
+    ports:
+      - '${external_ip}:6379:6379'
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.redis', target: /data}
+
+  mongo:
+    image: docker.io/mongo:latest
+    container_name: mongo
+    ports:
+      - '${external_ip}:27017:27017'
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.mongo', target: /data}
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+
+  chroma:
+    image: docker.io/library/python:latest
+    container_name: chroma
+    ports:
+      - '${external_ip}:8000:8000'
+    volumes:
+      - {type: bind, source: '${HOME}/.cache/pip',              target: /root/.cache/pip}
+      - {type: bind, source: '${HOME}/lib/${namespace}.chroma', target: /root/.chroma}
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        pip install chromadb
+        chroma run --host 0.0.0.0 --port 8000
+
+  #----------------------------------------------------------------
+  # registry, repository
+
+  apt:
+    build:
+      context: '${HOME}/src/org.debian/apt-cacher-ng'
+    image: 'container.${domain}/org.debian/apt-cacher-ng:${tag}'
+    container_name: apt
+    ports:
+      - '${external_ip}:3142:3142'
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.apt', target: /var/cache/apt-cacher-ng}
+
+  container:
+    image: docker.io/registry:latest
+    container_name: container
+    expose:
+      - 5000
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.container', target: /var/lib/registry/docker/registry}
+    environment:
+      REGISTRY_LOG_LEVEL:  info
+      REGISTRY_LOG_FORMAT: text
+
+  git:
+    image: docker.io/library/alpine:latest
+    container_name: git
+    expose:
+      - 8080
+    ports:
+      - '${external_ip}:9418:9418'
+    volumes:
+      - {type: bind, source: '${HOME}/lib/${namespace}.apk',    target: /etc/apk/cache}
+      - {type: bind, source: '${HOME}/lib/${namespace}.git',    target: /var/git,                    read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github',          target: /var/git/com.github,         read_only: true}
+      - {type: bind, source: '${HOME}/src/0.git/gitweb.conf',   target: /etc/gitweb.conf,            read_only: true}
+      - {type: bind, source: '${HOME}/src/0.git/lighttpd.conf', target: /etc/lighttpd/lighttpd.conf, read_only: true}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        apk add \
+          git-daemon \
+          git-gitweb \
+          perl \
+          perl-cgi \
+          lighttpd \
+          highlight
+        lighttpd -f '/etc/lighttpd/lighttpd.conf'
+        git daemon --export-all --base-path='/var/git' '/var/git'
+
+  #----------------------------------------------------------------
+  # doc
+
+  doc:
+    image: docker.io/nginx:latest
+    container_name: doc
+    expose:
+      - 80
+    volumes:
+      - {type: bind, source: '${HOME}/src/0.doc/nginx.conf',                                                 target: /etc/nginx/conf.d/default.conf}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki',                                   target: /usr/share/nginx/html,                         read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-translation',                target: /usr/share/nginx/html/lib/plugins/translation, read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-vshare',                     target: /usr/share/nginx/html/lib/plugins/vshare,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gallery',                    target: /usr/share/nginx/html/lib/plugins/gallery,     read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gchart',                     target: /usr/share/nginx/html/lib/plugins/gchart,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-xbr',                          target: /usr/share/nginx/html/lib/plugins/xbr,         read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-iframe',                       target: /usr/share/nginx/html/lib/plugins/iframe,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/cosmocode/sqlite',                                      target: /usr/share/nginx/html/lib/plugins/sqlite,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/cosmocode/dokuwiki-plugin-aichat',                      target: /usr/share/nginx/html/lib/plugins/aichat,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/selfthinker/dokuwiki_plugin_wrap',                      target: /usr/share/nginx/html/lib/plugins/wrap,        read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/hanche/dokuwiki_color_plugin',                          target: /usr/share/nginx/html/lib/plugins/color,       read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/samuelet/indexmenu',                                    target: /usr/share/nginx/html/lib/plugins/indexmenu,   read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/lejmr/dokuwiki-plugin-drawio',                          target: /usr/share/nginx/html/lib/plugins/drawio,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/liffiton/dokuwiki-plugin-mathjax',                      target: /usr/share/nginx/html/lib/plugins/mathjax,     read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/Medieninformatik-Regensburg/dokuwiki-plugin-markdowku', target: /usr/share/nginx/html/lib/plugins/markdowku,   read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/dokufreaks/plugin-discussion',                          target: /usr/share/nginx/html/lib/plugins/discussion,  read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/giterlizzi/dokuwiki-template-bootstrap3',               target: /usr/share/nginx/html/lib/tpl/bootstrap3,      read_only: true}
+    depends_on:
+      - doc-php
+
+  doc-php:
+    build:
+      context: '${HOME}/src/net.php/fpm'
+    image: 'container.${domain}/net.php/fpm:${tag}'
+    container_name: doc-php
+    expose:
+      - 9000
+    volumes:
+      - {type: bind, source: '${HOME}/src/0.doc/php.ini',                                                    target: /usr/local/etc/php/php.ini,                    read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki',                                   target: /usr/share/nginx/html}
+      - {type: bind, source: '${HOME}/src/0.doc/conf',                                                       target: /usr/share/nginx/html/conf}
+      - {type: bind, source: '${HOME}/dataset',                                                              target: /usr/share/nginx/html/data/media}
+      - {type: bind, source: '${HOME}/doc',                                                                  target: /usr/share/nginx/html/data/pages}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-translation',                target: /usr/share/nginx/html/lib/plugins/translation}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-vshare',                     target: /usr/share/nginx/html/lib/plugins/vshare}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gallery',                    target: /usr/share/nginx/html/lib/plugins/gallery}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gchart',                     target: /usr/share/nginx/html/lib/plugins/gchart}
+      - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-xbr',                          target: /usr/share/nginx/html/lib/plugins/xbr}
+      - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-iframe',                       target: /usr/share/nginx/html/lib/plugins/iframe}
+      - {type: bind, source: '${HOME}/src/com.github/cosmocode/sqlite',                                      target: /usr/share/nginx/html/lib/plugins/sqlite}
+      - {type: bind, source: '${HOME}/src/com.github/cosmocode/dokuwiki-plugin-aichat',                      target: /usr/share/nginx/html/lib/plugins/aichat}
+      - {type: bind, source: '${HOME}/src/com.github/selfthinker/dokuwiki_plugin_wrap',                      target: /usr/share/nginx/html/lib/plugins/wrap}
+      - {type: bind, source: '${HOME}/src/com.github/hanche/dokuwiki_color_plugin',                          target: /usr/share/nginx/html/lib/plugins/color}
+      - {type: bind, source: '${HOME}/src/com.github/samuelet/indexmenu',                                    target: /usr/share/nginx/html/lib/plugins/indexmenu}
+      - {type: bind, source: '${HOME}/src/com.github/lejmr/dokuwiki-plugin-drawio',                          target: /usr/share/nginx/html/lib/plugins/drawio}
+      - {type: bind, source: '${HOME}/src/com.github/liffiton/dokuwiki-plugin-mathjax',                      target: /usr/share/nginx/html/lib/plugins/mathjax}
+      - {type: bind, source: '${HOME}/src/com.github/Medieninformatik-Regensburg/dokuwiki-plugin-markdowku', target: /usr/share/nginx/html/lib/plugins/markdowku}
+      - {type: bind, source: '${HOME}/src/com.github/dokufreaks/plugin-discussion',                          target: /usr/share/nginx/html/lib/plugins/discussion}
+      - {type: bind, source: '${HOME}/src/com.github/giterlizzi/dokuwiki-template-bootstrap3',               target: /usr/share/nginx/html/lib/tpl/bootstrap3}
+
+  evidence:
+    image: docker.io/library/node:latest
+    container_name: evidence
+#   expose:
+#     - 3000
+    ports:
+      - '${external_ip}:3000:3000'
+    volumes:
+      - {type: bind, source: '${HOME}/.npm',                                 target: /root/.npm}
+      - {type: bind, source: '${HOME}/src/com.github/evidence-dev/template', target: /dev.evidence}
+      - {type: bind, source: '${HOME}/doc',                                  target: /dev.evidence/pages, read_only: true}
+    depends_on:
+      - apt
+    working_dir: /dev.evidence
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        echo 'Acquire::http::Proxy "http://apt:3142/";' | tee '/etc/apt/apt.conf.d/00proxy'
+        apt-get update
+        apt-get install -y xdg-utils
+        npm install
+        npm run sources
+        npm run dev -- --host 0.0.0.0
+
+  #----------------------------------------------------------------
+  # ai
+
+  chat:
+    image: docker.io/nvidia/cuda:12.4.1-devel-ubuntu22.04
+    container_name: chat
+    devices:
+      - nvidia.com/gpu=all
+    expose:
+      - 8080
+    volumes:
+      - {type: bind, source: '${HOME}/src/com.github/ggml-org/llama.cpp',                                                              target: /llama.cpp}
+      - {type: bind, source: '${HOME}/lib/co.huggingface/paperscarecrow/Gemma-4-31B-it-abliterated/gemma-4-31b-abliterated-Q8_0.gguf', target: /models/gemma4-31B-Q8.gguf, read_only: true}
+    depends_on:
+      - apt
+    working_dir: /llama.cpp
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        echo 'Acquire::http::Proxy "http://apt:3142/";' | tee '/etc/apt/apt.conf.d/00proxy'
+        apt-get update
+        apt-get install -y \
+          build-essential \
+          cmake \
+          libgomp1
+        cmake -B build \
+          -DGGML_CUDA=ON \
+          -DCMAKE_CUDA_ARCHITECTURES='89' \
+          -DCMAKE_EXE_LINKER_FLAGS='-Wl,--allow-shlib-undefined -L/usr/local/cuda/lib64/stubs -lcuda' \
+          -DCMAKE_SHARED_LINKER_FLAGS='-L/usr/local/cuda/lib64/stubs -lcuda' \
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release -j $(nproc)
+        './build/bin/llama-server' --host 0.0.0.0 --models-dir /models
+
+  comfyui:
+    image: docker.io/library/python:3.12
+    container_name: comfyui
+    devices:
+      - nvidia.com/gpu=all
+#   expose:
+#     - 8188
+    ports:
+      - '${external_ip}:8188:8188'
+    volumes:
+      - {type: bind, source: '${HOME}/.cache/pip',                                                                                                target: /root/.cache/pip}
+      - {type: bind, source: '${HOME}/src/com.github/comfyanonymous/ComfyUI',                                                                     target: /comfyui}
+      # custom node
+#     - {type: bind, source: '${HOME}/src/com.github/ltdrdata/ComfyUI-Manager',                                                                   target: /comfyui/custom_nodes/ComfyUI-Manager}
+#     - {type: bind, source: '${HOME}/src/com.github/ltdrdata/ComfyUI-Impact-Pack',                                                               target: /comfyui/custom_nodes/ComfyUI-Impact-Pack}
+      - {type: bind, source: '${HOME}/src/com.github/pythongosssss/ComfyUI-Custom-Scripts',                                                       target: /comfyui/custom_nodes/ComfyUI-Custom-Scripts}
+#     - {type: bind, source: '${HOME}/src/com.github/asagi4/comfyui-prompt-control',                                                              target: /comfyui/custom_nodes/comfyui-prompt-control}
+#     - {type: bind, source: '${HOME}/src/com.github/kijai/ComfyUI-KJNodes',                                                                      target: /comfyui/custom_nodes/ComfyUI-KJNodes}
+#     - {type: bind, source: '${HOME}/src/com.github/kijai/ComfyUI-FramePackWrapper',                                                             target: /comfyui/custom_nodes/ComfyUI-FramePackWrapper}
+      - {type: bind, source: '${HOME}/src/com.github/kijai/ComfyUI-WanVideoWrapper',                                                              target: /comfyui/custom_nodes/ComfyUI-WanVideoWrapper}
+#     - {type: bind, source: '${HOME}/src/com.github/cubiq/ComfyUI_IPAdapter_plus',                                                               target: /comfyui/custom_nodes/ComfyUI_IPAdapter_plus}
+#     - {type: bind, source: '${HOME}/src/com.github/cubiq/ComfyUI_essentials',                                                                   target: /comfyui/custom_nodes/ComfyUI_essentials}
+#     - {type: bind, source: '${HOME}/src/com.github/Kosinkadink/ComfyUI-AnimateDiff-Evolved',                                                    target: /comfyui/custom_nodes/ComfyUI-AnimateDiff-Evolved}
+      - {type: bind, source: '${HOME}/src/com.github/Kosinkadink/ComfyUI-VideoHelperSuite',                                                       target: /comfyui/custom_nodes/ComfyUI-VideoHelperSuite}
+#     - {type: bind, source: '${HOME}/src/com.github/jamesWalker55/comfyui-various',                                                              target: /comfyui/custom_nodes/comfyui-various}
+      # sdxl
+      - {type: bind, source: '${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors',                    target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors,          read_only: true}
+      - {type: bind, source: '${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors',              target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors,    read_only: true}
+      # svd
+      - {type: bind, source: '${HOME}/lib/co.huggingface/stabilityai/stable-video-diffusion-img2vid/svd.safetensors',                             target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-video-diffusion-img2vid/svd.safetensors,                   read_only: true}
+      # wan2.2
+      - {type: bind, source: '${HOME}/lib/co.huggingface/Phr00t/WAN2.2-14B-Rapid-AllInOne',                                                       target: /comfyui/models/checkpoints/co.huggingface/Phr00t/WAN2.2-14B-Rapid-AllInOne,                                             read_only: true}
+      - {type: bind, source: '${HOME}/lib/co.huggingface/Comfy-Org/Wan_2.1_ComfyUI_repackaged/split_files/clip_vision/clip_vision_h.safetensors', target: /comfyui/models/clip_vision/co.huggingface/Wan_2.1_ComfyUI_repackaged/split_files/clip_vision/clip_vision_h.safetensors, read_only: true}
+      # ...
+      - {type: bind, source: '${HOME}/lib/com.civitai/models',                                                                                    target: /comfyui/models/checkpoints/com.civitai,                                                                                 read_only: true}
+#     - {type: bind, source: '${HOME}/lib/com.civitai/models',                                                                                    target: /comfyui/models/loras/com.civitai,                                                                                       read_only: true}
+      # output
+      - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}',                                                                                target: /comfyui/input}
+      - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}',                                                                                target: /comfyui/output}
+      - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}/temp',                                                                           target: /comfyui/temp} # ⚠️起動時に中身がクリアされる
+    depends_on:
+      - apt
+    working_dir: /comfyui
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        echo 'Acquire::http::Proxy "http://apt:3142/";' | tee '/etc/apt/apt.conf.d/00proxy'
+        apt-get update
+        apt-get install -y ffmpeg
+        # https://pytorch.org/get-started/previous-versions/
+        pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+        pip install --requirement requirements.txt
+        cat << EOS | sort -u | pip install --requirement '/dev/stdin'
+        imageio-ffmpeg
+        accelerate
+        lark
+        pillow
+        insightface
+        onnxruntime
+        onnxruntime-gpu
+        diffusers
+        EOS
+        python main.py --listen
+
+  #----------------------------------------------------------------
+  # game
+
+  minecraft:
+    build:
+      context: '${HOME}/src/net.minecraftforge'
+    image: 'container.${domain}/net.minecraftforge:${tag}'
+    container_name: minecraft
+    ports:
+      - '${external_ip}:25565:25565'
+    volumes:
+      - {type: bind, source: '${HOME}/.minecraft/saves/world', target: '/net.minecraftforge/world'}

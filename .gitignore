@@ -1,0 +1,83 @@
+#----------------------------------------------------------------
+# userhome
+
+/.*
+
+# %USERPROFILE%
+/3D Objects/
+/AppData/
+/Application Data
+/Contacts/
+/Cookies
+/Desktop/
+/Documents/
+/Downloads/
+/Favorites/
+/Links/
+/Local Settings
+/Music/
+/My Documents
+/NTUSER.DAT*
+/NetHood
+/OneDrive/
+/Pictures/
+/PrintHood
+/Recent
+/Saved Games/
+/Searches/
+/SendTo
+/Templates
+/Videos/
+/ntuser.*
+/スタート メニュー
+
+# ${HOME}
+/snap/
+/ダウンロード/
+/テンプレート/
+/デスクトップ/
+/ドキュメント/
+/ビデオ/
+/音楽/
+/画像/
+/公開/
+
+#----------------------------------------------------------------
+# 0
+
+/dataset/*
+/mnt/*
+/src/0.playground/**/.settings/
+/src/0.playground/**/.classpath
+/src/0.playground/**/.project
+/src/0.playground/**/target/
+/src/com.github/
+/src/com.gitlab/
+/src/org.golang/
+/tmp/
+
+#----------------------------------------------------------------
+# files
+
+*.iso
+*.exe
+*.cmd
+*.dll
+*.o
+*.class
+*.jar
+*.war
+*.ear
+*.tar
+*.tgz
+*.gz
+*.rar
+*.bz
+*.bz2
+*.zip
+*.7z
+*.lzh
+*.log
+*.db
+
+.Trash-[0-9]*/

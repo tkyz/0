@@ -1,0 +1,85 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  # TODO: pin
+# pin_card=''
+# pin_auth=''
+# pin_sign=''
+
+  if is_myna; then
+
+#   myna pin change card # --pin "${pin_card}" --newpin=
+#   myna pin change auth # --pin "${pin_auth}" --newpin=
+#   myna pin change sign # --pin "${pin_sign}" --newpin=
+
+    mynumber="$(myna text mynumber --pin "${pin_card}")"
+
+    jpki_dir="${HOME}/dataset/jpki"
+    vhash_dir="${HOME}/dataset/vhash/$(vhash "${mynumber}")"
+    mkdir -p \
+      "${jpki_dir}/EF000B" \
+      "${jpki_dir}/EF0002" \
+      "${vhash_dir}"
+
+    # 券面事項入力補助AP
+    if true; then
+      {
+        myna text basic-info
+        echo "個人番号: $(echo "${mynumber}" | awk '{print substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
+        myna text attrs --pin "${pin_card}"
+      } | tee "${vhash_dir}/text.txt"
+    fi
+
+    # 券面事項確認AP
+    if true; then
+
+      {
+        myna visual basic-info
+      } | tee "${vhash_dir}/photo.txt"
+
+      myna visual photo --pin "${pin_card}" --output '/dev/stdout' | convert '/dev/stdin' "${vhash_dir}/photo.png" 2> '/dev/null'
+
+    fi
+
+    # jpki
+    if true; then
+
+#     myna jpki cert --type 'auth-ca' --format 'der'                          > "${jpki_dir}/EF000B/yyyy-mm-dd_yyyy-mm-dd.der" # https://www.jpki.go.jp/ca/ca_rules4.html
+#     myna jpki cert --type 'sign-ca' --format 'der'                          > "${jpki_dir}/EF0002/yyyy-mm-dd_yyyy-mm-dd.der" # https://www.jpki.go.jp/ca/ca_rules3.html
+      myna jpki cert --type 'auth'    --format 'der'                          > "${vhash_dir}/auth.der"
+      myna jpki cert --type 'sign'    --format 'der' --password "${pin_sign}" > "${vhash_dir}/sign.der"
+
+      # verify
+#     openssl verify -CAfile "${jpki_dir}/EF000B/yyyy-mm-dd_yyyy-mm-dd.der" "${vhash_dir}/auth.der" || cat "${vhash_dir}/auth.der" | openssl x509 -inform der -noout -text
+#     openssl verify -CAfile "${jpki_dir}/EF0002/yyyy-mm-dd_yyyy-mm-dd.der" "${vhash_dir}/sign.der" || cat "${vhash_dir}/sign.der" | openssl x509 -inform der -noout -text
+
+      # sign
+#     myna jpki cms sign   --help
+#     myna jpki cms verify --help
+
+      # ssh
+      cat "${vhash_dir}/auth.der" | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 > "${vhash_dir}/auth.ssh.pub"
+
+    fi
+
+    # 謎AP
+    if true; then
+      {
+        myna unknown number
+        myna unknown manufacture && printf '\n'
+      } | tee "${vhash_dir}/unknown.txt"
+    fi
+
+    # pin
+    if true; then
+      myna pin status
+    fi
+
+  fi
+
+)

@@ -1,0 +1,622 @@
+: << 'END_OF_BATCH'
+@rem ================================ windows batch [ms932, crlf] ================================
+@echo off
+
+setlocal
+
+  cd /d "%USERPROFILE%"
+
+  set dist=debian
+
+  wsl --unregister %dist%
+  wsl --set-default-version 2
+  wsl --install --distribution %dist%
+
+  wsl --terminate    %dist%
+  wsl --set-version  %dist% 2
+  wsl --distribution %dist% -- sed -i 's#:/root:#:/mnt/c/Users/%USERNAME%:#' /etc/passwd
+  wsl --distribution %dist% -- $^( wslpath -u %~0 ^)
+  wsl --terminate    %dist%
+
+endlocal
+exit /b
+END_OF_BATCH
+# ================================ linux shell script [utf8, lf] ================================
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  set -a
+    source '/etc/os-release'
+  set +a
+
+  test 'debian' == "${ID_LIKE:-${ID}}"
+  test 'bash'   == "${SHELL##*/}"
+
+  #----------------------------------------------------------------
+  # function
+
+  function _deps() {
+    (
+
+      cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb     http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+EOS
+
+      ${SUDO} apt-get update
+      ${SUDO} apt-get upgrade -y
+      ${SUDO} apt-get install -y curl gnupg2 gettext-base
+
+      cat << EOS | sed -e 's/#.*$//g' -e '/^$/d' | while read item; do
+com.nvidia           https://nvidia.github.io/libnvidia-container/gpgkey                                    https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH) /                                   # https://nvidia.github.io/nvidia-container-runtime/
+org.virtualbox       https://www.virtualbox.org/download/oracle_vbox_2016.asc                               https://download.virtualbox.org/virtualbox/${ID}                 ${VERSION_CODENAME}         contrib # https://www.virtualbox.org/wiki/Linux_Downloads
+com.unity            https://hub.unity3d.com/linux/keys/public                                              https://hub.unity3d.com/linux/repos/deb                          stable                      main    # https://docs.unity3d.com/hub/manual/InstallHub.html
+org.winehq           https://dl.winehq.org/wine-builds/winehq.key                                           https://dl.winehq.org/wine-builds/${ID}                          ${VERSION_CODENAME}         main    # https://gitlab.winehq.org/wine/wine/-/wikis/Debian-Ubuntu
+org.torproject       https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc https://deb.torproject.org/torproject.org                        ${VERSION_CODENAME}         main    # https://support.torproject.org/little-t-tor/getting-started/installing/
+io.k8s.pkgs          https://pkgs.k8s.io/core:/stable:/v1.36/deb/Release.key                                https://pkgs.k8s.io/core:/stable:/v1.36/deb/                     /                                   # https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+com.google.cloud-sdk https://packages.cloud.google.com/apt/doc/apt-key.gpg                                  https://packages.cloud.google.com/apt                            cloud-sdk                   main    # https://cloud.google.com/sdk/docs/install#deb
+com.microsoft.code   https://packages.microsoft.com/keys/microsoft.asc                                      https://packages.microsoft.com/repos/code                        stable                      main    # https://code.visualstudio.com/docs/setup/linux
+com.github           https://cli.github.com/packages/githubcli-archive-keyring.gpg                          https://cli.github.com/packages                                  stable                      main    # https://github.com/cli/cli/blob/trunk/docs/install_linux.md#debian
+com.nordvpn          https://repo.nordvpn.com/gpg/nordvpn_public.asc                                        https://repo.nordvpn.com/deb/nordvpn/${ID}                       stable                      main    # https://support.nordvpn.com/hc/ja/articles/20196094470929
+#com.google.gcsfuse   https://packages.cloud.google.com/apt/doc/apt-key.gpg                                  https://packages.cloud.google.com/apt                            gcsfuse-${VERSION_CODENAME} main
+#com.google.chrome    https://dl-ssl.google.com/linux/linux_signing_key.pub                                  https://dl.google.com/linux/chrome/deb                           stable                      main
+#com.microsoft.dotnet https://packages.microsoft.com/keys/microsoft.asc                                      https://packages.microsoft.com/${ID}/${VERSION_ID}/prod          ${VERSION_CODENAME}         main    # https://learn.microsoft.com/ja-jp/dotnet/core/install/linux-debian
+#com.docker           https://download.docker.com/linux/${ID}/gpg                                            https://download.docker.com/linux/${ID}                          ${VERSION_CODENAME}         stable  # https://docs.docker.com/engine/install/debian/
+EOS
+
+        name="$(  echo "${item}" | sed -r 's/^([^ ]+)[ ]+([^ ]+)[ ]+(.*)$/\1/')"
+        pub="$(   echo "${item}" | sed -r 's/^([^ ]+)[ ]+([^ ]+)[ ]+(.*)$/\2/')"
+        source="$(echo "${item}" | sed -r 's/^([^ ]+)[ ]+([^ ]+)[ ]+(.*)$/\3/' | xargs)"
+
+        pub_file="/etc/apt/keyrings/${name}.gpg"
+        src_file="/etc/apt/sources.list.d/${name}.list"
+
+        if [[ -f "${pub_file}" && -f "${src_file}" ]]; then
+          continue
+        fi
+
+        curl -fsSL "${pub}"                          | ${SUDO} tee "${pub_file}" > '/dev/null'
+        echo "deb [signed-by=${pub_file}] ${source}" | ${SUDO} tee "${src_file}" > '/dev/null'
+
+      done
+      ${SUDO} apt-get update
+
+      cat << EOS | sed -e 's/#.*$//g' | xargs ${SUDO} apt-get install -y
+# apt
+
+  # shell
+    bash bash-completion
+#   zsh
+#   fish
+
+  # hw
+    lshw
+    lsscsi
+    usbutils
+
+  # gpu
+    nvidia-container-toolkit
+    nvidia-kernel-dkms
+    nvidia-driver
+    nvidia-driver-libs
+    nvidia-detect
+    nvidia-smi
+
+  # fw
+    firmware-linux
+    firmware-realtek
+    firmware-iwlwifi
+
+  # fs
+    parted
+    cryptsetup
+    lvm2
+    gocryptfs
+
+  # fuse
+    fuse
+    archivemount
+    cifs-utils
+    smbclient
+
+  # net
+    openssl
+    openssh-client
+    openssh-server
+    curl
+    wget
+    ncat
+    nmap
+    tcpdump
+
+  # time
+    ntpsec-ntpdate
+    faketime
+
+  # vpn
+    openvpn
+#   strongswan
+#   wireguard
+#   nordvpn
+
+  # pcsc
+    pcscd
+    pcsc-tools
+    libpcsclite-dev
+    opensc
+    libccid
+    libnfc-bin
+
+  # archive
+    libarchive-tools
+    unar
+    zip
+
+  # util
+    util-linux
+    procps
+    pkg-config
+    uuid-runtime
+    gettext
+    gnupg2
+    tmux
+    jq
+    qrencode
+    imagemagick
+    rsync
+    xsel
+    parallel
+    nkf
+    htop
+    cups
+    faketime
+    moreutils
+    aria2
+    ffmpeg
+    libcairo2
+    build-essential
+    libglfw3-dev
+    libgles2-mesa-dev
+    libcairo2-dev
+    autoconf
+    libtool
+    libssl-dev
+
+    ufw
+    rkhunter
+    clamav
+
+  # editor
+    vim
+#   emacs
+
+  # git
+    git
+    git-crypt
+    git-lfs
+
+  # python
+    python3
+    python3-pip
+    python3-venv
+
+  # vm
+    qemu-system
+    qemu-kvm
+    libvirt-daemon-system
+    libvirt-daemon
+    virtinst
+    virt-manager
+    bridge-utils
+    libosinfo-bin
+#   virtualbox-7.2
+
+  # container
+    podman
+    containerd
+
+  # k8s
+    kubectl
+#   kubelet
+#   kubeadm
+
+  # locale
+    locales-all
+    task-japanese
+    fonts-dejavu-core
+
+  # x11
+
+    # wine
+      wine
+      winetricks
+
+    # ...
+      webp-pixbuf-loader
+      tumbler
+      tumbler-plugins-extra
+      ffmpegthumbnailer
+#     gimp
+#     obs-studio
+#     steam
+
+  # cloud
+#   usacloud
+#   google-cloud-cli
+#   awscli
+EOS
+
+    )
+  }
+
+  function _git() {
+    (
+
+      git config --global init.defaultBranch main
+      git config --global core.ignorecase    false
+      git config --global core.quotepath     false
+      git config --global core.autocrlf      false
+      git config --global core.safecrlf      true
+      git config --global core.filemode      true
+      git config --global core.symlinks      true
+      git config --global core.hooksPath     "${HOME}/.git-hooks"
+      git config --global color.ui           auto
+      git config --global color.diff         auto
+      git config --global color.status       auto
+      git config --global color.branch       auto
+      git config --global pull.ff            only
+      git config --global pull.rebase        true
+      git config --global pull.autostash     false
+      git config --global rebase.autostash   false
+      git config --global merge.ff           false
+      git config --global diff.sjis.textconv 'iconv -f sjis'
+      git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+
+#     git init --object-format=sha256 .
+      git init .
+
+      git_remote='origin';    git_uri="${HOME}/lib/${namespace}.git/0.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+      git_remote="${domain}"; git_uri="git://git.${domain}/0.git";          git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#     git_remote='github';    git_uri='ssh://git@github.com/tkyz/0.git';    git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+      git_remote='public';    git_uri='https://github.com/tkyz/0.git';      git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+
+      git fetch --prune --all || true
+
+      git remote | while read remote; do
+        git remote set-head "${remote}" 'main' || true
+      done
+
+      if git checkout --orphan main 2> '/dev/null'; then
+        ( git reset --mixed 'origin/main'    && git branch --set-upstream-to='origin/main'   ) 2> '/dev/null' ||
+        ( git reset --mixed "${domain}/main" && git branch --set-upstream-to="${domain}/main") 2> '/dev/null' ||
+        ( git reset --mixed 'public/main'    && git branch --set-upstream-to='public/main'   ) 2> '/dev/null' ||
+        ( git reset --mixed 'github/main'    && git branch --set-upstream-to='github/main'   ) 2> '/dev/null' ||
+        true
+      fi
+
+      git diff --name-only -z --diff-filter=D | xargs -0 git checkout
+
+      git gc
+      git status
+
+    )
+  }
+
+  function _etc() {
+
+    # /etc/default/keyboard
+    cat << EOS | ${SUDO} tee '/etc/default/keyboard' > '/dev/null'
+XKBMODEL=pc105
+XKBLAYOUT=jp
+XKBVARIANT=
+XKBOPTIONS=ctrl:nocaps
+BACKSPACE=guess
+EOS
+
+    # /etc/wsl.conf
+    if is_wsl; then
+      cat << EOS | ${SUDO} tee '/etc/wsl.conf' > '/dev/null'
+[automount]
+options            = "uid=0,gid=0,umask=0077,fmask=0177,metadata"
+[network]
+#generateResolvConf = false
+[interop]
+enabled            = false
+appendWindowsPath  = false
+[user]
+default            = root
+EOS
+    fi
+
+    # /etc/cdi/*
+    if type nvidia-ctk &> '/dev/null'; then
+      ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' || true
+    fi
+
+    # /etc/containers/registries.conf
+    if [[ -f '/etc/containers/registries.conf' ]]; then
+      ${SUDO} sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
+    fi
+
+    # /etc/apt/apt.conf.d/*
+#   echo "Acquire::http::Proxy \"http://apt.${domain}/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00proxy' > '/dev/null'
+
+    # /etc/ssh/sshd_config
+#   if [[ ! -f '/etc/ssh/authorized_keys' ]]; then
+#
+#     AuthorizedKeysFile ${HOME}/.ssh/authorized_keys /etc/ssh/authorized_keys
+#
+#     ssh-keygen -t ed25519 -C ''
+#     mv './.ssh/id_ed25519.pub' '/etc/ssh/authorized_keys'
+#
+#   fi
+
+  }
+
+  function _venv() {
+    (
+
+      venv_dir='./.venv'
+      req_file="${venv_dir}/requirements.txt"
+
+      python3 -m venv "${venv_dir}"
+      source "${venv_dir}/bin/activate"
+
+      # https://pytorch.org/get-started/previous-versions/
+      pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+
+      cat "${req_file}" | pip install --requirement '/dev/stdin'
+
+      pip freeze | sed -e 's/[!=<> #].*//g' | sort --unique --output "${req_file}"
+
+    )
+  }
+
+  function _wine() {
+    (
+
+      wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
+
+      winetricks \
+        cjkfonts \
+        gdiplus
+
+    )
+  }
+
+  function _src() {
+    (
+
+      {
+
+        yq -rc '."0".src[]' './setup.yaml'
+
+        find './src/' -type d -name '.git' 2> /dev/null | while read base_dir; do
+          git -C "${base_dir}" remote -v | awk '{ print $2 }'
+        done | grep -E -e '^(https?)://.*\.git$' || true
+
+      } 2> '/dev/null' | sort --unique | while read item; do
+
+        echo '---'
+        echo "pull ${item}"
+
+        curi "${item}" || true
+
+      done
+
+    )
+  }
+
+  function _lib() {
+    (
+
+      {
+
+        yq -rc '."0".lib[]' './setup.yaml'
+
+        find './lib/' -type d -name '.git' 2> /dev/null | while read base_dir; do
+          git -C "${base_dir}" remote -v | awk '{ print $2 }'
+        done | grep -E -e '^(https?)://.*\.git$' || true
+
+      } 2> '/dev/null' | sort --unique | while read item; do
+
+        echo '---'
+        echo "pull ${item}"
+
+        curi "${item}" || true
+
+      done
+
+    )
+  }
+
+  function _opt() {
+    (
+
+      yq -rc '."0".opt | keys | .[]' './setup.yaml' | while read key; do
+
+        opt_dir="${HOME}/opt/${key}"
+        mkdir -p "${opt_dir}"
+
+        if [[ -d "${opt_dir}" ]]; then
+          continue
+        fi
+
+        yq -rc ".\"0\".opt.\"${key}\".[]" './setup.yaml' | while read uri; do
+          pushd "${opt_dir}" &> '/dev/null'
+
+            echo '---'
+            echo "pull ${uri}"
+
+            if [[ "${uri}" =~ ^.*\.tar\.gz$ ]]; then
+: #           curl -fsSL "${uri}" | tar zxf - --strip-components 1 --no-same-permissions --no-same-owner
+
+            elif [[ "${uri}" =~ ^.*\.zip([?&].*)?$ ]]; then
+: #           curl, unzip
+
+            elif [[ "${uri}" =~ ^.*\.exe$ ]]; then
+: #           curl, wine
+
+            elif [[ "${uri}" =~ ^.*\.7z$ ]]; then
+: #           curl, 7x
+            fi
+
+          popd &> '/dev/null'
+        done
+
+      done
+
+    )
+  }
+
+  function _pull() {
+    (
+
+      podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>' | while read item; do
+
+        echo '---'
+        echo "pull ${item}"
+
+        podman pull "${item}" || true
+
+      done
+
+    )
+  }
+
+  function _build() {
+    (
+
+      {
+
+        find './src' -name 'Makefile' -or -name 'Cargo.toml' -or -name 'go.mod' -or -name 'build.xml' -or -name 'pom.xml' -or -name 'build.gradle' -or -name 'package.json' -or -name 'Dockerfile' 2> '/dev/null' | sed -r "s|/[^/]+$||g" | sort --unique | while read d; do
+
+          name="$(echo "${d}" | sed -r "s|^\./src/||g")"
+          [[ "${name}" =~ ^com\.github/.*$   ]] && continue
+          [[ "${name}" =~ ^com\.gitlab/.*$   ]] && continue
+          [[ "${name}" =~ ^0\.playground/.*$ ]] && continue
+
+          echo "${d}"
+
+        done
+
+        echo './src/com.github/jpki/myna'
+        echo './src/com.github/kubernetes-sigs/kind'
+        echo './src/com.github/sacloud/usacloud'
+
+      } | sort --unique | while read target_dir; do
+
+        echo '---'
+        echo "build ${target_dir}"
+
+        build "${target_dir}" || true
+
+      done
+
+#     podman-compose build
+
+    )
+  }
+
+  function _auth() {
+    (
+
+      # gpg
+      gpg   --import "${dataset_dir}/openpgp4fpr/091373E51DDFEA289C93C7C460C125552C827AF9/pub"
+#     gpgsm --import "${dataset_dir}/jpki/EF000B/"*
+#     gpgsm --import "${dataset_dir}/jpki/EF0002/"*
+#     gpgsm --import "${dataset_dir}/vhash/68e2a6412ce11a34ee9d6ea82f8270d3ddbafe1bde181bbf37d95832fcbce7e5/auth.pub"
+#     gpgsm --import "${dataset_dir}/vhash/68e2a6412ce11a34ee9d6ea82f8270d3ddbafe1bde181bbf37d95832fcbce7e5/sign.pub"
+
+      # ssh
+      mkdir -p "${HOME}/.ssh"
+      keys_file="${HOME}/.ssh/authorized_keys"
+      touch "${keys_file}"
+      {
+        cat "${keys_file}"
+        cat "${dataset_dir}/vhash/68e2a6412ce11a34ee9d6ea82f8270d3ddbafe1bde181bbf37d95832fcbce7e5/auth.ssh.pub"
+#       curl -fsSL 'https://github.com/tkyz.keys'
+      } | awk '{print $1 " " $2}' | sort --unique --output "${keys_file}"
+
+    )
+  }
+
+  #----------------------------------------------------------------
+  # main
+
+  pushd "${HOME}" &> '/dev/null'
+
+    domain="$(hostname -d)"
+    namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
+
+    test ! -v SUDO && test '0' == "$(id -u)"                                && SUDO=
+    test ! -v SUDO && type sudo &> '/dev/null' && sudo -v -n &> '/dev/null' && SUDO='sudo'
+
+    if [[ ! -e './.git' ]]; then
+
+      test -v SUDO
+
+      _deps
+      _git
+
+      # TODO: profile activate
+      git checkout './.profile' || true
+      git checkout './.bashrc'  || true
+#     exec bash -l
+      source './.profile'
+
+    fi
+
+    machine_id="$(machine_id)"
+    boot_id="$(boot_id)"
+    openpgp4fpr="$(openpgp4fpr)"
+
+#   git config --global user.name       "${USER}"
+#   git config --global user.email      "${USER}@$(hostname -f)"
+    git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+    git config --global gpg.program     "$(type -p gpg)"
+    git config --global commit.gpgsign  true
+
+    dataset_dir='./dataset'
+    mkdir -p  "${dataset_dir}"
+      test ! -e "${dataset_dir}/machine_id/${machine_id}" && test -v SUDO
+      test ! -e "${dataset_dir}/boot_id/${boot_id}"       && test -v SUDO
+      test ! -e "${dataset_dir}/boot_id/${boot_id}"       && _etc
+      test ! -e "${dataset_dir}/machine_id/${machine_id}" && _venv
+      test ! -e "${dataset_dir}/machine_id/${machine_id}" && _wine
+#     test ! -e "${dataset_dir}/boot_id/${boot_id}"       && mnt
+      test ! -e "${dataset_dir}/machine_id/${machine_id}" && _src
+      test ! -e "${dataset_dir}/machine_id/${machine_id}" && _lib
+      test ! -e "${dataset_dir}/machine_id/${machine_id}" && _opt
+      test ! -e "${dataset_dir}/machine_id/${machine_id}" && _pull
+      test ! -e "${dataset_dir}/machine_id/${machine_id}" && _build
+      test ! -e "${dataset_dir}/boot_id/${boot_id}"       && _auth
+      test ! -e "${dataset_dir}/boot_id/${boot_id}"       && deploy
+      test ! -e "${dataset_dir}/boot_id/${boot_id}"       && license > './LICENSE'
+    mkdir -p  "${dataset_dir}/machine_id/${machine_id}"
+    mkdir -p  "${dataset_dir}/boot_id/${boot_id}"
+
+    echo "machine_id:  ${machine_id}"
+    echo "boot_id:     ${boot_id}"
+    echo "openpgp4fpr: ${openpgp4fpr}"
+    echo
+
+  popd &> '/dev/null'
+
+)

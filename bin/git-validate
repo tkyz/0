@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  {
+
+    # TODO: 自己参照
+    cat << EOS
+-----BEGIN PRIVATE KEY-----
+-----BEGIN RSA PRIVATE KEY-----
+-----BEGIN PGP PRIVATE KEY BLOCK-----
+-----BEGIN OPENSSH PRIVATE KEY-----
+EOS
+
+#   id -u
+#   id -g
+    echo "${USER}"
+    echo "${HOME}"
+
+    hostname
+    hostname -d
+    hostname -d | tr '.' $'\n' | tac | paste -s -d '.'
+
+    machine_id
+    boot_id
+    openpgp4fpr
+
+    ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1
+
+  # TODO: 一括
+  } | sort --unique | while read i; do
+    git grep --cached --line-number --ignore-case -- "${i}" || true
+  done
+
+)

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+  cat '/proc/sys/kernel/random/boot_id' # || printf '%08d-%04d-%04d-%04d-%012d'
+)

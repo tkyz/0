@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+git log --all --graph --pretty=format:'<%H> %ad [%an] %cd [%cn] %G? %Cgreen%d%Creset %s' --date=short --date-order
