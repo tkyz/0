@@ -1,0 +1,80 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  # TODO: Error: scard: Sharing violation.
+  is_sudoer
+  sudo systemctl restart pcscd
+
+  if ! myna test | grep ': NG' &> '/dev/null'; then
+
+    ca_dir="${HOME}/mnt/0000-0000-0000"
+    mkdir -p "${ca_dir}"
+
+    # ca証明書
+    if false; then
+      myna jpki cert authca --form der > "${ca_dir}/jp.go.jpki_auth_ca.der" # https://www.jpki.go.jp/ca/ca_rules4.html
+      myna jpki cert signca --form der > "${ca_dir}/jp.go.jpki_sign_ca.der" # https://www.jpki.go.jp/ca/ca_rules3.html
+    fi
+
+    # TODO: pin
+#   pin4=
+#   pin16=
+
+    test -v pin4
+    test -v pin16
+
+    tmp_auth_file="$(mktemp)"
+    tmp_sign_file="$(mktemp)"
+
+    # 検証
+    myna jpki cert auth --form der                  | tee "${tmp_auth_file}" | openssl verify -CAfile "${ca_dir}/jp.go.jpki_auth_ca.der" "${tmp_auth_file}"
+    myna jpki cert sign --form der --pin "${pin16}" | tee "${tmp_sign_file}" | openssl verify -CAfile "${ca_dir}/jp.go.jpki_sign_ca.der" "${tmp_sign_file}"
+
+    # TODO: 識別した認証用証明書から公開個人識別子を取得
+    jpki_id="$(myna text mynumber --pin "${pin4}")"
+
+    exp_dir="${HOME}/mnt/$(echo "${jpki_id}" | awk '{print substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
+    mkdir -p "${exp_dir}"
+
+    # 登録
+    mv "${tmp_auth_file}" "${exp_dir}/auth.der"
+    mv "${tmp_sign_file}" "${exp_dir}/sign.der"
+    cat "${exp_dir}/auth.der" | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 > "${exp_dir}/pub"
+
+#   cat "${exp_dir}/auth.der" | openssl x509 -inform der -noout -text
+#   cat "${exp_dir}/sign.der" | openssl x509 -inform der -noout -text
+
+    # 👎他者による本人確認
+    if true; then
+
+      # 券面事項入力補助AP
+      {
+#       myna text info                      # apinfo keyid version extapdu vendor option
+#       myna text cert                      # cert
+#       myna text mynumber  --pin "${pin4}" # 個人番号
+        myna text attr      --pin "${pin4}" # ヘッダ、氏名、住所、生年月日、性別
+        myna text signature --pin "${pin4}" # mynum-hash attr-hash signature
+      } > "${exp_dir}/info.txt"
+
+      # 券面事項確認AP
+      myna visual photo --pin "${pin4}" --output '/dev/stdout' | convert '/dev/stdin' "${exp_dir}/photo.png"
+
+    fi
+
+#   myna pin change card --pin "${pin4}"  # --newpin=
+#   myna pin change auth --pin "${pin4}"  # --newpin=
+#   myna pin change sign --pin "${pin16}" # --newpin=
+    myna pin status
+
+    # 署名
+#   myna jpki cms sign   --form der --detached --md sha512 --in      "${sign_file}" --out '/dev/stdout' --pin "${pin16}" > "${sign_file}.sign"
+#   myna jpki cms verify --form der --detached             --content "${sign_file}"                                        "${sign_file}.sign"
+
+  fi
+
+)

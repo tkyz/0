@@ -1,0 +1,17 @@
+# ./opt/${name}/${subdir} <- ${uri} upack ${depth}
+
+# java
+#  https://download.java.net/java/GA/jdk25.0.1/2fbf10d8c78e40bd87641c434705079d/8/GPL/openjdk-25.0.1_linux-x64_bin.tar.gz
+#  https://download.java.net/java/GA/javafx25.0.1/c7eb12ff968046b6a549780ad550b701/3/openjfx-25.0.1_linux-x64_bin-sdk.tar.gz
+#  https://dlcdn.apache.org/ant/binaries/apache-ant-1.10.15-bin.tar.gz
+#  https://dlcdn.apache.org/ant/ivy/2.5.3/apache-ivy-2.5.3-bin.tar.gz
+#  https://dlcdn.apache.org/maven/maven-3/3.9.11/binaries/apache-maven-3.9.11-bin.tar.gz
+#  https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2025-09/R/eclipse-java-2025-09-R-linux-gtk-x86_64.tar.gz&mirror_id=1
+
+# kind
+#  https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+
+# ...
+#  https://hide.maruo.co.jp/software/bin3/hmfloat950_x64_signed.exe
+#  https://hide.maruo.co.jp/software/bin/hmfilerclassic210_x64_signed.exe
+#  https://github.com/sakura-editor/sakura/releases/download/v2.4.2/sakura-tag-v2.4.2-build4203-a3e63915b-Win32-Release-Installer.zip

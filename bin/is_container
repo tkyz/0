@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+  is_k8s ||
+  test 'podman' == "${container:-}" ||
+  test -f '/run/.containerenv' ||
+  test -f '/.dockerenv' ||
+  test '0::/'                                == "$(cat '/proc/1/cgroup')" ||
+  test '0::/system.slice/containerd.service' == "$(cat '/proc/1/cgroup')"
+) &> /dev/null

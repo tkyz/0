@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  mnt_root="${HOME}/mnt"
+
+  mnt_key="${1:-}"
+  mnt_dir="${mnt_root}/${mnt_key}"
+
+  # list...
+  if [[ -z "${mnt_key}" ]]; then
+
+    # ${mnt_root}/*
+    find "${mnt_root}" -mindepth 1 -maxdepth 1 -printf '%f\n' | while read item; do
+      "${BASH_SOURCE}" "${item}"
+    done
+
+  # skip
+  elif ! is_mnt "${mnt_dir}"; then
+    true
+
+  # unlink
+  elif [[ -L "${mnt_dir}" ]]; then
+    unlink "${mnt_dir}"
+
+  # umount
+  else
+
+    fusermount -u "${mnt_dir}" 2> '/dev/null' || sudo fusermount -u "${mnt_dir}"
+
+    rm -d "${mnt_dir}" 2> '/dev/null' || true
+
+  fi
+
+)

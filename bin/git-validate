@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  list="$(cat << EOS
+-----BEGIN PRIVATE KEY-----
+-----BEGIN RSA PRIVATE KEY-----
+-----BEGIN PGP PRIVATE KEY BLOCK-----
+-----BEGIN OPENSSH PRIVATE KEY-----
+$(id -u)
+$(id -g)
+${USER}
+${HOME}
+$(hostname)
+$(hostname -d)
+$(hostname -d | tr '.' $'\n' | tac | paste -s -d '.')
+$(machine_id)
+$(boot_id)
+EOS
+)"
+
+  # TODO: 一括
+  echo "${list}" | sort --unique | while read i; do
+    # TODO: 自己参照
+    git grep --cached --line-number --ignore-case -- "${i}" || true
+  done
+
+)
