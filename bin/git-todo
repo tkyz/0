@@ -1,0 +1,8 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+# TODO: 自己参照
+git grep --cached --line-number --ignore-case -- 'TODO:' || true

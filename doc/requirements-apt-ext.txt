@@ -1,0 +1,87 @@
+# nw
+  ncat
+  nmap
+  tcpdump
+
+# gpu
+  nvidia-container-toolkit
+  nvidia-kernel-dkms
+  nvidia-driver
+  nvidia-driver-libs:i386
+  nvidia-detect
+  nvidia-smi
+
+# archive
+  libarchive-tools
+  unar
+  zip
+
+# vm
+  qemu-system
+  qemu-kvm
+  libvirt-daemon-system
+  libvirt-daemon
+  virtinst
+  virt-manager
+  bridge-utils
+  libosinfo-bin
+  virtualbox-7.2
+
+# k8s
+  kubectl
+# kubelet
+# kubeadm
+
+# locale
+  locales-all
+  task-japanese
+  fonts-dejavu-core
+
+# cloud
+# usacloud
+# google-cloud-cli
+# awscli
+# nordvpn
+
+  util-linux
+  procps
+  faketime
+  pkg-config
+
+  ufw
+  rkhunter
+  clamav
+
+  rsync
+  xsel
+  parallel
+  nkf
+  htop
+  cups
+
+  vim
+# emacs
+
+  moreutils
+  aria2
+  ffmpeg
+  libcairo2
+  build-essential
+  libglfw3-dev
+  libgles2-mesa-dev
+  libcairo2-dev
+
+# x11
+
+  # wine
+    wine
+    winetricks
+
+  # ...
+    webp-pixbuf-loader
+    tumbler
+    tumbler-plugins-extra
+    ffmpegthumbnailer
+#   gimp
+#   obs-studio
+#   steam

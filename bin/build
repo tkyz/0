@@ -1,0 +1,148 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  tag='latest'
+
+  # list...
+  if [[ "${PWD}" == "${HOME}" ]]; then
+
+    find "${HOME}/src" -name 'Makefile' -or -name 'go.mod' -or -name 'build.xml' -or -name 'pom.xml' -or -name 'build.gradle' -or -name 'package.json' -or -name 'Dockerfile' 2> /dev/null | sort --unique | while read target; do
+
+      name="$(echo "${target%/}" | sed -r "s|^${HOME}/src/||g")"
+
+      [[ "${name}" =~ ^com\.github/.*$   ]] && continue
+      [[ "${name}" =~ ^com\.gitlab/.*$   ]] && continue
+      [[ "${name}" =~ ^org\.golang/.*$   ]] && continue
+      [[ "${name}" =~ ^0\.playground/.*$ ]] && continue
+
+      pushd "${target%/*}" &> '/dev/null'
+        "${BASH_SOURCE}" || true
+      popd &> '/dev/null'
+
+    done
+
+#   podman-compose build
+
+    exit
+
+  fi
+
+  if [[ "${PWD}" =~ ^${HOME}/src/.*$ ]]; then
+    name="$(echo "${PWD}" | sed -r "s|^${HOME}/src/||g")"
+  else
+    name="$(echo "${PWD}" | sha256sum | cut -b 1-64)"
+  fi
+
+  echo '---'
+  echo "pwd:  ${PWD}"
+  echo "name: ${name}"
+
+  if [[ -f './Makefile' && ! -f './go.mod' ]]; then
+    (
+
+      test -f './autogen.sh' && './autogen.sh' || true
+      test -f './configure'  && './configure'  || true
+
+      make
+      make install
+
+    )
+  fi
+
+  if [[ -f './go.mod' ]]; then
+    go build
+    go install
+  fi
+
+  if [[ -f './build.xml' ]]; then
+    (
+
+      opts=()
+      opts+=('clean')
+      opts+=('compile')
+      opts+=('jar')
+
+      ant "${opts[@]}" || true
+
+    )
+  fi
+
+  if [[ -f './pom.xml' ]]; then
+    (
+
+      uuid="$(uuidgen)"
+
+      podman run \
+        --rm \
+        --workdir "/${uuid}" \
+        --volume  ".:/${uuid}" \
+        --volume  "${HOME}/.m2:/root/.m2" \
+        --env     MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData' \
+        maven:latest \
+          mvn \
+            --threads 1C \
+            --define  version="${tag}" \
+            --define  checkstyle.skip=false \
+            --define  maven.test.skip=false \
+            --define  maven.javadoc.skip=false \
+            --define  assembly.skipAssembly=true \
+            clean \
+            package \
+            install
+#           deploy
+
+    )
+  fi
+
+  if [[ -f './build.gradle' ]]; then
+    (
+
+      uuid="$(uuidgen)"
+
+      podman run \
+        --rm \
+        --workdir "/${uuid}" \
+        --volume  ".:/${uuid}" \
+        gradle:latest \
+          gradle \
+            clean \
+            build
+
+    )
+  fi
+
+  if [[ -f './package.json' ]]; then
+    (
+      true
+#     npm install
+#     npm run build
+    )
+  fi
+
+  if [[ -f './Dockerfile' ]]; then
+    (
+
+      image="container.$(hostname -d)/${name}:${tag}"
+      if [[ -z "$(podman images --noheading "${image}")" ]]; then
+
+        opts=()
+        opts+=('--tag' "${image}")
+        opts+=('--pull')
+#       opts+=('--no-cache')
+
+        podman build "${opts[@]}" . || true
+#       if ping -c 1 -W 3 'container.0' &> /dev/null; then
+#         podman push --tls-verify=false "${image}" || true
+#       fi
+
+      fi
+
+    )
+  fi
+
+)

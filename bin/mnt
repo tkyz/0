@@ -1,0 +1,150 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  enc_root="${HOME}/enc"
+  mnt_root="${HOME}/mnt"
+
+  mnt_key="${1:-}"
+  mnt_dir="${2:-${mnt_root}/${mnt_key}}"
+
+  # list...
+  if [[ -z "${mnt_key}" ]]; then
+
+    # dev
+    lsblk --all --fs --json --paths | jq -cr '.. | objects | select(.uuid != null and .fstype == "crypto_LUKS") | .uuid' | while read item; do
+      "${BASH_SOURCE}" "${item}"
+    done
+    lsblk --all --fs --json --paths | jq -cr '.. | objects | select(.uuid != null and .fstype != "crypto_LUKS") | .uuid' | while read item; do
+      "${BASH_SOURCE}" "${item}"
+    done
+
+    # ${mnt_root}/*
+    find "${mnt_root}" -mindepth 1 -maxdepth 1 -printf '%f\n' | while read item; do
+      "${BASH_SOURCE}" "${item}"
+    done
+
+  # skip
+  elif is_mnt "${mnt_dir}"; then
+    true
+
+  # skip
+  elif [[ -L "${mnt_dir}" ]]; then
+    true
+
+  # uuid
+  elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+
+    blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${mnt_key}\")")"
+    name="$(       echo "${blk_info}"           | jq -cr '.name')"
+    fstype="$(     echo "${blk_info}"           | jq -cr '.fstype')"
+    mountpoints="$(echo "${blk_info}"           | jq -cr '.mountpoints[]')"
+
+    if [[ 'crypto_LUKS' == "${fstype}" ]]; then
+
+      if [[ ! -e "/dev/mapper/${mnt_key}" ]]; then
+
+        gpw_file="${enc_root}/$(vhash "${mnt_key}")"
+        if [[ -f "${gpw_file}" ]]; then
+          cat "${gpw_file}" | dec | sudo cryptsetup open --type luks "${name}" "${mnt_key}"
+        fi
+
+      fi
+
+    elif [[ -n "${mountpoints}" ]]; then
+      echo "${mountpoints}" | while read item; do
+        ln -fsn "${mountpoints}" "${mnt_dir}"
+        break
+      done
+
+    elif [[ -n "${fstype}" ]]; then
+
+      mnt_opts=()
+      mnt_opts="$(IFS=,; echo "${mnt_opts[*]}")"
+
+      mkdir -p "${mnt_dir}"
+
+#     echo "UUID=${mnt_key} ${mnt_dir} ${fstype} ${mnt_opts} 0 0" | sudo tee --append /etc/fstab
+      sudo mount --options "${mnt_opts}" UUID="${mnt_key}" "${mnt_dir}" || rm -d "${mnt_dir}" 2> '/dev/null'
+
+    fi
+
+  # cifs
+  elif false && [[ "${mnt_key}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+
+    fstype='cifs'
+
+    # TODO: cifs sharename list
+#   smbclient -L "${mnt_key}"
+    share_names=()
+
+    for share_name in "${share_names}"; do
+
+      mnt_uri="//${mnt_key}/${share_name}"
+
+      mnt_opts=()
+      mnt_opts+=('vers=3.0')
+      mnt_opts+=('defaults')
+      mnt_opts+=('iocharset=utf8')
+      mnt_opts+=('nounix')
+      mnt_opts+=('dir_mode=0700')
+      mnt_opts+=('file_mode=0600')
+      mnt_opts+=("uid=$(id -u)")
+      mnt_opts+=("gid=$(id -g)")
+#     mnt_opts+=('ro')
+#     if [[ -n "${user}" && -n "${pass}" ]]; then
+#
+#       credentials="$(mktemp)"
+#       echo "username=${user}" >> "${credentials}"
+#       echo "password=${pass}" >> "${credentials}"
+#
+#       mnt_opts+=("credentials=${credentials}")
+#
+#     fi
+      mnt_opts="$(IFS=,; echo "${mnt_opts[*]}")"
+
+      mkdir -p "${mnt_dir}/${share_name}"
+
+#     echo "${mnt_uri} ${mnt_dir}/${share_name} ${fstype} ${mnt_opts} 0 0" | sudo tee --append /etc/fstab
+      if ! sudo mount --type "${fstype}" --options "${mnt_opts}" "${mnt_uri}" "${mnt_dir}/${share_name}"; then
+        rm -d "${mnt_dir}/${share_name}" || true 2> '/dev/null'
+        rm -d "${mnt_dir}"               || true 2> '/dev/null'
+      fi
+
+      test -v credentials && rm "${credentials}" || true
+
+    done
+
+  # fpr
+  elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+
+    # gocryptfs
+    enc_dir="${enc_root}/${mnt_key}"
+    if [[ -d "${enc_dir}" ]]; then
+
+      gpw_file="${enc_root}/$(vhash "${mnt_key}")"
+#     if [[ ! -f "${gpw_file}" ]]; then
+#       cat '/dev/urandom' | tr --complement --delete '[:graph:]' | head -c 2048 | enc > "${gpw_file}"
+#     fi
+
+      conf_file="${enc_dir}/gocryptfs.conf"
+      conf_file_gpg="${conf_file}.gpg"
+
+      mkdir -p \
+        "${enc_dir}" \
+        "${mnt_dir}"
+
+#     test ! -f "${conf_file}" && ! test -f "${conf_file_gpg}" && gocryptfs -extpass 'gpg' -extpass '--decrypt' -extpass "${gpw_file}" -init     "${enc_dir}"
+#     test ! -f "${conf_file}" &&   test -f "${conf_file_gpg}" && cat "${conf_file_gpg}" | dec > "${conf_file}"
+#     test   -f "${conf_file}" && ! test -f "${conf_file_gpg}" && cat "${conf_file}"     | enc > "${conf_file_gpg}"
+      test   -f "${conf_file}" && true                         && gocryptfs -extpass 'gpg' -extpass '--decrypt' -extpass "${gpw_file}" -nonempty "${enc_dir}" "${mnt_dir}" || rm -d "${mnt_dir}" 2> '/dev/null'
+
+    fi
+
+  fi
+
+)

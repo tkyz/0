@@ -1,0 +1,54 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  export machine_id="$(machine_id)"
+  export boot_id="$(boot_id)"
+  export openpgp4fpr="$(openpgp4fpr)"
+  export uid="$(id -u)"
+  export gid="$(id -g)"
+  export domain="$(hostname -d)"
+  export namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
+  export external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)"
+  export resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
+  export tag='latest'
+
+  compose_yml="$(cat "${HOME}/compose.yml" | envsubst)"
+
+  if [[ '-' == "${1:-}" ]]; then
+    echo "${compose_yml}" | podman-compose --file '/dev/stdin' down
+
+  else
+
+    echo "${compose_yml}" | podman-compose --file '/dev/stdin' down "${@}"
+
+#   echo "${compose_yml}" | podman-compose --file '/dev/stdin' up "${@}" & # --detach
+    {
+
+#     sudo sysctl --write fs.inotify.max_user_instances=1024
+#     sudo sysctl --write fs.inotify.max_user_watches=65536
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=53
+
+      echo "${compose_yml}" | podman-compose --file '/dev/stdin' up "${@}" & # --detach
+
+      while [[ 'running' != "$(echo "${compose_yml}" | podman-compose --file /dev/stdin ps --format json | jq -r '.[] | select(.Labels."com.docker.compose.service" == "proxy").State')" ]]; do
+        sleep 1 || true
+      done
+
+#     sudo sysctl --write fs.inotify.max_user_instances=128
+#     sudo sysctl --write fs.inotify.max_user_watches=8192
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+
+    }
+
+  fi
+
+  podman system  prune --force || true
+  podman volume  prune --force || true
+  podman network prune --force || true
+
+)

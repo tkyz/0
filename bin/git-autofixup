@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  target_repo="$(git rev-parse --show-toplevel)"
+  target_branch="$(git branch --show-current)"
+  squash_branch="${target_branch}_squash"
+
+  tmp_dir="$(mktemp -d)"
+  pushd "${tmp_dir}" &> '/dev/null'
+
+    git clone --branch "${target_branch}" "${target_repo}" .
+
+    export EDITOR='sed -i "2,\$s/^pick/fixup/"'
+
+    git -c core.hooksPath='/dev/null' rebase --interactive --root
+    git -c core.hooksPath='/dev/null' commit --amend --no-edit --message 'squash'
+    git -c core.hooksPath='/dev/null' push --force 'origin' "HEAD:${squash_branch}"
+
+  popd &> '/dev/null'
+  rm -rf "${tmp_dir}"
+
+# git reset --soft "${squash_branch}"
+  git branch -avv
+
+)

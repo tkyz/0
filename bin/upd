@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+  sudo apt update
+  sudo apt upgrade    -y
+  sudo apt autoremove -y
+)

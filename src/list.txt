@@ -1,0 +1,39 @@
+# pki
+  https://github.com/OpenSC/OpenSC.git
+  https://github.com/jpki/OpenSC.git
+  https://github.com/jpki/myna.git
+
+# k8s
+  https://github.com/kubernetes-sigs/kind
+
+# wiki
+  https://github.com/splitbrain/dokuwiki.git
+  https://github.com/splitbrain/dokuwiki-plugin-gallery.git
+  https://github.com/splitbrain/dokuwiki-plugin-translation.git
+  https://github.com/splitbrain/dokuwiki-plugin-vshare.git
+  https://github.com/Chris--S/dokuwiki-plugin-iframe.git
+  https://github.com/Chris--S/dokuwiki-plugin-xbr.git
+  https://github.com/selfthinker/dokuwiki_plugin_wrap.git
+  https://github.com/hanche/dokuwiki_color_plugin.git
+  https://github.com/lejmr/dokuwiki-plugin-drawio.git
+  https://github.com/samuelet/indexmenu.git
+  https://github.com/cosmocode/dokuwiki-plugin-aichat.git
+  https://github.com/giterlizzi/dokuwiki-template-bootstrap3.git
+
+# comfyui
+  https://github.com/comfyanonymous/ComfyUI.git
+  https://github.com/ltdrdata/ComfyUI-Manager.git
+  https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git
+  https://github.com/asagi4/comfyui-prompt-control.git
+  https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
+  https://github.com/space-nuko/ComfyUI-OpenPose-Editor.git
+  https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git
+
+# deepfacelab
+  https://github.com/iperov/DeepFaceLab.git
+  https://github.com/iperov/DeepFaceLive.git
+# https://github.com/Cregrant/DeepFaceLab-optimized.git
+# https://github.com/MachineEditor/DeepFaceLab-MVE.git
+
+# face_id
+  https://github.com/deepinsight/insightface.git

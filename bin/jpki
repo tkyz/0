@@ -1,0 +1,81 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  # TODO: Error: scard: Sharing violation.
+  is_sudoer
+  sudo systemctl restart pcscd
+
+  if ! myna test | grep ': NG' &> '/dev/null'; then
+
+    # ca証明書
+    if false; then
+
+      ca_dir="${HOME}/dataset/myna_id"
+      mkdir -p "${ca_dir}"
+
+      myna jpki cert authca --form der > "${ca_dir}/jp.go.jpki_auth_ca.der" # https://www.jpki.go.jp/ca/ca_rules4.html
+      myna jpki cert signca --form der > "${ca_dir}/jp.go.jpki_sign_ca.der" # https://www.jpki.go.jp/ca/ca_rules3.html
+
+    fi
+
+    # TODO: pin
+#   pin4=
+#   pin16=
+    test -v pin4
+    test -v pin16
+
+    if true; then
+
+      myna_id="$(myna text mynumber --pin "${pin4}" | awk '{print substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
+      myna_dir="${HOME}/dataset/myna_id/${myna_id}"
+      mkdir -p "${myna_dir}"
+
+      # 券面事項入力補助AP
+      {
+#       myna text info                      # apinfo keyid version extapdu vendor option
+#       myna text cert                      # cert
+#       myna text mynumber  --pin "${pin4}" # 個人番号
+        myna text attr      --pin "${pin4}" # ヘッダ、氏名、住所、生年月日、性別
+        myna text signature --pin "${pin4}" # mynum-hash attr-hash signature
+      } > "${myna_dir}/info.txt"
+
+      # 券面事項確認AP
+      myna visual photo --pin "${pin4}" --output '/dev/stdout' | convert '/dev/stdin' "${myna_dir}/photo.png"
+
+    fi
+
+    # x509
+    if true; then
+
+      myna jpki cert auth --form der                  > "${myna_dir}/auth.der"
+      myna jpki cert sign --form der --pin "${pin16}" > "${myna_dir}/sign.der"
+
+#     cat "${myna_dir}/auth.der" | openssl x509 -inform der -noout -text
+#     cat "${myna_dir}/sign.der" | openssl x509 -inform der -noout -text
+
+      # verify
+      openssl verify -CAfile "${ca_dir}/jp.go.jpki_auth_ca.der" "${myna_dir}/auth.der"
+      openssl verify -CAfile "${ca_dir}/jp.go.jpki_sign_ca.der" "${myna_dir}/sign.der"
+
+      # sign
+#     myna jpki cms sign   --form der --detached --md sha512 --in      "${sign_file}" --out '/dev/stdout' --pin "${pin16}" > "${sign_file}.sign"
+#     myna jpki cms verify --form der --detached             --content "${sign_file}"                                        "${sign_file}.sign"
+
+      # ssh
+      cat "${myna_dir}/auth.der" | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 > "${myna_dir}/pub"
+
+    fi
+
+#   myna pin change card --pin "${pin4}"  # --newpin=
+#   myna pin change auth --pin "${pin4}"  # --newpin=
+#   myna pin change sign --pin "${pin16}" # --newpin=
+    myna pin status
+
+  fi
+
+)

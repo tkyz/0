@@ -1,0 +1,145 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  uri="${1:-}"
+
+  function type_git() {
+
+    git_dir="${1}"
+    remote="${2}"
+    uri="${3}"
+
+    mkdir -p "${git_dir}"
+    pushd "${git_dir}" &> '/dev/null'
+
+      echo '---'
+      echo "${PWD}"
+
+#     git init --object-format=sha256
+      git init
+
+      git remote add     "${remote}" "${uri}"         2> '/dev/null' ||
+      git remote set-url "${remote}" "${uri}"
+
+      git fetch --prune "${remote}"
+
+      git remote set-head "${remote}" 'main'          2> '/dev/null' ||
+      git remote set-head "${remote}" 'master'        2> '/dev/null' ||
+      git remote set-head "${remote}" 'trunk'         2> '/dev/null' ||
+      true
+
+      git checkout -b 'main' "${remote}/main"         2> '/dev/null' ||
+      git checkout -b 'main' "${remote}/master"       2> '/dev/null' ||
+      git checkout -b 'main' "${remote}/trunk"        2> '/dev/null' ||
+      git rebase --no-autostash "${remote}"           2> '/dev/null' ||
+      git reset --mixed "${remote}/main"              2> '/dev/null' ||
+      git reset --mixed "${remote}/master"            2> '/dev/null' ||
+      git reset --mixed "${remote}/trunk"             2> '/dev/null' ||
+      true
+
+      git branch --set-upstream-to="${remote}/main"   2> '/dev/null' ||
+      git branch --set-upstream-to="${remote}/master" 2> '/dev/null' ||
+      git branch --set-upstream-to="${remote}/trunk"  2> '/dev/null' ||
+      true
+
+      git gc
+      git status
+
+    popd &> '/dev/null'
+
+  }
+
+  function type_container() {
+
+    echo '---'
+    echo "${1}"
+
+    podman pull "${1}"
+
+  }
+
+  # list...
+  if [[ -z "${uri}" ]]; then
+
+    {
+
+      cat "${HOME}/src/list.txt" | sed -r -e '/#.*/d' -e 's/(^[ ]+|[ ]+$)//g' -e '/^$/d'
+      cat "${HOME}/lib/list.txt" | sed -r -e '/#.*/d' -e 's/(^[ ]+|[ ]+$)//g' -e '/^$/d'
+      cat "${HOME}/opt/list.txt" | sed -r -e '/#.*/d' -e 's/(^[ ]+|[ ]+$)//g' -e '/^$/d'
+
+      find "${HOME}/lib/" "${HOME}/src/" -type d -name '.git' 2> /dev/null | while read base_dir; do
+        git -C "${base_dir}" remote -v | awk '{ print $2 }'
+      done | grep -E -e '^(https?)://.*\.git$' || true
+
+      podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>'
+
+    } 2> '/dev/null' | sort --unique | while read item; do
+      "${BASH_SOURCE}" "${item}" || true
+    done
+
+  #----------------------------------------------------------------
+  # git
+
+  elif [[ "${uri}" =~ ^git://[^/]+/.+\.git$ ]]; then
+
+    git_dir="${HOME}/src"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^git://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^git://([^/]+)/(.+)\.git$|\2|g')"
+
+#   type_git "${git_dir}" 'upstream' "${uri}"
+
+  elif [[ "${uri}" =~ ^https://github\.com/.+\.git$ ]]; then
+
+    git_dir="${HOME}/src"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+    type_git "${git_dir}" 'github' "${uri}"
+
+  elif [[ "${uri}" =~ ^https://gitlab\.com/.+\.git$ ]]; then
+
+    git_dir="${HOME}/src"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+    type_git "${git_dir}" 'gitlab' "${uri}"
+
+  elif [[ "${uri}" =~ ^https://huggingface\.co/.+\.git$ ]]; then
+
+    git_dir="${HOME}/lib"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+    type_git "${git_dir}" 'huggingface' "${uri}"
+
+  #----------------------------------------------------------------
+  # container
+
+  elif [[ "${uri}" =~ ^docker\.io/[^/]+/[^:]+:.+$ ]]; then
+    type_container "${uri}"
+
+  elif [[ "${uri}" =~ ^ghcr\.io/[^/]+/[^:]+:.+$ ]]; then
+    type_container "${uri}"
+
+  #----------------------------------------------------------------
+  # ...
+
+# elif [[ "${uri}" =~ ^.*\.tar\.gz$ || "${uri}" =~ ^.*\.tgz$ ]]; then
+#   curl -fsSL "${uri}" | tar zxf - --strip-components 1 --no-same-permissions --no-same-owner
+
+# elif [[ "${uri}" =~ ^.*\.zip$ ]]; then
+#   curl -fsSL "${uri}" | bsdtar xf - --strip-components 0
+
+# elif [[ "${uri}" =~ ^.*\.7z$ ]]; then
+#   curl -fsSL  "${url}" 2> /dev/null > file
+#   7z x file
+#   rm file
+
+  fi
+
+)

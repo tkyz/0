@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+git count-objects -vH | grep 'size-pack:' | sed 's/^size-pack: //g'

@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  # gpg
+# gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
+  gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
+
+    exp_dir="${HOME}/dataset/openpgp4fpr"
+    mkdir -p "${exp_dir}"
+
+#   gpg --batch --yes --export-secret-keys --armor --output "${exp_dir}/${fpr}.key" "0x${fpr}" 2> '/dev/null' || true
+    gpg --batch --yes --export             --armor --output "${exp_dir}/${fpr}.pub" "0x${fpr}"
+
+  done
+
+  # jpki
+  jpki || true
+
+  # authorized_keys
+  keys_file="${HOME}/.ssh/authorized_keys"
+  touch "${keys_file}"
+  {
+    cat "${keys_file}"
+    cat "${HOME}/dataset/myna_id/0000-0000-0000/pub"
+#   curl 'https://github.com/tkyz.keys'
+  } | awk '{print $1 " " $2}' | sort --unique --output "${keys_file}"
+
+  # pip
+  pip freeze | sed -e 's/[!=<> #].*//g' | sort --unique --output "${HOME}/.venv/requirements.txt"
+
+)

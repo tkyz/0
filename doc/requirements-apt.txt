@@ -1,0 +1,71 @@
+# shell
+  bash-completion
+# zsh
+# fish
+
+# hw
+  lshw
+  lsscsi
+  usbutils
+
+# fw
+  firmware-linux
+  firmware-realtek
+  firmware-iwlwifi
+
+# fs
+  parted
+  cryptsetup
+  lvm2
+  gocryptfs
+
+# fuse
+  fuse
+  archivemount
+  cifs-utils
+  smbclient
+
+# nw
+  openssl
+  openssh-client
+  openssh-server
+  curl
+
+# pcsc
+  pcscd
+  pcsc-tools
+  libpcsclite-dev
+  opensc
+  libccid
+  libnfc-bin
+
+# util
+  uuid-runtime
+  gettext
+  gnupg2
+  jq
+  qrencode
+  imagemagick
+  tmux
+
+# git
+  git
+  git-crypt
+  git-lfs
+
+# dev
+  autoconf
+  libtool
+  libssl-dev
+
+# go
+  golang
+
+# python
+  python3
+  python3-pip
+  python3-venv
+
+# container
+  podman
+  containerd

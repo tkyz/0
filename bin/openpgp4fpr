@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  fpr=
+  test -z "${fpr}" && fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
+  test -z "${fpr}" && fpr="$(gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | head -n 1 || true)"
+  if [[ -z "${fpr}" ]]; then
+
+    uuid="$(uuidgen)"
+    passphrase=''
+
+    gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-generate-key "${uuid}" ed25519 sign,cert 0
+
+    fpr="$(gpg --with-colons --list-secret-keys "=${uuid}" 2> /dev/null | grep ^fpr | cut -d ':' -f 10)"
+
+    gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key    "0x${fpr}" ed25519 sign 0
+#   gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key    "0x${fpr}" ed25519 cert 0
+    gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key    "0x${fpr}" cv25519 encr 0
+    gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key    "0x${fpr}" ed25519 auth 0
+
+    gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    "0x${fpr}" "${fpr}"
+#   gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    "0x${fpr}" "${user}@${host}.${domain}"
+    gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-revoke-uid "0x${fpr}" "${uuid}"
+
+  fi
+
+  conf_file="$(gpgconf --list-dirs homedir)/gpg.conf"
+  grep -q default-key       "${conf_file}" && sed -i -r -e "s/^(default-key).*/\1       0x${fpr}/g" "${conf_file}" || echo "default-key       0x${fpr}" >> "${conf_file}"
+  grep -q default-recipient "${conf_file}" && sed -i -r -e "s/^(default-recipient).*/\1 0x${fpr}/g" "${conf_file}" || echo "default-recipient 0x${fpr}" >> "${conf_file}"
+
+) >&2
+
+gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//'

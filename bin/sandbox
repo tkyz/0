@@ -1,0 +1,60 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  source '/etc/os-release'
+
+  uuid="$(uuidgen)"
+
+  image="${1:-${ID}:${VERSION_CODENAME:-latest}}"
+  test '.' == "${image}" && image="${ID}:${VERSION_CODENAME:-latest}"
+  shift || true
+
+  if [[ "${#}" == '0' ]]; then
+    cmd=(bash -l)
+  else
+    cmd=("${@}")
+  fi
+
+  opts=()
+  opts+=('--interactive')
+  opts+=('--tty')
+  opts+=('--rm')
+  opts+=('--name'       "${uuid}")
+  opts+=('--hostname'   "${uuid}")
+# opts+=('--network'    'host')
+  opts+=('--device'     'nvidia.com/gpu=all')
+# opts+=('--device'     '/dev/fuse')
+# opts+=('--cap-add'    'SYS_ADMIN')
+  opts+=('--pids-limit' '32768')
+# opts+=('--env'        "UID=$(id -u)")
+  opts+=('--env'        "LANG=${LANG:-ja_JP.UTF-8}")
+  opts+=('--env'        "DISPLAY=${DISPLAY:-:0.0}")
+  opts+=('--env'        'QT_X11_NO_MITSHM=1')
+  opts+=('--env'        'LIBGL_ALWAYS_INDIRECT=1')
+  opts+=('--workdir'    '/root')
+  opts+=('--volume'     "$(printf '%s:%s'    '/tmp/.X11-unix/X0'       '/tmp/.X11-unix/X0')")
+# opts+=('--volume'     "$(printf '%s:%s:ro' '/var/cache/apt/archives' '/var/cache/apt/archives')") # TODO: apt-cache
+  opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/.cache/apt"      '/var/cache/apt/archives')")
+  opts+=('--volume'     "$(printf '%s:%s'    "${PWD}"                  '/root/.pwd')")
+  opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/.cache/pip"      '/root/.cache/pip')")
+  opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/.m2"             '/root/.m2')")
+  opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/.npm"            '/root/.npm')")
+  opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/.bashrc"         '/root/.bashrc')")
+  opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/.profile"        '/root/.profile')")
+  opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/bin"             '/root/bin')")
+  opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/dataset"         '/root/dataset')")
+  opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/doc"             '/root/doc')")
+  opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/src"             '/root/src')")
+  opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/tmp"             '/root/tmp')")
+  opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/setup"           '/root/setup')")
+
+  podman run "${opts[@]}" "${image}" "${cmd[@]}"
+
+# kubectl -n "$(hostname)" run -it --rm --image="${image}" -- bash
+
+)

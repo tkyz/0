@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  list=()
+  list+=('0000000000000000000000000000000000000000000000000000000000000000')
+# list+=("$(machine_id)")
+# list+=("$(boot_id)")
+# list+=("$(openpgp4fpr)")
+# list+=("$(ptinrf '' | sha256sum | cut -b 1-64)")
+
+  ghash="$(printf '/%s' "${list[@]}" | sed 's#^/##')"
+
+  vhash="$(cat << EOS | sha256sum | cut -b 1-64
+${ghash}
+${@}
+EOS
+)"
+
+  echo "${vhash}"
+
+)

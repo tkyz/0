@@ -1,0 +1,300 @@
+#!/bin/bash
+: << 'END_OF_BATCH'
+@rem ================================ windows batch [ms932, crlf] ================================
+@echo off
+
+setlocal
+
+  cd /d "%USERPROFILE%"
+
+  set dist=debian
+
+  wsl --unregister %dist%
+  wsl --set-default-version 2
+  wsl --install --distribution %dist%
+
+  wsl --terminate    %dist%
+  wsl --set-version  %dist% 2
+  wsl --distribution %dist% -- sed -i 's#:/root:#:/mnt/c/Users/%USERNAME%:#' /etc/passwd
+  wsl --distribution %dist% -- $^( wslpath -u %~0 ^)
+  wsl --terminate    %dist%
+
+endlocal
+exit /b
+END_OF_BATCH
+# ================================ linux shell script [utf8, lf] ================================
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  set -a
+    source '/etc/os-release'
+  set +a
+
+  test 'debian' == "${ID_LIKE:-${ID}}"
+  test 'bash'   == "${SHELL##*/}"
+
+  #----------------------------------------------------------------
+  # function
+
+  function _deps() {
+    (
+
+      cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb     http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+EOS
+
+      ${SUDO} apt-get update
+      ${SUDO} apt-get upgrade -y
+      ${SUDO} apt-get install -y git
+
+    )
+  }
+
+  function _git() {
+    (
+
+      git config --global init.defaultBranch main
+      git config --global core.ignorecase    false
+      git config --global core.quotepath     false
+      git config --global core.autocrlf      false
+      git config --global core.safecrlf      true
+      git config --global core.filemode      true
+      git config --global core.symlinks      true
+      git config --global core.hooksPath     "${HOME}/.git-hooks"
+      git config --global color.ui           auto
+      git config --global color.diff         auto
+      git config --global color.status       auto
+      git config --global color.branch       auto
+      git config --global pull.ff            only
+      git config --global pull.rebase        true
+      git config --global pull.autostash     false
+      git config --global rebase.autostash   false
+      git config --global merge.ff           false
+      git config --global diff.sjis.textconv 'iconv -f sjis'
+      git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+
+#     git init --object-format=sha256 .
+      git init .
+
+      git_remote='origin';    git_uri="${HOME}/lib/0.git/0.git";         git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+      git_remote="${domain}"; git_uri="git://git.${domain}/0.git";       git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#     git_remote='github';    git_uri='ssh://git@github.com/tkyz/0.git'; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+      git_remote='public';    git_uri='https://github.com/tkyz/0.git';   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+
+      git fetch --prune --all || true
+
+      git remote | while read remote; do
+        git remote set-head "${remote}" 'main' || true
+      done
+
+      git checkout -b 'main' 'origin/main'          2> '/dev/null' ||
+      git checkout -b 'main' "${domain}/main"       2> '/dev/null' ||
+      git checkout -b 'main' 'github/main'          2> '/dev/null' ||
+      git checkout -b 'main' 'public/main'          2> '/dev/null' ||
+      git rebase --no-autostash 'origin'            2> '/dev/null' ||
+      git rebase --no-autostash "${domain}"         2> '/dev/null' ||
+      git rebase --no-autostash 'github'            2> '/dev/null' ||
+      git rebase --no-autostash 'public'            2> '/dev/null' ||
+      git reset --mixed 'origin/main'               2> '/dev/null' ||
+      git reset --mixed "${domain}/main"            2> '/dev/null' ||
+      git reset --mixed 'public/main'               2> '/dev/null' ||
+      git reset --mixed 'github/main'               2> '/dev/null' ||
+      true
+
+      git branch --set-upstream-to='origin/main'    2> '/dev/null' ||
+      git branch --set-upstream-to="${domain}/main" 2> '/dev/null' ||
+      git branch --set-upstream-to='public/main'    2> '/dev/null' ||
+      git branch --set-upstream-to='github/main'    2> '/dev/null' ||
+      true
+
+      git diff --name-only -z --diff-filter=D | xargs -0 git checkout
+
+      git gc
+      git status
+
+    )
+  }
+
+  function _apt() {
+    (
+
+      ${SUDO} apt-get install -y $(cat './doc/requirements-apt.txt' | sed 's/#.*//' | xargs)
+
+      cat './doc/requirements-apt-repo.txt' | sed -e 's/#.*//g' -e '/^$/d' | while read item; do
+
+        item="$(  echo "${item}" | envsubst)"
+        name="$(  echo "${item}" | sed -r 's/^([^ ]+)[ ]+([^ ]+)[ ]+(.*)$/\1/')"
+        pub="$(   echo "${item}" | sed -r 's/^([^ ]+)[ ]+([^ ]+)[ ]+(.*)$/\2/')"
+        source="$(echo "${item}" | sed -r 's/^([^ ]+)[ ]+([^ ]+)[ ]+(.*)$/\3/')"
+
+        pub_file="/etc/apt/keyrings/${name}.gpg"
+        src_file="/etc/apt/sources.list.d/${name}.list"
+
+        curl -fsSL "${pub}"                          | ${SUDO} tee "${pub_file}" > '/dev/null'
+        echo "deb [signed-by=${pub_file}] ${source}" | ${SUDO} tee "${src_file}" > '/dev/null'
+
+      done
+
+      ${SUDO} apt-get update
+      ${SUDO} apt-get upgrade -y
+#     ${SUDO} apt-get install -y $(cat './doc/requirements-apt-ext.txt' | sed 's/#.*//' | xargs)
+
+    )
+  }
+
+  function _etc() {
+
+    # /etc/default/keyboard
+    cat << EOS | ${SUDO} tee '/etc/default/keyboard' > '/dev/null'
+XKBMODEL=pc105
+XKBLAYOUT=jp
+XKBVARIANT=
+XKBOPTIONS=ctrl:nocaps
+BACKSPACE=guess
+EOS
+
+    # /etc/wsl.conf
+    if is_wsl; then
+      cat << EOS | ${SUDO} tee '/etc/wsl.conf' > '/dev/null'
+[automount]
+options            = "uid=0,gid=0,umask=0077,fmask=0177,metadata"
+[network]
+#generateResolvConf = false
+[interop]
+enabled            = false
+appendWindowsPath  = false
+[user]
+default            = root
+EOS
+    fi
+
+    # /etc/cdi/*
+    if type nvidia-ctk &> '/dev/null'; then
+      ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' || true
+    fi
+
+    # /etc/containers/registries.conf
+    if [[ -f '/etc/containers/registries.conf' ]]; then
+      ${SUDO} sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
+    fi
+
+    # /etc/apt/apt.conf.d/*
+#   echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
+
+    # /etc/ssh/sshd_config
+#   if [[ ! -f '/etc/ssh/authorized_keys' ]]; then
+#
+#     AuthorizedKeysFile ${HOME}/.ssh/authorized_keys /etc/ssh/authorized_keys
+#
+#     ssh-keygen -t ed25519 -C ''
+#     mv './.ssh/id_ed25519.pub' '/etc/ssh/authorized_keys'
+#
+#   fi
+
+  }
+
+  function _venv() {
+    (
+
+      venv_dir='./.venv'
+      req_file="${venv_dir}/requirements.txt"
+
+      python3 -m venv "${venv_dir}"
+      source "${venv_dir}/bin/activate"
+
+      pip install --upgrade --requirement "${req_file}"
+
+    )
+  }
+
+  function _wine() {
+    (
+
+      wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
+
+      winetricks \
+        cjkfonts \
+        gdiplus
+
+    )
+  }
+
+  #----------------------------------------------------------------
+  # main
+
+  pushd "${HOME}" &> '/dev/null'
+
+    domain="$(hostname -d)"
+
+    test ! -v SUDO && test '0' == "$(id -u)"                                && SUDO=
+    test ! -v SUDO && type sudo &> '/dev/null' && sudo -v -n &> '/dev/null' && SUDO='sudo'
+
+    # 0.git
+    if [[ ! -e './.git' ]]; then
+
+      test -v SUDO
+
+      _deps
+      _git
+      _apt
+
+#     git config --global user.name       "${USER}"
+#     git config --global user.email      "${USER}@$(hostname -f)"
+      git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x$(openpgp4fpr)" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+      git config --global gpg.program     "$(type -p gpg)"
+      git config --global commit.gpgsign  true
+
+      git checkout './.profile' || true
+      git checkout './.bashrc'  || true
+
+      source './.profile'
+
+    fi
+
+    machine_id="$(machine_id)"
+    boot_id="$(boot_id)"
+    openpgp4fpr="$(openpgp4fpr)"
+
+    dataset_dir='./dataset'
+    mkdir -p "${dataset_dir}"
+
+    # TODO: ./bin/*
+    test ! -e "${dataset_dir}/machine_id/${machine_id}" && test -v SUDO
+    test ! -e "${dataset_dir}/boot_id/${boot_id}"       && test -v SUDO
+    test ! -e "${dataset_dir}/boot_id/${boot_id}"       && _etc
+    test ! -e "${dataset_dir}/machine_id/${machine_id}" && _venv
+    test ! -e "${dataset_dir}/machine_id/${machine_id}" && _wine
+#   test ! -e "${dataset_dir}/boot_id/${boot_id}"       && ${SUDO} modprobe -r pn533_usb pn533 nfc
+#   test ! -e "${dataset_dir}/boot_id/${boot_id}"       && mnt
+#   test ! -e "${dataset_dir}/machine_id/${machine_id}" && curi
+#   test ! -e "${dataset_dir}/machine_id/${machine_id}" && build
+#   test ! -e "${dataset_dir}/boot_id/${boot_id}"       && deploy
+    test ! -e "${dataset_dir}/boot_id/${boot_id}"       && exp
+    test ! -e "${dataset_dir}/boot_id/${boot_id}"       && license > './LICENSE'
+    mkdir -p  "${dataset_dir}/machine_id/${machine_id}"
+    mkdir -p  "${dataset_dir}/boot_id/${boot_id}"
+
+    echo "machine_id:  ${machine_id}"
+    echo "boot_id:     ${boot_id}"
+    echo "openpgp4fpr: ${openpgp4fpr}"
+
+  popd &> '/dev/null'
+
+)

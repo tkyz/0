@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+  test '0' == "$(id -u)" ||
+  type sudo && sudo -v -n
+) &> /dev/null
