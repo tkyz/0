@@ -1,0 +1,15 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+  "${HOME}/opt/org.eclipse/eclipse" \
+    -vm   "${HOME}/opt/net.java.jdk/bin/java" \
+    -data "${HOME}/.eclipse" \
+    -vmargs \
+      -Xms4g \
+      -Xmx4g \
+      "-javaagent:${HOME}/opt/org.eclipse/plugins/jp.sourceforge.mergedoc.pleiades/pleiades.jar"
+)

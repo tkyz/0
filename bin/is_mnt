@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  mnt_dir="${1}"
+
+  mountpoint "${1}"
+
+) &> /dev/null

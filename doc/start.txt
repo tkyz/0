@@ -1,0 +1,23 @@
+# 0.git
+
+個人環境です。
+
+⚠️不定期で''[squash](https://raw.githubusercontent.com/tkyz/0/main/bin/git-autofixup)''します。
+
+## 💻 setup
+
+```bash
+( curl "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
+```
+
+## 👤 auther
+
+- ''{{openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9.pub|openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9}}''
+- ''{{vhash:68e2a6412ce11a34ee9d6ea82f8270d3ddbafe1bde181bbf37d95832fcbce7e5:auth.ssh.pub|68e2a6412ce11a34ee9d6ea82f8270d3ddbafe1bde181bbf37d95832fcbce7e5/auth.ssh.pub}}''
+
+<WRAP group>
+<WRAP column box round centeralign>{{blockchain:btc:icon.png?nolink&0x20}} btc \\ {{blockchain:btc:bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{blockchain:eth:icon.png?nolink&0x20}} eth \\ {{blockchain:eth:0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{blockchain:sol:icon.png?nolink&0x20}} sol \\ {{blockchain:sol:BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{blockchain:xrp:icon.png?nolink&0x20}} xrp \\ {{blockchain:xrp:rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL.svg?nolink&64}}</WRAP>
+</WRAP>

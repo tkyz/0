@@ -1,0 +1,115 @@
+0:
+
+  opt:
+
+    net.java.jdk:
+#     - https://download.java.net/java/GA/jdk25.0.2/b1e0dfa218384cb9959bdcb897162d4e/10/GPL/openjdk-25.0.2_linux-x64_bin.tar.gz
+#     - https://download.java.net/java/GA/javafx25.0.2/1ccc8ce474414c94ade008f8833286e8/4/openjfx-25.0.2_linux-x64_bin-sdk.tar.gz
+      - https://download.java.net/java/GA/jdk26/c3cc523845074aa0af4f5e1e1ed4151d/35/GPL/openjdk-26_linux-x64_bin.tar.gz
+      - https://download.java.net/java/GA/javafx26/f45613f44cdc48018f41682eb67241ad/27/openjfx-26_linux-x64_bin-sdk.tar.gz
+
+    org.apache.ant:
+      - https://dlcdn.apache.org/ant/binaries/apache-ant-1.10.16-bin.tar.gz
+      - https://dlcdn.apache.org/ant/ivy/2.5.3/apache-ivy-2.5.3-bin.tar.gz
+
+    org.apache.maven:
+      - https://dlcdn.apache.org/maven/maven-3/3.9.14/binaries/apache-maven-3.9.14-bin.tar.gz
+
+    org.eclipse:
+      - https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2026-03/R/eclipse-java-2026-03-R-linux-gtk-x86_64.tar.gz&mirror_id=1
+      - https://ftp.jaist.ac.jp/pub/mergedoc/pleiades/build/stable/pleiades.zip
+
+    com.voideditor:
+      - https://github.com/voideditor/binaries/releases/download/1.99.30044/Void-linux-x64-1.99.30044.tar.gz
+
+#   kind:
+#     - https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64
+
+    jp.co.maruo.hide/hidemaru:
+      - https://hide.maruo.co.jp/software/bin3/hmfloat950_x64_signed.exe
+
+    jp.co.maruo.hide/hmfilerclassic:
+      - https://hide.maruo.co.jp/software/bin/hmfilerclassic210_x64_signed.exe
+
+    io.github.sakura-editor:
+      - https://github.com/sakura-editor/sakura/releases/download/v2.4.2/sakura-tag-v2.4.2-build4203-a3e63915b-Win32-Release-Installer.zip
+
+  src:
+
+    # jpki
+#   - https://github.com/OpenSC/OpenSC.git
+#   - https://github.com/jpki/OpenSC.git
+    - https://github.com/jpki/myna.git
+
+    # kind
+    - https://github.com/kubernetes-sigs/kind.git
+
+    # usacloud
+    - https://github.com/sacloud/usacloud.git
+
+    # llama.cpp
+    - https://github.com/ggml-org/llama.cpp.git
+
+    # deepfacelab
+    - https://github.com/iperov/DeepFaceLab.git
+    - https://github.com/iperov/DeepFaceLive.git
+    - https://github.com/Cregrant/DeepFaceLab-optimized.git
+#   - https://github.com/MachineEditor/DeepFaceLab-MVE.git
+
+    # face_id
+    - https://github.com/deepinsight/insightface.git
+
+    # bi
+#   - https://github.com/evidence-dev/evidence.git
+    - https://github.com/evidence-dev/template.git
+
+    # doc
+    - https://github.com/splitbrain/dokuwiki.git
+    - https://github.com/splitbrain/dokuwiki-plugin-gallery.git
+    - https://github.com/splitbrain/dokuwiki-plugin-gchart.git
+    - https://github.com/splitbrain/dokuwiki-plugin-translation.git
+    - https://github.com/splitbrain/dokuwiki-plugin-vshare.git
+    - https://github.com/Chris--S/dokuwiki-plugin-iframe.git
+    - https://github.com/Chris--S/dokuwiki-plugin-xbr.git
+    - https://github.com/selfthinker/dokuwiki_plugin_wrap.git
+    - https://github.com/hanche/dokuwiki_color_plugin.git
+    - https://github.com/lejmr/dokuwiki-plugin-drawio.git
+    - https://github.com/samuelet/indexmenu.git
+    - https://github.com/cosmocode/dokuwiki-plugin-aichat.git
+    - https://github.com/cosmocode/sqlite.git
+    - https://github.com/liffiton/dokuwiki-plugin-mathjax.git
+    - https://github.com/Medieninformatik-Regensburg/dokuwiki-plugin-markdowku.git
+    - https://github.com/giterlizzi/dokuwiki-template-bootstrap3.git
+
+    # comfyui
+    - https://github.com/comfyanonymous/ComfyUI.git
+#   - https://github.com/ltdrdata/ComfyUI-Manager.git
+#   - https://github.com/ltdrdata/ComfyUI-Impact-Pack.git
+#   - https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git
+#   - https://github.com/asagi4/comfyui-prompt-control.git
+#   - https://github.com/kijai/ComfyUI-KJNodes.git
+#   - https://github.com/kijai/ComfyUI-FramePackWrapper.git
+#   - https://github.com/kijai/ComfyUI-WanVideoWrapper.git
+#   - https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
+#   - https://github.com/cubiq/ComfyUI_essentials.git
+#   - https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git
+#   - https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
+#   - https://github.com/jamesWalker55/comfyui-various.git
+#   - https://github.com/space-nuko/ComfyUI-OpenPose-Editor.git
+
+  lib:
+
+    # txt2txt
+
+    # txt2img
+    - https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors.git
+    - https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors.git
+
+    # txt2vid
+
+    # img2txt
+
+    # img2img
+
+    # img2vid
+    - https://huggingface.co/stabilityai/stable-video-diffusion-img2vid/svd.safetensors.git

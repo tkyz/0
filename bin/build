@@ -1,0 +1,140 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  export machine_id="$(machine_id)"
+  export boot_id="$(boot_id)"
+  export openpgp4fpr="$(openpgp4fpr)"
+  export uid="$(id -u)"
+  export gid="$(id -g)"
+  export domain="$(hostname -d)"
+  export namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
+  export external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)"
+  export tag='latest'
+
+  pushd "${1}" &> '/dev/null'
+
+    if [[ "${PWD}" =~ ^${HOME}/src/.*$ ]]; then
+      name="$(echo "${PWD}" | sed -r "s|^${HOME}/src/||g")"
+    else
+      name="$(echo "${PWD}" | sha256sum | cut -b 1-64)"
+    fi
+
+    if [[ -f './Makefile' && ! -f './go.mod' ]]; then
+      (
+
+        test -f './autogen.sh' && './autogen.sh' || true
+        test -f './configure'  && './configure'  || true
+
+        make
+        make install
+
+      )
+    fi
+
+    # rust
+    if [[ -f './Cargo.toml' ]]; then
+      cargo build --release
+    fi
+
+    # go
+    if [[ -f './go.mod' ]]; then
+      go build
+      go install
+    fi
+
+    # java
+    if [[ -f './build.xml' ]]; then
+      (
+
+        opts=()
+        opts+=('clean')
+        opts+=('compile')
+        opts+=('jar')
+
+        ant "${opts[@]}" || true
+
+      )
+    fi
+    if [[ -f './pom.xml' ]]; then
+      (
+
+        uuid="$(uuidgen)"
+
+        podman run \
+          --rm \
+          --workdir "/${uuid}" \
+          --volume  ".:/${uuid}" \
+          --volume  "${HOME}/.m2:/root/.m2" \
+          --env     MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData' \
+          maven:latest \
+            mvn \
+              --threads 1C \
+              --define  version="${tag}" \
+              --define  checkstyle.skip=false \
+              --define  maven.test.skip=false \
+              --define  maven.javadoc.skip=false \
+              --define  assembly.skipAssembly=true \
+              clean \
+              package \
+              install
+#             deploy
+
+      )
+    fi
+    if [[ -f './build.gradle' ]]; then
+      (
+
+        uuid="$(uuidgen)"
+
+        podman run \
+          --rm \
+          --workdir "/${uuid}" \
+          --volume  ".:/${uuid}" \
+          gradle:latest \
+            gradle \
+              clean \
+              build
+
+      )
+    fi
+
+    # node
+    if [[ -f './package.json' ]]; then
+      (
+        true
+#       npm install
+#       npm run build
+      )
+    fi
+
+    # container
+    if [[ -f './Dockerfile' ]]; then
+      (
+
+        image="container.${domain}/${name}:${tag}"
+        if [[ -z "$(podman images --noheading "${image}")" ]]; then
+
+          opts=()
+          opts+=('--tag' "${image}")
+          opts+=('--pull')
+#         opts+=('--no-cache')
+
+          podman build "${opts[@]}" . || true
+
+          if ping -c 1 -W 3 "container.${domain}" &> /dev/null; then
+            podman push --tls-verify=false "${image}" || true
+          fi
+
+        fi
+
+      )
+    fi
+
+  popd &> '/dev/null'
+
+)
