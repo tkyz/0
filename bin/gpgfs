@@ -1,0 +1,40 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  src_dir="${1}"
+  mnt_dir="${2}"
+
+  openpgp4fpr="$(openpgp4fpr)"
+
+  enc_dir="${src_dir}/enc"
+  cnf_file="${src_dir}/gocryptfs.conf"
+  cnf_file_enc="${src_dir}/gocryptfs.conf.gpg"
+  gpw_file_enc="${src_dir}/gocryptfs.gpw"
+
+# fusermount -u "${mnt_dir}" 2> '/dev/null' || true
+  if ! is_mnt "${mnt_dir}"; then
+
+    # init
+    if [[ ! -d "${enc_dir}" ]]; then
+
+      mkdir -p "${enc_dir}"
+
+      cat '/dev/urandom' | tr --complement --delete '[:graph:]' | head -c 2048 | enc > "${gpw_file_enc}" || true
+      gocryptfs -config "${cnf_file}" -extpass 'gpg' -extpass '--decrypt' -extpass "${gpw_file_enc}" -init "${enc_dir}"
+
+      cat "${cnf_file}" | enc > "${cnf_file_enc}"
+      rm  "${cnf_file}"
+
+    fi
+
+    mkdir -p "${mnt_dir}"
+    cat "${cnf_file_enc}" | dec | gocryptfs -config '/dev/stdin' -extpass 'gpg' -extpass '--decrypt' -extpass "${gpw_file_enc}" -nonempty "${enc_dir}" "${mnt_dir}"
+
+  fi
+
+)

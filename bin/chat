@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  if [[ -p '/dev/stdin' ]]; then
+    prompt_sys="$(cat '/dev/stdin')"
+    prompt_user="${1:-}"
+  else
+    prompt_sys="${1}"
+    prompt_user="${2:-}"
+  fi
+
+  model='default'
+
+  payload=$(jq -n \
+    --arg model "${model}" \
+    --arg sys   "${prompt_sys}" \
+    --arg user  "${prompt_user}" \
+    '{
+      model: $model,
+      max_tokens: 4096,
+      messages: [
+        {role: "system", content: $sys},
+        {role: "user",   content: $user}
+      ]
+    }')
+
+  curl -fsSL "http://chat.$(hostname -d)/v1/chat/completions" \
+    -H 'Content-Type: application/json' \
+    -d "${payload}" | jq -r .choices.[].message.content
+
+)

@@ -1,0 +1,22 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+containerdConfigPatches:
+
+nodes:
+
+  - role: control-plane
+    kubeadmConfigPatches:
+#     - |
+#       kind: ClusterConfiguration
+#       apiServer:
+#         extraArgs:
+#           service-node-port-range: 30000-39999
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+
+  - role: worker
+  - role: worker

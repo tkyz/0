@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+
+import os
+import hashlib
+import re
+import magic
+import duckdb
+
+home      = os.environ.get("HOME")
+index_dir = home + "/dat/.index"
+
+def mkindex(target_dir=home) -> None:
+
+  dirs = list()
+# dirs.append(os.getcwd())
+  dirs.append(target_dir)
+
+  os.makedirs(index_dir, exist_ok=True)
+
+  if True:
+    while 0 < len(dirs):
+
+      d = dirs.pop()
+
+      dir_hash    = hashlib.sha256(d.encode()).hexdigest()
+      idx_file    = index_dir + "/" + dir_hash
+      idx_entries = tsv_select(idx_file)
+
+      files = list()
+      try:
+
+        for i in os.listdir(d):
+
+          full_path = d + '/' + i
+
+          if is_skip(full_path):
+            continue
+
+          if os.path.islink(full_path):
+            continue
+
+          if os.path.isdir(full_path):
+            dirs.append(full_path)
+
+          elif os.path.isfile(full_path):
+            files.append(full_path)
+
+      except PermissionError as e:
+        pass
+
+      if 0 == len(files):
+        if os.path.isfile(idx_file):
+          os.remove(idx_file)
+        continue
+
+      for f in files:
+
+        full_path = f
+        if not os.path.exists(full_path):
+          continue
+
+        idx_entry              = idx_entries.get(full_path) or dict()
+        idx_entry["path"]      = full_path
+        idx_entry["exist"]     = True
+        idx_entries[full_path] = idx_entry
+
+        file_stat = os.stat(full_path)
+        file_size = file_stat.st_size
+        file_date = int(max(file_stat.st_atime, file_stat.st_mtime, file_stat.st_ctime))
+
+        if idx_entry.get("size") != file_size or idx_entry.get("date") != file_date:
+          idx_entry["size"]      = file_size
+          idx_entry["date"]      = file_date
+          idx_entry["mime_type"] = None
+          idx_entry["hash"]      = None
+
+        if idx_entry.get("mime_type") is None:
+          idx_entry["mime_type"] = magic.from_file(full_path, mime=True)
+
+        if idx_entry.get("hash") is None:
+          if is_hash(idx_entry.get("mime_type")):
+            h = hashlib.sha256()
+            with open(full_path, "rb") as f_:
+              for chunk in iter(lambda: f_.read(65536), b""):
+                h.update(chunk)
+            idx_entry["hash"] = h.hexdigest()
+
+      with open(idx_file, "w") as f:
+        for e in list(idx_entries.values()):
+
+          if not e.get("exist"):
+            continue
+
+          c1 = e.get("hash")
+          c2 = e.get("size")
+          c3 = e.get("date")
+          c4 = e.get("mime_type")
+          c5 = e.get("path")
+
+          line  = ""   + (c1 or "")
+          line += "\t" + str(c2)
+          line += "\t" + str(c3)
+          line += "\t" + (c4 or "")
+          line += "\t" + c5
+          print(line)
+
+          f.write(line + "\n")
+
+def tsv_select(idx_file) -> dict:
+
+  entries = None
+
+  if os.path.exists(idx_file):
+#  try:
+    with duckdb.connect(":memory:") as con:
+      rel     = con.execute(f"SELECT * FROM read_csv('{idx_file}', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path'])")
+      columns = [desc[0] for desc in rel.description]
+      entries = {row[-1]: dict(zip(columns, row)) for row in rel.fetchall()}
+#  except (duckdb.BinderException, duckdb.InvalidInputException):
+#    pass
+
+  return entries or dict()
+
+def tsv_select_mime_type(*mime_types) -> list:
+
+  entries = None
+
+  if os.path.exists(idx_file):
+
+    in_query = ", ".join(["?"] * len(mime_types))
+
+    with duckdb.connect(":memory:") as con:
+      result  = con.execute(f"SELECT * FROM read_csv('{idx_file}/*', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path']) WHERE mime_type IN ({in_query})", list(mime_types))
+      columns = [desc[0] for desc in result.description]
+      entries = [dict(zip(columns, row)) for row in result.fetchall()]
+
+  return entries or list()
+
+def is_skip(path) -> bool:
+
+  skip  = False
+  skip |= bool(re.search(r"/\.", path))
+
+  return skip
+
+def is_hash(mime_type) -> bool:
+
+  is_hash  = False
+  is_hash |= mime_type.startswith("application/javascript")
+  is_hash |= mime_type.startswith("application/json")
+  is_hash |= mime_type.startswith("application/pdf")
+  is_hash |= mime_type.startswith("text/")
+
+  return is_hash
+
+def main() -> None:
+  mkindex()
+
+if __name__ == "__main__":
+  main()

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  host="${1}"
+  port="${2}"
+
+  timeout 1 bash -c "cat /dev/null > /dev/tcp/${host}/${port}"
+
+) &> /dev/null

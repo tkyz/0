@@ -1,0 +1,47 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  {
+
+    # TODO: 自己参照
+    cat << EOS
+-----BEGIN PRIVATE KEY-----
+-----BEGIN RSA PRIVATE KEY-----
+-----BEGIN PGP PRIVATE KEY BLOCK-----
+-----BEGIN OPENSSH PRIVATE KEY-----
+EOS
+
+#   id -u
+#   id -g
+    echo "${USER}"
+    echo "${HOME}"
+
+    hostname
+    hostname -d
+    hostname -d | tr '.' $'\n' | tac | paste -s -d '.'
+
+    # uid
+    find "${HOME}/dat/jpki_id"     -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> '/dev/null' || true
+    find "${HOME}/dat/openpgp4fpr" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> '/dev/null' || true
+    find "${HOME}/dat/machine_id"  -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> '/dev/null' || true
+    find "${HOME}/dat/boot_id"     -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> '/dev/null' || true
+    find "${HOME}/dat/setup_id"    -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> '/dev/null' || true
+    find "${HOME}/dat/ipv4"        -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> '/dev/null' || true
+    find "${HOME}/dat/ipv6"        -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> '/dev/null' || true
+    find "${HOME}/dat/wan"         -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> '/dev/null' || true
+    find "${HOME}/mnt"             -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2> '/dev/null' || true
+
+    ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1
+
+  # TODO: 一括
+  } | sort --unique | while read i; do
+    git ls-files | grep --color=auto           --ignore-case -- "${i}" || true
+    git            grep --cached --line-number --ignore-case -- "${i}" || true
+  done | sort --unique
+
+)

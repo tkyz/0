@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  name="${1}"
+
+  dpkg -l "${name}" | grep '^i'
+
+) &> '/dev/null'

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  if [[ ! -p '/dev/stdin' ]]; then
+    echo -n "${@}" | "${BASH_SOURCE}"
+
+  else
+#   cat '/dev/stdin' | openssl enc -aes-256-cbc -pbkdf2 -salt -pass "pass:${hash}"
+#   cat '/dev/stdin' | gpg --symmetric
+    cat '/dev/stdin' | gpg --encrypt
+  fi
+
+)

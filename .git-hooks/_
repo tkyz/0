@@ -1,0 +1,67 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  hook_name="${0##*/}"
+
+  stdin=($(cat /dev/stdin))
+
+  function _debug() {
+    printf "\e[2m"
+    echo '---'
+    echo "${0}:"
+    echo '  env:'
+    export | sed 's/declare -x /    - /g'
+    echo '  args:'
+    for item in "${@}"; do
+      echo "    - ${item}"
+    done
+    echo '  stdin:'
+    for item in "${stdin[@]}"; do
+      echo "    - ${item}"
+    done
+    printf "\e[0m"
+  }
+
+  #----------------------------------------------------------------
+  # local hook
+
+  if [[ 'pre-commit' == "${hook_name}" ]]; then
+    _debug
+    git validate
+
+  elif [[ 'post-commit' == "${hook_name}" ]]; then
+    _debug
+
+  elif [[ 'pre-push' == "${hook_name}" ]]; then
+    _debug
+
+  #----------------------------------------------------------------
+  # remote hook
+
+  elif [[ 'pre-receive' == "${hook_name}" ]]; then
+
+    _debug
+    git validate
+
+    oldrev="${stdin[0]}"
+    newrev="${stdin[1]}"
+    refname="${stdin[2]}"
+
+    # check sign
+    for commit in $(git rev-list "${oldrev}..${newrev}"); do
+      if ! git verify-commit "${commit}" &> '/dev/null'; then
+        echo "no valid gpg signature. ${commit} ${refname}" >&2
+        exit 1
+      fi
+    done
+
+  elif [[ 'post-receive' == "${hook_name}" ]]; then
+    _debug
+  fi
+
+)

@@ -1,0 +1,58 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  user="${1}"
+  uuid="${2}"
+  mode="${3}"
+
+  test -d "/home/${user}"
+  test -e "/dev/disk/by-uuid/${uuid}"
+
+  test 'backup'  == "${mode}" || \
+  test 'restore' == "${mode}"
+
+  tmp_dir="$(mktemp -d)"
+  sudo mount "UUID=${uuid}" "${tmp_dir}"
+
+    if [[ 'backup' == "${mode}" ]]; then
+      src_dir="/home/${user}/"
+      dst_dir="${tmp_dir}/.bkuser-${user}/"
+
+    elif [[ 'restore' == "${mode}" ]]; then
+      src_dir="${tmp_dir}/.bkuser-${user}/"
+      dst_dir="/home/${user}/"
+    fi
+
+    sudo rsync \
+     --archive \
+     --verbose \
+     --delete \
+     --exclude='.cache/' \
+     --exclude='.cargo/' \
+     --exclude='.local/share/containers/' \
+     --exclude='.local/share/Trash/' \
+     --exclude='.m2/' \
+     --exclude='.npm/' \
+     --exclude='.venv/' \
+     --exclude='dat/' \
+     --exclude='doc/' \
+     --exclude='go/' \
+     --exclude='lib/' \
+     --exclude='mnt/' \
+     --exclude='sbin/' \
+     --exclude='setup' \
+     "${src_dir}" \
+     "${dst_dir}" || true
+#    --dry-run \
+
+    sync
+
+  sudo umount "${tmp_dir}"
+  rm -d "${tmp_dir}"
+
+)

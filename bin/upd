@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  # apt
+  if true; then
+    sudo apt update
+    sudo apt upgrade    -y
+    sudo apt autoremove -y
+  fi
+
+  # container
+  podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>' | grep -v "container.$(hostname -d)" | while read i; do
+    podman pull "${i}" || true
+  done
+
+  # src
+  {
+    find "${HOME}/src" -type d -name '.git' | while read i; do
+      git -C "${i}" remote -v | awk '{print $2}'
+    done
+  } | sort -u | while read i; do
+    curi "${i}"
+  done
+
+)
