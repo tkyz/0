@@ -1,0 +1,182 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+function umnt() {
+
+  local -r mnt_dir="${1}"
+
+  if [[ -d "${mnt_dir}" ]]; then
+
+    fusermount -u "${mnt_dir}" 2> /dev/null || sudo fusermount -u "${mnt_dir}"
+
+    rm -d "${mnt_dir}"
+
+  fi
+
+}
+
+#----------------------------------------------------------------
+# default
+function mnt_default() {
+
+  gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read openpgp4fpr; do
+    mnt_gpg "${openpgp4fpr}"
+  done
+
+}
+
+#----------------------------------------------------------------
+# gocryptfs
+function mnt_gpg() {
+
+  local -r openpgp4fpr="${1}"
+  test -n "${openpgp4fpr}"
+
+  local -r mnt_dir="${HOME}/mnt/${openpgp4fpr}"
+  local -r enc_dir="${HOME}/src/0.openpgp4fpr/${openpgp4fpr}.enc"
+  local -r enc_gpw="${enc_dir}/gocryptfs.gpw"
+
+  if [[ ! -f "${enc_gpw}" ]]; then
+    return
+  fi
+
+  if [[ "${openpgp4fpr}" == "$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')" ]]; then
+    local -r defkey=
+  fi
+
+  if [[ ! -d "${mnt_dir}" ]] || ! mountpoint "${mnt_dir}" &> /dev/null; then
+
+    mkdir -p "${mnt_dir}"
+
+    # TODO: -config
+    gocryptfs \
+      -nonempty \
+      -extpass 'gpg' \
+      -extpass '--decrypt' \
+      -extpass "${enc_gpw}" \
+      "${enc_dir}" \
+      "${mnt_dir}"
+#     -allow_other
+
+  else
+    umnt "${mnt_dir}"
+  fi
+
+  if [[ -v defkey ]]; then
+    if [[ -d "${mnt_dir}" ]]; then
+      ln -fsn "${mnt_dir}" "${HOME}/user"
+    else
+      unlink "${HOME}/user" 2> /dev/null || true
+    fi
+  fi
+
+}
+
+#----------------------------------------------------------------
+# uuid
+function mnt_uuid() {
+
+  local -r uuid="${1}"
+
+  lsblk --fs --paths --list | grep -q "${uuid}"
+
+  local -r mnt_dir="${HOME}/mnt/${uuid}"
+
+  # mount
+  if ! mountpoint "${mnt_dir}" &> /dev/null; then
+
+    local mnt_opts=''
+#   mnt_opts+='file_mode=0600'
+#   mnt_opts+=',dir_mode=0700'
+#   mnt_opts+=",uid=$(id -u)"
+#   mnt_opts+=",gid=$(id -g)"
+
+    mkdir -p "${mnt_dir}"
+    sudo mount --options "${mnt_opts}" UUID="${uuid}" "${mnt_dir}"
+
+  else
+    umnt "${mnt_dir}"
+  fi
+
+}
+
+#----------------------------------------------------------------
+# source
+function mnt_source() {
+
+  local -r name="${1}"
+  local -r mnt_dir="${HOME}/mnt/${name}"
+
+  # mount
+  if ! mountpoint "${mnt_dir}" &> /dev/null; then
+
+    if [[ "${HOME}/sbin/${name}.mnt" ]]; then
+      source "${HOME}/sbin/${name}.mnt"
+    fi
+
+    mnt_opts=''
+    mnt_opts+="vers=${vers}"
+    mnt_opts+=',defaults'
+    mnt_opts+=',iocharset=utf8'
+    mnt_opts+=',nounix'
+    mnt_opts+=",dir_mode=${dir_mode:-0700}"
+    mnt_opts+=",file_mode=${file_mode:-0600}"
+    mnt_opts+=",uid=$(id -u)"
+    mnt_opts+=",gid=$(id -g)"
+    if [[ -v ro ]]; then
+      mnt_opts+=",ro"
+    fi
+    if [[ -n "${user}" && -n "${pass}" ]]; then
+
+      local -r credentials="$(mktemp)"
+      echo "username=${user}" >> "${credentials}"
+      echo "password=${pass}" >> "${credentials}"
+
+      mnt_opts+=",credentials=${credentials}"
+
+    fi
+
+    local -r mnt_src="//${host}/${path}"
+    mkdir -p "${mnt_dir}"
+
+    sudo mount --types "${type}" --options "${mnt_opts}" "${mnt_src}" "${mnt_dir}"
+#   echo "${mnt_src} ${mnt_dir} ${type} ${mnt_opts} 0 0" | tee --append /etc/fstab
+
+    rm "${credentials}"
+
+  else
+    umnt "${mnt_dir}"
+  fi
+
+}
+
+#----------------------------------------------------------------
+# main
+
+function main() {
+
+  local -r arg1="${1:-}"
+
+  if [[ -z "${arg1}" ]]; then
+    local -r func='mnt_default'
+
+  elif [[ -f "${HOME}/sbin/${arg1}.mnt" ]]; then
+    local -r func='mnt_source'
+
+  elif [[ "${arg1}" =~ ^([0-9A-Z]{40})$ ]]; then
+    local -r func='mnt_gpg'
+
+  elif [[ "${arg1}" =~ ^([0-9a-z]{8}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{12})$ ]]; then
+    local -r func='mnt_uuid'
+
+  else
+    false
+  fi
+
+  "${func}" "${arg1}"
+
+}
+main "${@}"

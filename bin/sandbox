@@ -1,0 +1,47 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+type is_container > /dev/null
+if ! is_container; then
+
+  readonly container_context="$(uuidgen)"
+
+  source /etc/os-release
+  image="${1:-}"
+  if [[ -z "${image}" ]]; then
+    image="docker.io/library/${ID}:${VERSION_CODENAME:-latest}"
+  fi
+
+  podman run \
+    --interactive \
+    --tty \
+    --rm \
+    --name   "0.pod.${container_context}" \
+    --volume "${HOME}/.profile:/root/.profile:ro" \
+    --volume "${HOME}/.bashrc:/root/.bashrc:ro" \
+    --volume "${HOME}/setup:/root/setup:ro" \
+    --volume "${HOME}/bin:/root/bin:ro" \
+    --volume "${HOME}/lib:/root/lib:ro" \
+    --volume "${HOME}/mnt:/root/mnt:ro" \
+    --volume "${HOME}/opt:/root/opt:ro" \
+    --volume "${PWD}:/root/.pwd:ro" \
+    --volume "${BASH_SOURCE}:/${container_context}:ro" \
+    "${image}" bash -l \
+    "/${container_context}" "${@}"
+
+else
+
+  if [[ '1' == "${SHLVL}" ]]; then
+    exec bash -l
+  fi
+
+fi
+
+: <<'COMMENT'
+    --workdir "${workdir}" \
+    --device  /dev/fuse \
+    --volume  "${HOME}/.Xauthority:/root/.Xauthority:ro" \
+COMMENT

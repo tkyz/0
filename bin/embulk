@@ -1,0 +1,57 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+type is_container > /dev/null
+if ! is_container; then
+
+  readonly container_context="$(uuidgen)"
+
+  podman run \
+    --interactive \
+    --tty \
+    --rm \
+    --name   "0.pod.${container_context}" \
+    --volume "${HOME}/.profile:/root/.profile:ro" \
+    --volume "${HOME}/.bashrc:/root/.bashrc:ro" \
+    --volume "${HOME}/install:/root/install:ro" \
+    --volume "${HOME}/bin:/root/bin:ro" \
+    --volume "${HOME}/lib:/root/lib" \
+    --volume "${HOME}/opt:/root/opt:ro" \
+    --volume "${BASH_SOURCE}:/${container_context}:ro" \
+    'docker.io/library/openjdk:17' bash -l \
+    "/${container_context}" "${@}"
+
+else
+
+# "${HOME}/opt/net.java.jdk/17.0.2/bin/java"
+  java \
+    -jar "${HOME}/opt/org.embulk/embulk-latest.jar" \
+    -X   m2_repo="${HOME}/lib/org.apache.maven/repository" \
+    -X   gem_home="${HOME}/lib/org.rubygems" \
+    -X   jruby="file://${HOME}/lib/org.apache.maven/repository/org/jruby/jruby-complete/9.4.5.0/jruby-complete-9.4.5.0.jar" \
+    "${@}"
+
+fi
+
+: <<'COMMENT'
+  mvn dependency:get \
+    --define groupId=org.jruby \
+    --define artifactId=jruby-complete \
+    --define version=9.4.5.0
+
+  embulk gem install \
+    embulk-input-command \
+    embulk-input-jdbc \
+    embulk-input-hdfs \
+    embulk-input-gcs \
+    embulk-input-s3 \
+    embulk-output-command \
+    embulk-output-jdbc \
+    embulk-output-hdfs \
+    embulk-output-gcs \
+    embulk-output-s3
+#   $(embulk gem search embulk | grep ^embulk-)
+COMMENT

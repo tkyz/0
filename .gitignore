@@ -1,0 +1,79 @@
+#----------------------------------------------------------------
+# userhome
+
+# %USERPROFILE%
+/3D Objects/
+/AppData/
+/Application Data
+/Contacts/
+/Cookies
+/Desktop/
+/Documents/
+/Downloads/
+/Favorites/
+/Links/
+/Local Settings
+/Music/
+/My Documents
+/NTUSER.DAT*
+/NetHood
+/OneDrive/
+/Pictures/
+/PrintHood
+/Recent
+/Saved Games/
+/Searches/
+/SendTo
+/Templates
+/Videos/
+/ntuser.*
+/スタート メニュー
+
+# ${HOME}
+/.*
+/lib/
+/mnt/
+/opt/
+/sbin
+/src/**/.settings/
+/src/**/.classpath
+/src/**/.project
+/src/**/target/
+/tmp/
+/user
+
+#----------------------------------------------------------------
+# files
+
+# binary
+*.iso
+*.exe
+*.o
+*.class
+*.jar
+*.war
+*.ear
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.bz
+*.bz2
+*.gz
+*.zip
+*.7z
+*.lzh
+*.log
+*.db
+
+# temporary
+*~
+~*
+*.swp
+*.swap
+*.tmp
+*.temp
+
+/.sudo_as_admin_successful
+/snap/
+gocryptfs.conf

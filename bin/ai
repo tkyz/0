@@ -1,0 +1,175 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+readonly lib_dir="${HOME}/lib/0.ai"
+
+function pyvenv() {
+
+  local -r venv_dir="${lib_dir}/venv"
+  local -r act_file="${venv_dir}/bin/activate"
+
+# rm -rf "${venv_dir}"
+  if [[ ! -f "${act_file}" ]]; then
+    readonly venv_init=
+  fi
+
+  if [[ -v venv_init ]]; then
+#   python3 -m pip install --break-system-packages --upgrade pip setuptools yq
+    python3 -m venv "${venv_dir}"
+  fi
+  source "${act_file}"
+
+  if [[ -v venv_init ]]; then
+    python3 -m pip install --upgrade sentencepiece protobuf accelerate
+    python3 -m pip install --upgrade diffusers invisible_watermark transformers accelerate safetensors optimum auto-gptq
+  fi
+
+}
+
+#----------------------------------------------------------------
+# generate
+
+function txt2txt() {
+
+  local -r prompt="${1}"
+
+  cat <<PYCODE | python
+import torch
+from transformers import (
+  AutoTokenizer,
+  AutoModelForCausalLM
+)
+
+if True:
+
+# model = 'stabilityai/japanese-stablelm-base-beta-7b'
+# model = 'stabilityai/japanese-stablelm-base-ja_vocab-beta-7b'
+# model = 'stabilityai/japanese-stablelm-base-beta-70b'
+  model = 'stabilityai/japanese-stablelm-instruct-beta-7b'
+# model = 'stabilityai/japanese-stablelm-instruct-ja_vocab-beta-7b'
+# model = 'stabilityai/japanese-stablelm-instruct-beta-70b'
+
+  # TODO: local file
+  tokenizer = AutoTokenizer.from_pretrained(model)
+  model     = AutoModelForCausalLM.from_pretrained(model, torch_dtype=torch.float16, low_cpu_mem_usage=True, device_map="auto")
+
+  input_ids = tokenizer.encode(
+    """${prompt}""",
+    add_special_tokens = True,
+    return_tensors     = "pt",
+  )
+
+# torch.manual_seed(xxx)
+
+  tokens = model.generate(
+    input_ids.to(device=model.device),
+    max_new_tokens = 4096,
+    temperature    = 0.99,
+    top_p          = 0.95,
+    do_sample      = True,
+  )
+
+  out = tokenizer.decode(tokens[0], skip_special_tokens=True)
+  print(out)
+PYCODE
+
+}
+
+function txt2img() {
+
+  local -r prompt_p="${1}"
+  local -r prompt_n=''
+
+  cat <<PYCODE | python
+import os
+import os.path
+import datetime
+import torch
+from diffusers import DiffusionPipeline
+
+if True:
+
+# size_w =  640;  size_h = 1536
+  size_w =  768;  size_h = 1344
+# size_w =  832;  size_h = 1216
+# size_w =  896;  size_h = 1152
+# size_w = 1024;  size_h = 1024
+# size_w = 1152;  size_h =  896
+# size_w = 1216;  size_h =  832
+# size_w = 1344;  size_h =  768
+# size_w = 1536;  size_h =  640
+  steps = 40
+
+  # TODO: local file
+  pipe_base = DiffusionPipeline.from_pretrained(
+    "stabilityai/stable-diffusion-xl-base-1.0",
+    torch_dtype     = torch.float16,
+    use_safetensors = True,
+    variant         = "fp16",
+  )
+  pipe_base.safety_checker = None
+  pipe_base.to("cuda")
+
+  images = pipe_base(
+    prompt              = """${prompt_p}""",
+    negative_prompt     = """${prompt_n}""",
+    width               = size_w,
+    height              = size_h,
+    num_inference_steps = steps,
+    denoising_end       = 0.8,
+    output_type         = "latent",
+  ).images
+
+  # TODO: refiner_model
+  # TODO: local file
+  pipe_refiner = DiffusionPipeline.from_pretrained(
+    "stabilityai/stable-diffusion-xl-refiner-1.0",
+    text_encoder_2  = pipe_base.text_encoder_2,
+    vae             = pipe_base.vae,
+    torch_dtype     = torch.float16,
+    use_safetensors = True,
+    variant         = "fp16",
+  )
+  pipe_refiner.safety_checker = None
+  pipe_refiner.to("cuda")
+
+  images = pipe_refiner(
+    prompt              = """${prompt_p}""",
+    negative_prompt     = """${prompt_n}""",
+    width               = size_w,
+    height              = size_h,
+    num_inference_steps = steps,
+    denoising_start     = 0.8,
+    image               = images,
+  ).images
+
+  output_dir = "${lib_dir}/output"
+  os.makedirs(output_dir, exist_ok=True)
+
+  now = datetime.datetime.now()
+  for i in range(len(images)):
+    images[i].save(output_dir + "/txt2img_" + now.strftime('%Y%m%d_%H%M%S') + "_" + str(i) + ".png")
+PYCODE
+
+}
+
+#----------------------------------------------------------------
+# main
+
+function main() {
+
+  pyvenv
+
+  local prompt="${1:-}"
+  if [[ -z "${prompt}" && -p /dev/stdin ]]; then
+    prompt="$(cat -)"
+  fi
+
+  txt2txt "${prompt}"
+  txt2img "${prompt}"
+
+}
+main "${@}"

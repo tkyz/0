@@ -1,0 +1,54 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+printf "\e[2m"
+  echo "gitenv:"
+  export | grep '^declare -x GIT_' | sed 's/declare -x /  - /g'
+printf "\e[0m"
+
+exit_status=0
+printf "\e[2m"
+
+  echo "${0}:"
+  echo "  args:"
+  for item in "${@}"; do
+    echo "    - ${item}"
+  done
+
+  echo "  files:"
+  shopt -s extglob lastpipe
+  git diff --cached --name-only | while read staged_file; do
+
+    staged_hash="$(git ls-files --stage "${staged_file}" | cut -d ' ' -f 2)"
+
+    unset chkng
+    find .git-hooks/wordchk.d -type f | while read patten_file; do
+
+      if [[ "${staged_file}" == "${patten_file}" ]]; then
+        continue
+      fi
+
+      if ! git cat-file -p "${staged_hash}" | grep -iq -f "${patten_file}" /dev/stdin; then
+        continue
+      fi
+
+      chkng=
+      exit_status=1
+      break
+
+    done
+
+    if [[ -v chkng ]]; then
+      printf "    %s: \e[;91m%s\e[;2m\n" "${staged_hash}" "${staged_file}"
+    else
+      printf "    %s: %s\n"              "${staged_hash}" "${staged_file}"
+    fi
+
+  done
+
+printf "\e[0m"
+
+exit "${exit_status}"

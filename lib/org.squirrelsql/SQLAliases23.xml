@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?><Beans>
+    <Bean Class="net.sourceforge.squirrel_sql.client.gui.db.SQLAlias">
+        <aliasVersionTimeMills>0</aliasVersionTimeMills>
+        <autoLogon>true</autoLogon>
+        <identifier Class="net.sourceforge.squirrel_sql.fw.id.UidIdentifier">
+            <string>jdbc:mariadb://mariadb.0:3306/</string>
+        </identifier>
+        <driverIdentifier Class="net.sourceforge.squirrel_sql.fw.id.UidIdentifier">
+            <string>-61</string>
+        </driverIdentifier>
+        <driverProperties Class="net.sourceforge.squirrel_sql.fw.sql.SQLDriverPropertyCollection">
+            <driverProperties Indexed="true"/>
+        </driverProperties>
+        <name>jdbc:mariadb://mariadb.0:3306/</name>
+        <userName>root</userName>
+        <encryptPassword>false</encryptPassword>
+        <password>mariadb</password>
+        <url>jdbc:mariadb://mariadb.0:3306/</url>
+    </Bean>
+    <Bean Class="net.sourceforge.squirrel_sql.client.gui.db.SQLAlias">
+        <aliasVersionTimeMills>0</aliasVersionTimeMills>
+        <autoLogon>true</autoLogon>
+        <identifier Class="net.sourceforge.squirrel_sql.fw.id.UidIdentifier">
+            <string>jdbc:postgresql://pgsql.0:5432/</string>
+        </identifier>
+        <driverIdentifier Class="net.sourceforge.squirrel_sql.fw.id.UidIdentifier">
+            <string>-7</string>
+        </driverIdentifier>
+        <driverProperties Class="net.sourceforge.squirrel_sql.fw.sql.SQLDriverPropertyCollection">
+            <driverProperties Indexed="true"/>
+        </driverProperties>
+        <name>jdbc:postgresql://pgsql.0:5432/</name>
+        <userName>postgres</userName>
+        <encryptPassword>false</encryptPassword>
+        <password>pgsql</password>
+        <url>jdbc:postgresql://pgsql.0:5432/</url>
+    </Bean>
+</Beans>

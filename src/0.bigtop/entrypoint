@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+/usr/sbin/sshd
+
+# zookeeper
+if true; then
+
+  zookeeper-server-initialize || true
+
+  zookeeper-server start
+
+fi
+
+# hadoop
+if true; then
+
+  echo n | hdfs namenode -format || true
+
+  hdfs --daemon start namenode
+  hdfs --daemon start datanode
+  hdfs --daemon start secondarynamenode
+  hdfs --daemon start journalnode
+
+  yarn --daemon start nodemanager
+
+fi
+
+# hbase
+if true; then
+# service hbase-regionserver start
+  service hbase-master       start
+fi
+
+# spark
+if true; then
+  service spark-master       start
+fi
+
+tail -f /dev/null

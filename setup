@@ -1,0 +1,593 @@
+#!/bin/bash
+: <<'END_OF_BATCH'
+@rem ================================ windows batch [ms932, crlf] ================================
+@echo off
+setlocal
+
+  cd /d "%USERPROFILE%"
+
+  set dist=debian
+
+  wsl --unregister %dist%
+  wsl --set-default-version 2
+  wsl --install --distribution %dist%
+
+  echo.
+  echo 1. このwindow(a)とは別にwslのwindow(b)が起動します。
+  echo 2. window(a)はこのままにして、window(b)に"Enter new UNIX username:"が表示されるまで待機してください。
+  echo 3. 2のメッセージが表示されたらwindow(b)で[ctrl+c]を押して中断するか、xボタンを押して閉じてください。
+  echo 4. window(a)で何かキーを押してください。
+  echo 待機中...
+  pause > nul
+
+  rem TODO: /etc/wsl.conf
+  wsl --terminate    %dist%
+  wsl --set-version  %dist% 2
+  wsl --distribution %dist% -- sed -i 's#:/root:#:/mnt/c/Users/%USERNAME%:#' /etc/passwd
+: wsl --distribution %dist% -- ^( curl https://setup.0 ^|^| curl https://raw.githubusercontent.com/tkyz/0/main/setup ^) ^| bash
+  wsl --distribution %dist% -- $^(wslpath -u %~0^)
+  wsl --terminate    %dist%
+
+endlocal
+exit /b
+END_OF_BATCH
+# ================================ linux shell script [utf8, lf] ================================
+set -o errexit
+set -o nounset
+set -o pipefail
+
+source /etc/os-release
+test 'debian' == "${ID_LIKE:-${ID}}"
+test 'bash'   == "${SHELL##*/}"
+
+export DEBIAN_FRONTEND=noninteractive
+readonly arch="$(dpkg --print-architecture)"
+
+shopt -s expand_aliases
+
+# sudo
+if [[ 0 == "$(id -u)" ]]; then
+  alias SUDO=
+elif sudo -n -v &> /dev/null; then
+  alias SUDO='sudo '
+else
+  alias SUDO=
+fi
+
+readonly UNIX_EPOCH='1970-01-01 00:00:00'
+if type faketime &> /dev/null; then
+  alias FAKETIME="TZ=utc faketime -f '${UNIX_EPOCH}' "
+else
+  alias FAKETIME=
+fi
+
+function is_deb() {
+# test 'debian' == "${ID_LIKE}" ||
+  test 'debian' == "${ID}" ||
+  false
+} &> /dev/null
+
+# TODO: ./bin/*
+function is_sudoer() {
+  test 0 == "$(id -u)" ||
+  sudo -n -v ||
+  false
+} &> /dev/null
+
+# TODO: ./bin/*
+function is_container() {
+  test 'podman' == "${container:-}" ||
+  test -f '/run/.containerenv' ||
+  test -f '/.dockerenv' ||
+  test "$(cat '/proc/1/cgroup')" == '0::/' ||
+  test "$(cat '/proc/1/cgroup')" == '0::/system.slice/containerd.service' ||
+  false
+} &> /dev/null
+
+# TODO: ./bin/*
+function is_wsl() {
+  test -v WSLENV
+  type wslpath
+} &> /dev/null
+
+#----------------------------------------------------------------
+# setup
+
+readonly yml_file="${HOME}/setup.yml"
+
+function _pull() {
+
+  local -r type="${1}"
+  local -r url="${2}"
+
+  if [[ 'git' == "${type}" ]]; then
+
+    local -r domain="$(echo "${url}" | sed -r 's#^https://([^/]+)/([^/]+/[^/]+).git#\1#g')"
+    local -r subdir="$(echo "${url}" | sed -r 's#^https://([^/]+)/([^/]+/[^/]+).git#\2#g')"
+    local -r namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
+    local -r output_dir="${namespace}/${subdir}"
+
+    mkdir -p "${output_dir}"
+    pushd "${output_dir}" &> /dev/null
+
+      echo ---
+      pwd
+
+      git init
+
+      git remote add     origin "${url}" 2> /dev/null ||
+      git remote set-url origin "${url}"
+
+      # TODO: depth
+      git fetch --all --prune
+
+      git checkout -b 'main'   'origin/main'   2> /dev/null || \
+      git checkout -b 'master' 'origin/master' 2> /dev/null || true
+
+#     git checkout 'main'   2> /dev/null || \
+#     git checkout 'master' 2> /dev/null
+
+      git remote set-head 'origin' 'main'   2> /dev/null || \
+      git remote set-head 'origin' 'master' 2> /dev/null
+
+      git branch --set-upstream-to='origin/main'   'main'   2> /dev/null || \
+      git branch --set-upstream-to='origin/master' 'master' 2> /dev/null
+
+      # TODO: conflict
+      if ! git rebase --no-autostash 2> /dev/null; then
+        git status
+      fi
+
+      git gc || true
+
+    popd &> /dev/null
+
+  fi
+
+}
+
+function setup_etc() {
+
+  if ! is_sudoer; then
+    return
+  fi
+
+  # /etc/wsl.conf
+  if is_wsl; then
+    cat <<EOS | SUDO tee /etc/wsl.conf > /dev/null
+[automount]
+options            = "uid=0,gid=0,umask=0077,fmask=0177,metadata"
+[network]
+#generateResolvConf = false
+[interop]
+enabled            = false
+appendWindowsPath  = false
+[user]
+default            = root
+EOS
+  fi
+
+  # /etc/default/keyboard
+  cat <<EOS | SUDO tee /etc/default/keyboard > /dev/null
+XKBMODEL=pc105
+XKBLAYOUT=jp
+XKBVARIANT=
+XKBOPTIONS=ctrl:nocaps
+BACKSPACE=guess
+EOS
+
+  if is_deb; then
+
+    # /etc/apt/apt.conf.d/00default
+    echo 'APT::Default-Release "stable";' | SUDO tee /etc/apt/apt.conf.d/00default > /dev/null
+
+    # /etc/apt/sources.list
+    cat <<EOS | SUDO tee /etc/apt/sources.list > /dev/null
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb     http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+EOS
+
+  fi
+
+}
+
+function setup_apt_required() {
+
+  if ! is_sudoer; then
+    return
+  fi
+
+  SUDO apt-get update
+  SUDO apt-get upgrade -y
+  SUDO apt-get install -y \
+    bash gnupg2 openssl curl \
+    uuid-runtime util-linux gettext-base procps parallel  \
+    git git-crypt git-lfs \
+    gocryptfs 
+
+}
+
+function setup_openpgp4fpr() {
+
+  local -r exp_dir="${HOME}/src/0.openpgp4fpr"
+  mkdir -p "${exp_dir}"
+
+  local -r gpg_uuid="$(uuidgen)"
+  local -r gpg_pass=''
+  local -r gpw_pass="$(cat /dev/urandom | tr -d -c '[:alnum:]' | head -c 2048)"
+  local -r gpg_conf="${GNUPGHOME:-${HOME}/.gnupg}/gpg.conf"
+
+  # gen
+  openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
+  if [[ -z "${openpgp4fpr}" ]]; then
+    {
+
+      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-generate-key "${gpg_uuid}" ed25519 sign,cert 0
+
+      openpgp4fpr="$(gpg --with-colons --list-secret-keys "=${gpg_uuid}" 2> /dev/null | grep ^fpr | cut -d ':' -f 10)"
+
+      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-key    "0x${openpgp4fpr}" ed25519 sign 0
+#     FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-key    "0x${openpgp4fpr}" ed25519 cert 0
+      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-key    "0x${openpgp4fpr}" cv25519 encr 0
+      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-key    "0x${openpgp4fpr}" ed25519 auth 0
+
+      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-uid    "0x${openpgp4fpr}" "${openpgp4fpr}"
+#     FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-uid    "0x${openpgp4fpr}" "${USER:-}@$(hostname -f)"
+      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-revoke-uid "0x${openpgp4fpr}" "${gpg_uuid}"
+
+    } &> /dev/null
+  fi
+  readonly openpgp4fpr
+
+  # default
+  touch "${gpg_conf}"
+  ! grep -q default-key       "${gpg_conf}" && echo "default-key       0x${openpgp4fpr}" >> "${gpg_conf}"
+  ! grep -q default-recipient "${gpg_conf}" && echo "default-recipient 0x${openpgp4fpr}" >> "${gpg_conf}"
+  sed -i -r -e "s/^(default-key).*/\1       0x${openpgp4fpr}/g" "${gpg_conf}"
+  sed -i -r -e "s/^(default-recipient).*/\1 0x${openpgp4fpr}/g" "${gpg_conf}"
+
+  # exp
+  gpg --with-colons --list-keys | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
+
+    local gpg_pub="${exp_dir}/${fpr}.pub"
+    local gpg_key="${exp_dir}/${fpr}.key"
+    local gpg_enc="${exp_dir}/${fpr}.enc"
+    local gpg_enc_cnf="${gpg_enc}/gocryptfs.conf"
+    local gpg_enc_gpw="${gpg_enc}/gocryptfs.gpw"
+
+    gpg --passphrase "${gpg_pass}" --export             --armor --output "${gpg_pub}" --yes "0x${fpr}"
+#   gpg --passphrase "${gpg_pass}" --export-secret-keys --armor --output "${gpg_key}" --yes "0x${fpr}"
+
+    if ! gpg --with-colons --list-secret-keys "0x${fpr}" &> /dev/null; then
+      continue
+    fi
+
+    if [[ ! -f "${gpg_enc_cnf}" && -f "${gpg_enc_cnf}.gpg" ]]; then
+      gpg --decrypt "${gpg_enc_cnf}.gpg" > "${gpg_enc_cnf}"
+    fi
+    if [[ -f "${gpg_enc_cnf}" ]]; then
+      continue
+    fi
+
+    # TODO: Your master key is:
+    mkdir -p "${gpg_enc}"
+    echo -n "${gpw_pass}" | gocryptfs -init "${gpg_enc}"
+    echo -n "${gpw_pass}" | gpg --recipient "0x${fpr}" --encrypt --armor > "${gpg_enc_gpw}"
+    cat "${gpg_enc_cnf}"  | gpg --recipient "0x${fpr}" --encrypt --armor > "${gpg_enc_cnf}.gpg"
+
+  done
+
+  echo "openpgp4fpr:${openpgp4fpr}"
+
+}
+
+function setup_home() {
+
+  git config --global init.defaultBranch main
+  git config --global core.ignorecase    false
+  git config --global core.quotepath     false
+  git config --global core.autocrlf      false
+  git config --global core.safecrlf      true
+  git config --global core.filemode      true
+  git config --global gpg.program        "$(type -p gpg)"
+  git config --global commit.gpgsign     true
+  git config --global color.ui           auto
+  git config --global color.diff         auto
+  git config --global color.status       auto
+  git config --global color.branch       auto
+  git config --global rebase.autostash   true
+  git config --global merge.ff           false
+  git config --global pull.ff            only
+  git config --global pull.rebase        true
+  git config --global diff.sjis.textconv 'iconv -f sjis'
+  git config --global alias.graph        'log --all --graph --pretty=format:"<%H> %ad [%an] %cd [%cn] %G? %Cgreen%d%Creset %s" --date=short --date-order'
+  git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+# git config --global user.name          "${USER:-}"
+# git config --global user.email         "${USER:-}@$(hostname -f)"
+  git config --global user.signingkey    "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+
+  local -r tmp_dir="$(mktemp -d)"
+  pushd "${tmp_dir}" &> /dev/null
+
+    # TODO: --object-format=sha256
+    git init
+
+    # public
+#   git remote add 'public'   'https://git.0/0.git'
+    git remote add 'public'   'https://github.com/tkyz/0.git'
+#   git remote add 'upstream' 'ssh://git.0/0.git'
+    git remote add 'upstream' 'git://git.0/0.git'
+    git remote add 'github'   'ssh://git@github.com/tkyz/0.git'
+    git remote add 'origin'   "${HOME}/lib/0.git/0.git"
+
+    git fetch public || true
+
+    git switch -c 'main' 'public/main'
+    git remote set-head 'public' 'main'
+
+    git config --local core.hooksPath '.git-hooks'
+
+  popd &> /dev/null
+
+  # TODO: merge
+  rm -rf "${HOME}/.git" || true
+# mv "${HOME}/.git" "${HOME}/.git_$(timestamp)" || true
+
+  mv     "${tmp_dir}/.git" "${HOME}"
+  rm -rf "${tmp_dir}"
+
+  if [[ ! -f "${yml_file}" ]]; then
+    git -C "${HOME}" checkout setup.yml
+  fi
+
+}
+
+function setup_ext() {
+
+  if is_sudoer; then
+
+    # https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+    curl -fsSL 'https://dl.k8s.io/apt/doc/apt-key.gpg'                                            | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/io.kubernetes.apt.gpg
+    echo 'deb https://apt.kubernetes.io/ kubernetes-xenial main'                                  | SUDO tee                          /etc/apt/sources.list.d/io.kubernetes.apt.list         > /dev/null
+
+    # https://docs.docker.com/engine/install/debian/
+    curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                                      | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.docker.download.gpg
+    echo "deb [arch=${arch}] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable"  | SUDO tee                          /etc/apt/sources.list.d/com.docker.download.list       > /dev/null
+
+    # https://nvidia.github.io/nvidia-container-runtime/
+    # TODO: debian 12
+    curl -fsSL 'https://nvidia.github.io/nvidia-container-runtime/gpgkey'                         | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.nvidia.gpg
+    echo "deb https://nvidia.github.io/libnvidia-container/stable/${ID}10/\$(ARCH)             /" | SUDO tee                          /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+    echo "deb https://nvidia.github.io/nvidia-container-runtime/stable/${ID}10/\$(ARCH)        /" | SUDO tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+#   echo "deb https://nvidia.github.io/libnvidia-container/experimental/debian10/\$(ARCH)      /" | SUDO tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+#   echo "deb https://nvidia.github.io/nvidia-container-runtime/experimental/debian10/\$(ARCH) /" | SUDO tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+
+    # bigtop
+    # TODO: debian 12
+    curl -fsSL 'https://dlcdn.apache.org/bigtop/bigtop-3.2.1/repos/GPG-KEY-bigtop'                | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/org.apache.bigtop.gpg
+    echo "deb http://repos.bigtop.apache.org/releases/3.2.1/${ID}/11/\$(ARCH) bigtop contrib"     | SUDO tee                          /etc/apt/sources.list.d/org.apache.bigtop.list         > /dev/null
+
+    # https://cloud.google.com/storage/docs/gcsfuse-install
+    # google-cloud
+    curl -fsSL 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'                            | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.google.cloud.packages.gpg
+    echo 'deb https://packages.cloud.google.com/apt cloud-sdk                   main'             | SUDO tee                          /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
+#   echo "deb https://packages.cloud.google.com/apt gcsfuse-${VERSION_CODENAME} main"             | SUDO tee -a                       /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
+: <<'EOS'
+    # bazel
+    curl -fsSL 'https://bazel.build/bazel-release.pub.gpg'                                        | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/build.bazel.gpg
+    echo "deb [arch=${arch}] http://storage.googleapis.com/bazel-apt stable jdk1.8"               | SUDO tee                          /etc/apt/sources.list.d/build.bazel.list               > /dev/null
+
+    # https://learn.microsoft.com/ja-jp/dotnet/core/install/linux-debian
+    # dotnet
+    curl "https://packages.microsoft.com/config/${ID}/${VERSION_ID}/packages-microsoft-prod.deb" -O
+    SUDO dpkg -i packages-microsoft-prod.deb
+    rm -f packages-microsoft-prod.deb
+EOS
+    # google-chrome
+    curl -fsSL 'https://dl-ssl.google.com/linux/linux_signing_key.pub'                            | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.google.gpg
+    echo "deb [arch=${arch}] https://dl.google.com/linux/chrome/deb stable main"                  | SUDO tee                          /etc/apt/sources.list.d/com.google.list                > /dev/null
+
+    SUDO apt-get update
+    SUDO apt-get install -y \
+      bash-completion \
+      lshw usbutils \
+      parted cryptsetup lvm2 \
+      ufw rkhunter clamav \
+      openssh-client \
+      cifs-utils \
+      containerd.io podman kubectl \
+      python3 python3-pip python3.11-venv \
+      libarchive-tools rsync xsel tmux vim emacs htop \
+      locales-all task-japanese \
+      jq
+
+#     cups \
+#     firmware-linux firmware-realtek firmware-iwlwifi \
+#     zsh tcsh fish \
+#     a2ps ghostscript qrencode pdftk \
+
+    set +e
+
+      # ufw
+      echo y | SUDO ufw enable
+      SUDO ufw default deny
+#     SUDO ufw allow 22
+      SUDO ufw reload
+
+      # rkhunter
+      SUDO sed -i -r \
+        -e 's/^#?LANGUAGE=.*$/LANGUAGE=ja/g' \
+        -e 's/^#?UPDATE_LANG=.*$/UPDATE_LANG=ja/g' \
+        -e 's/^#?WEB_CMD=.*$/WEB_CMD=""/g' \
+        -e 's/^#?UPDATE_MIRRORS=.*$/UPDATE_MIRRORS=1/g' \
+        -e 's/^#?MIRRORS_MODE=.*$/MIRRORS_MODE=0/g' \
+        -e 's/^#?PKGMGR=.*$/PKGMGR=DPKG/g' \
+        /etc/rkhunter.conf
+      SUDO rkhunter --update
+      SUDO rkhunter --propupd
+#     SUDO rkhunter --versioncheck
+#     SUDO rkhunter --check --skip-keypress
+
+      # clamav
+      SUDO systemctl stop  clamav-freshclam
+      SUDO freshclam
+      SUDO systemctl start clamav-freshclam
+
+    set -e
+
+    # podman
+#   echo "unqualified-search-registries = ['container.0', 'docker.io']" | SUDO tee /etc/containers/registries.conf > /dev/null
+
+    # locale
+    SUDO locale-gen ja_JP.UTF-8
+    SUDO localedef -f UTF-8 -i ja_JP ja_JP.utf8
+    SUDO update-locale LANG='ja_JP.UTF-8'
+
+  fi
+
+  python3 -m \
+    pip install \
+      --break-system-packages \
+      --upgrade \
+        pip \
+        setuptools \
+        yq
+
+}
+
+function setup_src() {
+  pushd "${HOME}/src" &> /dev/null
+
+    local tmp_file="$(mktemp)"
+    find com.github     -type d -name .git | sed -r -e 's#^com.github#https://github.com#g'         -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
+    find org.golang     -type d -name .git | sed -r -e 's#^org.golang#https://golang.org#g'         -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
+    find co.huggingface -type d -name .git | sed -r -e 's#^co.huggingface#https://huggingface.co#g' -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
+    yq '."0".src[]' "${yml_file}" -r                                                                                     >> "${tmp_file}" || true
+
+    cat "${tmp_file}" | sort -u | while read url; do
+      _pull git "${url}"
+    done
+
+    rm "${tmp_file}"
+
+  popd &> /dev/null
+}
+
+function setup_lib() {
+  pushd "${HOME}/lib" &> /dev/null
+
+    local tmp_file="$(mktemp)"
+    find com.github     -type d -name .git | sed -r -e 's#^com.github#https://github.com#g'         -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
+    find org.golang     -type d -name .git | sed -r -e 's#^org.golang#https://golang.org#g'         -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
+    find co.huggingface -type d -name .git | sed -r -e 's#^co.huggingface#https://huggingface.co#g' -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
+    yq '."0".lib[]' "${yml_file}" -r                                                                                     >> "${tmp_file}" || true
+
+    cat "${tmp_file}" | sort -u | while read url; do
+      _pull git "${url}"
+    done
+
+    rm "${tmp_file}"
+
+  popd &> /dev/null
+}
+
+function setup_opt() {
+  pushd "${HOME}/opt" &> /dev/null
+
+    yq '."0".opt | keys[]' "${yml_file}" -r | while read key; do
+
+      if [[ -d "${key}" ]]; then
+        continue
+      fi
+
+      mkdir -p "${key}"
+      pushd "${key}" &> /dev/null
+
+        echo ---
+        pwd
+
+        local cnt="$(yq ".\"0\".opt.\"${key}\" | length" "${yml_file}" -r)"
+        for ((i=0; i < "${cnt}"; i++)); do
+
+          local type="$( yq ".\"0\".opt.\"${key}\"[${i}].type"  "${yml_file}" -r)"
+          local depth="$(yq ".\"0\".opt.\"${key}\"[${i}].depth" "${yml_file}" -r)"
+          local url="$(  yq ".\"0\".opt.\"${key}\"[${i}].url"   "${yml_file}" -r)"
+
+          if [[ 'raw' == "${type}" ]]; then
+            curl -SLO "${url}" 2> /dev/null
+          elif [[ 'tgz' == "${type}" ]]; then
+            curl -SL  "${url}" 2> /dev/null | tar    zxf - --strip-components "${depth}" --no-same-permissions --no-same-owner
+          elif [[ 'zip' == "${type}" ]]; then
+            curl -SL  "${url}" 2> /dev/null | bsdtar  xf - --strip-components "${depth}"
+          else
+            echo "unsupported. ${type} ${url}"
+          fi
+
+        done
+
+      popd &> /dev/null
+
+    done
+
+  popd &> /dev/null
+}
+
+#----------------------------------------------------------------
+# main
+
+function clean() {
+
+  if is_sudoer; then
+    SUDO apt-get autoremove -y
+    SUDO apt-get clean
+  fi
+
+  if type podman &> /dev/null; then
+    podman system  prune --force
+    podman volume  prune --force
+    podman network prune --force
+  fi
+  if type docker &> /dev/null; then
+    docker system  prune --force
+    docker volume  prune --force
+    docker network prune --force
+  fi
+  if type pip3 &> /dev/null; then
+    pip3 cache purge
+  fi
+
+}
+
+function main() {
+
+  local -r timestamp_st="$(date --utc "+%Y-%m-%d %H:%M:%S")"
+
+  setup_etc
+  setup_apt_required
+  setup_openpgp4fpr
+  setup_home
+  setup_ext
+  setup_src
+  setup_lib
+  setup_opt
+
+  clean
+
+  local -r timestamp_ed="$(date --utc "+%Y-%m-%d %H:%M:%S")"
+  echo "start: ${timestamp_st}"
+  echo "end:   ${timestamp_ed}"
+
+}
+main "${@}"

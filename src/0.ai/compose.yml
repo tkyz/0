@@ -1,0 +1,103 @@
+version: '3.9'
+
+x-base_service: &base_service
+  stop_signal: SIGKILL
+  tty: true
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            device_ids: ['0']
+            capabilities: [compute, utility]
+
+services:
+
+  # https://huggingface.co/stabilityai/sd-vae-ft-mse-original/resolve/main/vae-ft-mse-840000-ema-pruned.ckpt out=VAE/vae-ft-mse-840000-ema-pruned.ckpt
+  # https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth                             out=GFPGAN/GFPGANv1.4.pth
+  # https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth                    out=RealESRGAN/RealESRGAN_x4plus.pth
+  # https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth         out=RealESRGAN/RealESRGAN_x4plus_anime_6B.pth
+  # https://heibox.uni-heidelberg.de/f/31a76b13ea27482981b4/?dl=1                                            out=LDSR/project.yaml
+  # https://heibox.uni-heidelberg.de/f/578df07c8fc04ffbadf3/?dl=1                                            out=LDSR/model.ckpt
+
+  automatic1111:
+    <<: *base_service
+    build: ${HOME}/src/com.github/AbdBarho/stable-diffusion-webui-docker/services/AUTOMATIC1111
+    image: container.0/0.ai/automatic1111:${build_context}
+    volumes:
+      - {type: bind, source: "${HOME}/.cache",                                                                      target: /root/.cache}
+      - {type: bind, source: "${HOME}/src/com.github/AUTOMATIC1111/stable-diffusion-webui",                         target: /automatic1111}
+      - {type: bind, source: "${HOME}/src/com.github/Stability-AI/stablediffusion",                                 target: /automatic1111/repositories/stable-diffusion-stability-ai}
+      - {type: bind, source: "${HOME}/src/com.github/Stability-AI/generative-models",                               target: /automatic1111/repositories/generative-models}
+      - {type: bind, source: "${HOME}/src/com.github/sczhou/CodeFormer",                                            target: /automatic1111/repositories/CodeFormer}
+      - {type: bind, source: "${HOME}/src/com.github/salesforce/BLIP",                                              target: /automatic1111/repositories/BLIP}
+      - {type: bind, source: "${HOME}/src/com.github/crowsonkb/k-diffusion",                                        target: /automatic1111/repositories/k-diffusion}
+      - {type: bind, source: "${HOME}/src/com.github/pharmapsychotic/clip-interrogator",                            target: /automatic1111/repositories/clip-interrogator}
+      - {type: bind, source: "${HOME}/src/com.github/pharmapsychotic/clip-interrogator/clip_interrogator/data",     target: /automatic1111/interrogate}
+      - {type: bind, source: "${HOME}/src/com.github/Katsuyuki-Karasawa/stable-diffusion-webui-localization-ja_JP", target: /automatic1111/extensions/localization-ja_JP,                                                      read_only: true}
+      - {type: bind, source: "${HOME}/src/com.github/DominikDoom/a1111-sd-webui-tagcomplete",                       target: /automatic1111/extensions/tagcomplete,                                                             read_only: false}
+      - {type: bind, source: "${HOME}/src/com.github/fkunn1326/openpose-editor",                                    target: /automatic1111/extensions/openpose-editor,                                                         read_only: true}
+#     - {type: bind, source: "${HOME}/src/com.github/Mikubill/sd-webui-controlnet",                                 target: /automatic1111/extensions/controlnet,                                                              read_only: false}
+#     - {type: bind, source: "${HOME}/lib/co.huggingface/webui/ControlNet-modules-safetensors",                     target: /automatic1111/extensions/controlnet/models,                                                       read_only: true}
+#     - {type: bind, source: "${HOME}/src/com.github/Scholar01/sd-webui-mov2mov",                                   target: /automatic1111/extensions/mov2mov,                                                                 read_only: false}
+#     - {type: bind, source: "${HOME}/lib/com.github/ZHKKKe/MODNet",                                                target: /automatic1111/extensions/mov2mov/models,                                                          read_only: true}
+#     - {type: bind, source: "${HOME}/src/com.github/toriato/stable-diffusion-webui-wd14-tagger",                   target: /automatic1111/extensions/wd14-tagger,                                                             read_only: true}
+#     - {type: bind, source: "${HOME}/src/com.github/jexom/sd-webui-depth-lib",                                     target: /automatic1111/extensions/depth-lib,                                                               read_only: true}
+#     - {type: bind, source: "${HOME}/lib/co.huggingface/runwayml",                                                 target: /automatic1111/models/Stable-diffusion/co.huggingface/runwayml,                                    read_only: true}
+      - {type: bind, source: "${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0",                 target: /automatic1111/models/Stable-diffusion/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0,    read_only: true}
+      - {type: bind, source: "${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0",              target: /automatic1111/models/Stable-diffusion/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0, read_only: true}
+      - {type: bind, source: ./output,                                                                              target: /automatic1111/outputs,                                                                            read_only: false}
+    ports:
+      - "7860:80"
+    working_dir: /automatic1111
+    entrypoint: [/bin/sh, -c]
+    command:
+      - |
+        pip install -r /automatic1111/requirements_versions.txt
+        pip install -r /automatic1111/repositories/CodeFormer/requirements.txt
+        pip install -r /automatic1111/repositories/BLIP/requirements.txt
+        pip install -r /automatic1111/repositories/k-diffusion/requirements.txt
+        pip install -r /automatic1111/repositories/clip-interrogator/requirements.txt
+        python -u webui.py --listen --port 80 --theme dark --api --allow-code --no-half-vae --xformers
+#       python -u webui.py --listen --port 80 --theme dark --api --allow-code --no-half --precision full
+
+  comfyui:
+    <<: *base_service
+    build: ${HOME}/src/com.github/AbdBarho/stable-diffusion-webui-docker/services/comfy
+    image: container.0/0.ai/comfyui:${build_context}
+    volumes:
+      - {type: bind, source: "${HOME}/.cache",                                                                      target: /root/.cache}
+      - {type: bind, source: "${HOME}/src/com.github/comfyanonymous/ComfyUI",                                       target: /comfyui}
+#     - {type: bind, source: "${HOME}/lib/co.huggingface/runwayml",                                                 target: /comfyui/models/checkpoints/co.huggingface/runwayml,                                               read_only: true}
+      - {type: bind, source: "${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0",                 target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0,               read_only: true}
+      - {type: bind, source: "${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0",              target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0,            read_only: true}
+      - {type: bind, source: ./output,                                                                              target: /comfyui/temp,                                                                                     read_only: false}
+    ports:
+      - "7861:80"
+    working_dir: /comfyui
+    entrypoint: [/bin/sh, -c]
+    command:
+      - |
+        pip install -r /comfyui/requirements.txt
+        python -u main.py --listen --port 80
+#       python -u main.py --listen --port 80 --cpu
+
+  invokeai:
+    <<: *base_service
+    build: ${HOME}/src/com.github/AbdBarho/stable-diffusion-webui-docker/services/invoke
+    image: container.0/0.ai/invokeai:${build_context}
+    volumes:
+      - {type: bind, source: "${HOME}/.cache",                                                                      target: /root/.cache}
+      - {type: bind, source: "${HOME}/src/com.github/invoke-ai/InvokeAI",                                           target: /invokeai}
+#     - {type: bind, source: "${HOME}/lib/co.huggingface/runwayml",                                                 target: /invokeai/models/ldm/co.huggingface/runwayml,                                                      read_only: true}
+      - {type: bind, source: "${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0",                 target: /invokeai/models/ldm/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0,                      read_only: true}
+      - {type: bind, source: "${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0",              target: /invokeai/models/ldm/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0,                   read_only: true}
+      - {type: bind, source: ./output,                                                                              target: /output,                                                                                           read_only: false}
+    ports:
+      - "7862:80"
+    working_dir: /invokeai
+    entrypoint: [/bin/sh, -c]
+    command:
+      - |
+        invokeai --web --host 0.0.0.0 --port 80 --root_dir /invokeai --config /data/config/invoke/models.yaml --outdir /output --embedding_directory /data/embeddings/ --lora_directory /data/models/Lora --no-nsfw_checker --no-safety_checker --xformers
+#       invokeai --web --host 0.0.0.0 --port 80 --root_dir /invokeai --config /data/config/invoke/models.yaml --outdir /output --embedding_directory /data/embeddings/ --lora_directory /data/models/Lora --no-nsfw_checker --no-safety_checker --always_use_cpu

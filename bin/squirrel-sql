@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+curr_name="$(basename "${BASH_SOURCE:-${0}}")"
+opt_dir="${HOME}/opt/org.squirrelsql"
+
+CLASSPATH+=":${opt_dir}/${curr_name}.jar"
+CLASSPATH+=":${opt_dir}/lib/*"
+
+# TODO: latest
+CLASSPATH+=":${HOME}/lib/org.apache.maven/repository/com/h2database/h2/2.1.214/h2-2.1.214.jar"
+CLASSPATH+=":${HOME}/lib/org.apache.maven/repository/com/microsoft/sqlserver/mssql-jdbc/11.2.3.jre18/mssql-jdbc-11.2.3.jre18.jar"
+CLASSPATH+=":${HOME}/lib/org.apache.maven/repository/com/oracle/database/jdbc/ojdbc10/19.17.0.0/ojdbc10-19.17.0.0.jar"
+CLASSPATH+=":${HOME}/lib/org.apache.maven/repository/org/mariadb/jdbc/mariadb-java-client/3.1.2/mariadb-java-client-3.1.2.jar"
+CLASSPATH+=":${HOME}/lib/org.apache.maven/repository/org/postgresql/postgresql/42.5.2/postgresql-42.5.2.jar"
+CLASSPATH+=":${HOME}/lib/org.apache.maven/repository/org/xerial/sqlite-jdbc/3.44.1.0/sqlite-jdbc-3.44.1.0.jar"
+CLASSPATH+=":${HOME}/lib/org.apache.maven/repository/mysql/mysql-connector-java/8.0.31/mysql-connector-java-8.0.31.jar"
+
+# TODO: io.dbeaver
+CLASSPATH+=":${HOME}/lib/drivers/maven/maven-central/org.mariadb.jdbc/*"
+CLASSPATH+=":${HOME}/lib/drivers/maven/maven-central/org.postgresql/*"
+
+java net.sourceforge.squirrel_sql.client.Main "${@}"

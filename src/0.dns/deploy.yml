@@ -1,0 +1,77 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: "0"
+  name: dns
+data:
+  Corefile: |
+    .:53 {
+      errors
+      ready
+      health
+      hosts {
+        ${external_ip}       dns.0
+        ${external_ip}       ntp.0
+        ${external_ip} container.0
+        ${external_ip}       git.0
+        ${external_ip}       apt.0
+        ${external_ip}       mvn.0       mvn.${webui_tld}
+        ${external_ip}     pgsql.0
+        ${external_ip}     mysql.0
+        ${external_ip}   mariadb.0
+        ${external_ip}     redis.0
+        ${external_ip}      wiki.0      wiki.${webui_tld}
+        ${external_ip} dashboard.0 dashboard.${webui_tld}
+        ${external_ip}      hdfs.0      hdfs.${webui_tld}
+        ${external_ip}     hbase.0
+        fallthrough
+      }
+      forward . 1.1.1.1
+      loop
+      reload
+      loadbalance
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: "0"
+  name: dns
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dns
+  template:
+    metadata:
+      labels:
+        app: dns
+    spec:
+      volumes:
+        - name: config-volume
+          configMap:
+            name: dns
+      containers:
+        - name: dns
+          image: coredns/coredns:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {protocol: UDP, containerPort: 53}
+          volumeMounts:
+            - {name: config-volume, mountPath: /etc/coredns, readOnly: true}
+          args: [-conf, /etc/coredns/Corefile]
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: "0"
+  name: dns
+spec:
+  type: LoadBalancer
+  selector:
+    app: dns
+  ports:
+    - {protocol: UDP, port: 53, nodePort: 53}
