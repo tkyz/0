@@ -1,0 +1,65 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+readonly build_context="${1:-latest}"
+
+readonly name="$(echo "${PWD}" | sed 's#.*/##g')"
+
+# TODO: build
+# Makefile
+# ant.xml
+
+#----------------------------------------------------------------
+# mvn
+
+function build_mvn() {
+
+  if [[ -f './pom.xml' ]]; then
+
+    mvn \
+      --define version="${build_context}" \
+      clean \
+      install
+#     deploy
+
+  fi
+
+}
+
+#----------------------------------------------------------------
+# container
+
+function build_container() {
+
+  # TODO: podman
+  if [[ -f './compose.yml' ]]; then
+    docker compose build
+  fi
+
+  if [[ -f './Dockerfile' ]]; then
+
+    local -r image="container.0/${name}:${build_context}"
+
+    local opts=()
+#   opts+=('--pull')
+#   opts+=('--no-cache')
+
+    podman build "${opts[@]}" --tag "${image}" .
+
+#   podman push --tls-verify=false "${image}" || true
+
+  fi
+
+}
+
+#----------------------------------------------------------------
+# main
+
+function main() {
+  build_mvn
+  build_container
+}
+main
