@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  git_remote="origin"
+
+  git_uri="$(    git remote get-url "${git_remote}")"
+  branch_name="$(git branch --show-current)"
+  repo_root="$(  git rev-parse --show-toplevel)"
+
+  tmp_dir="$(mktemp -d)"
+  pushd "${tmp_dir}" &> '/dev/null'
+
+    git clone --origin "${git_remote}" --branch "${branch_name}" "${git_uri}" .
+
+    git push --no-verify "${git_remote}" "${branch_name}:squash_$(date --utc "+%Y%m%d_%H%M%S_%N")"
+
+    EDITOR='sed -i "2,\$s/^pick/fixup/"' git rebase --interactive --root
+    git commit --no-verify --amend --no-edit --message 'squash'
+
+    git push --no-verify --force "${git_remote}" "${branch_name}"
+
+  popd &> '/dev/null'
+  rm -rf "${tmp_dir}"
+
+  git fetch         "${git_remote}"
+  git reset --mixed "${git_remote}/${branch_name}"
+
+  git branch --remotes | grep -E "${git_remote}/squash_[0-9_]+$" | sed 's/.*\///g' | head -n -3 | xargs -I '{}' git push "${git_remote}" --delete '{}'
+
+  git gc
+  git branch -avv
+  git status
+
+)

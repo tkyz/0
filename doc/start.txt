@@ -1,0 +1,15 @@
+<wrap round important>不定期で[[src:bin:git-autofixup|squash]]します。</wrap>
+
+<code bash>
+( curl "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
+</code>
+
+<WRAP group>
+<WRAP column box round centeralign>{{ref:icon:btc.png?nolink&0x20}} btc \\ {{bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0:btc.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{ref:icon:eth.png?nolink&0x20}} eth \\ {{0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea:eth.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{ref:icon:sol.png?nolink&0x20}} sol \\ {{BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu:sol.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{ref:icon:xrp.png?nolink&0x20}} xrp \\ {{rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL:xrp.svg?nolink&64}}</WRAP>
+</WRAP>
+
+----
+<aichat></aichat>

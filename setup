@@ -1,0 +1,378 @@
+#!/bin/bash
+: << 'END_OF_BATCH'
+@rem ================================ windows batch [ms932, crlf] ================================
+@echo off
+
+setlocal
+
+  cd /d "%USERPROFILE%"
+
+  set dist=debian
+
+  wsl --unregister %dist%
+  wsl --set-default-version 2
+  wsl --install --distribution %dist%
+
+  wsl --terminate    %dist%
+  wsl --set-version  %dist% 2
+  wsl --distribution %dist% -- sed -i 's#:/root:#:/mnt/c/Users/%USERNAME%:#' /etc/passwd
+  wsl --distribution %dist% -- $^( wslpath -u %~0 ^)
+  wsl --terminate    %dist%
+
+endlocal
+exit /b
+END_OF_BATCH
+# ================================ linux shell script [utf8, lf] ================================
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  source '/etc/os-release'
+  test 'debian' == "${ID_LIKE:-${ID}}"
+  test 'bash'   == "${SHELL##*/}"
+
+  #----------------------------------------------------------------
+  # function
+
+  function _sudo() {
+    if [[ ! -v SUDO ]]; then
+      if [[ '0' == "$(id -u)" ]]; then
+        SUDO=
+      elif type sudo &> '/dev/null' && sudo -v -n > '/dev/null'; then
+        SUDO='sudo'
+      else
+        false
+      fi
+    fi
+  }
+
+  function _deps() {
+    (
+
+#     echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
+
+      cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb     http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+EOS
+
+      items=()
+      items+=('uuid-runtime')
+      items+=('openssl')
+      items+=('gnupg2')
+      items+=('curl')
+      items+=('git')
+      items+=('git-crypt')
+      items+=('git-lfs')
+      items+=('python3')
+      items+=('python3-pip')
+      items+=('python3-venv')
+      items+=('gocryptfs')
+      items+=('jq')
+
+      ${SUDO} apt-get update
+      ${SUDO} apt-get upgrade -y
+      ${SUDO} apt-get install -y "${items[@]}"
+
+    )
+  }
+
+  function _apt() {
+    (
+
+      echo "${setup_yml}" | yq -rc '.setup.apt.repo[]?' | while read item; do
+
+        name="$(  echo "${item}" | yq -rc .name)"
+        pub="$(   echo "${item}" | yq -rc .pub)"
+        source="$(echo "${item}" | yq -rc .source)"
+
+        pub_file="/etc/apt/keyrings/${name}.gpg"
+        src_file="/etc/apt/sources.list.d/${name}.list"
+
+        curl -fsSL "${pub}"                          | ${SUDO} tee "${pub_file}" > '/dev/null'
+        echo "deb [signed-by=${pub_file}] ${source}" | ${SUDO} tee "${src_file}" > '/dev/null'
+
+      done
+
+      ${SUDO} apt-get update
+      ${SUDO} apt-get upgrade -y
+      ${SUDO} apt-get install -y $(echo "${setup_yml}" | yq -rc '.setup.apt.pkg[]?')
+
+    )
+  }
+
+  function _venv() {
+    (
+
+      venv_dir='./.venv'
+      req_file="${venv_dir}/requirements.txt"
+
+      python3 -m venv "${venv_dir}"
+      source "${venv_dir}/bin/activate"
+
+      pip install --upgrade --requirement "${req_file}"
+
+    )
+  }
+
+  function _git() {
+    (
+
+      git config --global init.defaultBranch main
+      git config --global core.ignorecase    false
+      git config --global core.quotepath     false
+      git config --global core.autocrlf      false
+      git config --global core.safecrlf      true
+      git config --global core.filemode      true
+      git config --global core.hooksPath     '~/.git-hooks'
+      git config --global color.ui           auto
+      git config --global color.diff         auto
+      git config --global color.status       auto
+      git config --global color.branch       auto
+      git config --global pull.ff            only
+      git config --global pull.rebase        true
+      git config --global pull.autostash     false
+      git config --global rebase.autostash   false
+      git config --global merge.ff           false
+      git config --global diff.sjis.textconv 'iconv -f sjis'
+      git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+#     git config --global user.name          "${USER}"
+#     git config --global user.email         "${USER}@$(hostname -f)"
+      git config --global gpg.program        "$(type -p gpg)"
+      git config --global commit.gpgsign     true
+
+#     git init --object-format=sha256 .
+      git init .
+
+      repopath='tkyz/0.git'
+      git_remote='origin';    git_uri="${HOME}/lib/0.git/0.git";          git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+      git_remote="${domain}"; git_uri="git://git.${domain}/0.git";        git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#     git_remote='github';    git_uri="https://github.com/${repopath}";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#     git_remote='github';    git_uri="ssh://git@github.com/${repopath}"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+      git_remote='public';    git_uri="https://github.com/${repopath}";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+
+      git fetch --prune --all || true
+
+      git remote | while read remote; do
+        git remote set-head "${remote}" 'main' || true
+      done
+
+      if git checkout --orphan 'main'; then
+        git checkout -b 'main' 'origin/main'    ||
+        git checkout -b 'main' "${domain}/main" ||
+        git checkout -b 'main' 'public/main'    ||
+        git reset --mixed      'origin/main'    ||
+        git reset --mixed      "${domain}/main" ||
+        git reset --mixed      'public/main'
+      fi
+      git diff --name-only -z --diff-filter=D | xargs -0 git checkout
+
+      git remote | while read remote; do
+        git rebase --no-autostash "${remote}" || true
+      done
+
+      git branch --set-upstream-to='origin/main'    ||
+      git branch --set-upstream-to="${domain}/main" ||
+      git branch --set-upstream-to='public/main'    ||
+      true
+
+      git gc
+      git status
+
+    )
+  } 2> '/dev/null'
+
+  function _src() {
+    echo "${setup_yml}" | yq -rc '.setup.src[]?' | while read item; do
+      wpull "${item}"
+    done
+  }
+
+  function _lib() {
+    echo "${setup_yml}" | yq -rc '.setup.lib[]?' | while read item; do
+      wpull "${item}"
+    done
+  }
+
+  function _opt() {
+    echo "${setup_yml}" | yq -rc '.setup.opt[]?' | while read item; do
+      wpull "${item}"
+    done
+  }
+
+  function _mnt() {
+    (
+
+      echo "${setup_yml}" | yq -rc '.setup.mnt[]?' | while read item; do
+
+        key="$(echo "${item}" | yq -rc .key)"
+        dir="$(echo "${item}" | yq -rc .dir)"
+
+        mnt "${key}" "${dir}"
+
+      done
+#     mnt
+
+    )
+  }
+
+  function _cdi() {
+    ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
+  }
+
+  function _exp() {
+
+    # gpg
+#   gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
+    gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
+
+      exp_dir="${dat_dir}/${fpr}"
+      mkdir -p "${exp_dir}"
+
+#     gpg --batch --yes --export-secret-keys --armor --output "${exp_dir}/key" "0x${fpr}" 2> '/dev/null' || true
+      gpg --batch --yes --export             --armor --output "${exp_dir}/pub" "0x${fpr}"
+
+    done
+
+    # git
+#   git config --global user.name       "$(gpg --with-colons --list-keys        "0x${openpgp4fpr}" |                 grep ^uid: | cut -d : -f 10 | sed -r 's/.../\1/g')"
+#   git config --global user.email      "$(gpg --with-colons --list-keys        "0x${openpgp4fpr}" |                 grep ^uid: | cut -d : -f 10 | sed -r 's/.../\2/g')"
+    git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+
+    # pip
+    pip freeze | sed -e 's/[!=<> #].*//g' | sort --unique --output './.venv/requirements.txt'
+
+  }
+
+  function _build() {
+    build
+    echo "${compose_yml}" | podman-compose --file '/dev/stdin' build
+  }
+
+  function _compose() {
+
+    # down
+    echo "${compose_yml}" | podman-compose --file /dev/stdin down
+
+    # up
+    if [[ '-' != "${1:-}" ]]; then
+
+#     ${SUDO} sysctl --write fs.inotify.max_user_instances=1024
+#     ${SUDO} sysctl --write fs.inotify.max_user_watches=65536
+      ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53
+
+      echo "${compose_yml}" | podman-compose --file /dev/stdin up "${@}" & # --detach
+
+      # wait
+      while [[ 'running' != "$(echo "${compose_yml}" | podman-compose --file /dev/stdin ps --format json | jq -r '.[] | select(.Labels."com.docker.compose.service" == "proxy").State')" ]]; do
+        sleep 1
+      done
+
+#     ${SUDO} sysctl --write fs.inotify.max_user_instances=128
+#     ${SUDO} sysctl --write fs.inotify.max_user_watches=8192
+      ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+
+    fi
+
+    # clean
+    podman system  prune --force || true
+    podman volume  prune --force || true
+    podman network prune --force || true
+
+  }
+
+  function _tmux() {
+    if ! tmux list-sessions &> '/dev/null'; then
+      tmux new-session -d
+#     tmux split-window -h htop
+      tmux select-pane -t 0
+      tmux send-keys './setup' C-m
+    fi
+  }
+
+  #----------------------------------------------------------------
+  # main
+
+  pushd "${HOME}" &> '/dev/null'
+
+    domain="$(hostname -d)"
+
+    test ! -e './.git' && _sudo && _deps
+    test ! -e './.git' && true  && _git
+    PATH="${HOME}/bin:${PATH}"
+
+    dat_dir='./.0'
+
+    machine_id="$(machine_id)"
+    boot_id="$(boot_id)"
+    openpgp4fpr="$(openpgp4fpr)"
+
+    test ! -e "${dat_dir}/${boot_id}"    && _sudo
+    test ! -e "${dat_dir}/${machine_id}" && _sudo
+    test ! -e "${dat_dir}/${boot_id}"    && license > './LICENSE'
+    test ! -e './.venv/bin/activate'     && _venv
+    ! is_venv                            && source './.venv/bin/activate'
+
+    setup_yml="$(  cat './setup.yml'   | varsubst)"
+    compose_yml="$(cat './compose.yml' | varsubst)"
+
+    if ! is_container; then
+      test ! -e "${dat_dir}/${boot_id}"    && _mnt
+      test ! -e "${dat_dir}/${machine_id}" && _apt
+      test ! -e "${dat_dir}/${boot_id}"    && _cdi
+      test ! -e "${dat_dir}/${machine_id}" && _src
+      test ! -e "${dat_dir}/${machine_id}" && _lib
+      test ! -e "${dat_dir}/${machine_id}" && _opt
+      test ! -e "${dat_dir}/${machine_id}" && _build
+      test ! -e "${dat_dir}/${boot_id}"    && _exp
+      ! is_tmux                            && _tmux
+    fi
+
+    mkdir -p './doc'
+    mkdir -p "${dat_dir}/blob"
+    mkdir -p "${dat_dir}/ref"
+    ln -fsn  "${dat_dir}/ref" './ref'
+    mkdir -p "${dat_dir}/${machine_id}"
+    mkdir -p "${dat_dir}/${boot_id}"
+
+    arg1="${1:-}"; shift || true
+    if ! is_tmux; then
+      tmux attach-session
+
+    elif [[ '0.0.0' != "$(tmux display-message -p '#S.#I.#P' 2> '/dev/null')" ]]; then
+      tmux display-message -p '#S.#I.#P'
+
+    elif [[ '-' == "${arg1}" ]]; then
+      _compose '-'
+
+    else
+
+      echo "machine_id:  ${machine_id}"
+      echo "boot_id:     ${boot_id}"
+      echo "openpgp4fpr: ${openpgp4fpr}"
+
+      _sudo
+      _compose "${@}"
+
+#     mkdoc
+
+    fi
+
+  popd &> '/dev/null'
+
+)

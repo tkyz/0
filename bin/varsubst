@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  tag='latest'
+
+  domain="$(hostname -d)"
+  namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
+
+  sed_opts=()
+
+  sed_opts+=('-e' "s|\${USER}|${USER:-root}|g")
+  sed_opts+=('-e' "s|\${HOME}|${HOME}|g")
+  while read item; do
+
+    key="$(echo "${item}" | sed -r 's/(.*)=\"?([^\"]*)\"?/\1/g')"
+    val="$(echo "${item}" | sed -r 's/(.*)=\"?([^\"]*)\"?/\2/g')"
+
+    sed_opts+=('-e' "s|\${${key}}|${val}|g")
+
+  done < '/etc/os-release'
+
+  sed_opts+=('-e' "s|\${tag}|${tag}|g")
+  sed_opts+=('-e' "s|\${machine_id}|$(machine_id)|g")
+  sed_opts+=('-e' "s|\${boot_id}|$(boot_id)|g")
+  sed_opts+=('-e' "s|\${openpgp4fpr}|$(openpgp4fpr)|g")
+  sed_opts+=('-e' "s|\${uid}|$(id -u)|g")
+  sed_opts+=('-e' "s|\${gid}|$(id -g)|g")
+  sed_opts+=('-e' "s|\${domain}|${domain}|g")
+  sed_opts+=('-e' "s|\${namespace}|${namespace}|g")
+  sed_opts+=('-e' "s|\${host}|$(hostname)|g")
+  sed_opts+=('-e' "s|\${resolve}|$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)|g")
+  sed_opts+=('-e' "s|\${external_ip}|$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)|g")
+
+  cat '/dev/stdin' | sed "${sed_opts[@]}"
+
+) 2> /dev/null

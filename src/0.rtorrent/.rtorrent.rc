@@ -1,0 +1,26 @@
+session.path.set = "/.rtorrent"
+
+network.port_random.set = no
+protocol.encryption.set = allow_incoming,try_outgoing,enable_retry
+encoding.add            = UTF-8
+
+pieces.memory.max.set                =   32G
+
+throttle.global_down.max_rate.set_kb =    0
+throttle.global_up.max_rate.set_kb   = 2048
+throttle.max_downloads.global.set    =  256
+throttle.max_uploads.global.set      =  128
+throttle.max_downloads.set           =   32
+throttle.max_uploads.set             =   16
+throttle.min_peers.seed.set          =   16
+throttle.max_peers.seed.set          =   32
+
+#network.scgi.open_port  = "127.0.0.1:5000"
+network.scgi.open_local = "/.rtorrent/rtorrent.sock"
+schedule2               = scgi_permission,0,0,"execute.nothrow = chmod, \"g+w,o=\", /.rtorrent/rtorrent.sock"
+
+method.set_key = event.download.inserted_new,load_torrent,"execute = rtorrent-event.sh, 1, $d.directory=, $d.name="
+method.set_key = event.download.finished,link_finished,"   execute = rtorrent-event.sh, 2, $d.directory=, $d.name="
+method.set_key = event.download.finished,move_complete,"   execute = rtorrent-event.sh, 3, $d.directory=, $d.name="
+method.set_key = event.download.finished,prowl_notify,"    execute = rtorrent-event.sh, 4, $d.directory=, $d.name="
+method.set_key = event.download.erased,delete_erased,"     execute = rtorrent-event.sh, 5, $d.directory=, $d.name="
