@@ -116,7 +116,7 @@ if [[ -t 0 ]]; then
     if is_k8s; then
       scheme+="${txtgrn_blink}k8s${txtrst}:"
     fi
-    if is_container;]; then
+    if is_container; then
       scheme+="${txtgrn_blink}container${txtrst}:"
     fi
     scheme+="tty:$(tty | sed -e 's,^/dev/,,' -e 's,/,,')"
