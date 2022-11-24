@@ -23,22 +23,46 @@
 /var/
 /vmlinuz*
 
-/src/0.enc/*/gocryptfs.conf
-
 /src/*/.classpath
 /src/*/.project
 /src/*/.settings/
 /src/*/target/
 /src/*/log/
 
-#----------------------------------------------------------------
 # dotfiles
-
 /.*
 !/.bin/
 !/.git-hooks/
 !/.gitattributes
 !/.gitignore
+
+#----------------------------------------------------------------
+# %USERPROFILE%
+
+/AppData/
+/Application Data
+/Contacts/
+/Cookies
+/Desktop/
+/Documents/
+/Downloads/
+/Favorites/
+/Links/
+/Local Settings
+/Music/
+/My Documents
+/NTUSER.DAT*
+/ntuser.*
+/NetHood
+/Pictures/
+/PrintHood
+/Recent
+/Save Games
+/Searches/
+/SendTo
+/Templates
+/Videos/
+/スタート メニュー
 
 #----------------------------------------------------------------
 # files

@@ -1,1 +1,1 @@
-{{indexmenu>#3|navbar skipfile=/sidebar/}}
+{{indexmenu>#1|navbar skipfile=/sidebar/}}

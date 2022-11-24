@@ -1,0 +1,31 @@
+====== 0 ======
+
+<WRAP important round>
+頻繁に''rebase''します。
+</WRAP>
+
+===== setup =====
+
+==== debian ====
+
+<code bash>
+curl https://setup.0 | bash
+</code>
+<code bash>
+curl https://raw.githubusercontent.com/tkyz/0/main/setup | bash
+</code>
+
+==== wsl ====
+
+https://setup.0/wsl
+https://raw.githubusercontent.com/tkyz/0/main/setup.bat
+
+===== licence =====
+
+[[github>tkyz/0/blob/main/LICENSE|MIT]]
+
+===== link =====
+
+  * [[https://wiki.0|wiki]]
+  * [[https://github.com/tkyz/0.git|github]]
+  * [[https://www.hackerrank.com/tkyzism|hackerrank]]

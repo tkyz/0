@@ -212,12 +212,3 @@ pushd "${HOME}"
   ln -fs "${hooksdir}/update"       "$(git remote get-url origin)/hooks/update"
   ln -fs "${hooksdir}/post-receive" "$(git remote get-url origin)/hooks/post-receive"
 popd
-
-# TODO: cmdrc.bat
-if false && is_wsl; then
-  reg add "HKEY_CURRENT_USER\Software\Microsoft\Command Processor"
-    /v AutoRun
-    /t REG_SZ
-    /d "\"%%USERPROFILE%%\cmdrc.bat\""
-    /f
-fi
