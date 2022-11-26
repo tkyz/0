@@ -20,7 +20,7 @@ if [ -d /etc/profile.d ]; then
     if [ ! -r "${i}" ]; then
       continue
     fi
-    if [ '0.sh' -eq "${i##*/}" ]; then
+    if [ '0.sh' -eq "$(echo "${i}" | sed 's#.*/##')" ]; then
       continue
     fi
 
