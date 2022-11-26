@@ -4,24 +4,24 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-image='container.0/0:latest'
+#image='container.0/0:latest'
+image='debian:latest'
 workdir='/.sandbox'
 
 docker run \
   --interactive \
   --tty \
   --rm \
-  --name    "0.$(uuidgen)" \
+  --name    "0.sandbox.$(uuidgen)" \
   --network host \
-  --volume  '/.bin:/.bin:ro' \
-  --volume  '/opt:/opt:ro' \
-  --volume  '/home/org.apache.maven:/home/org.apache.maven' \
+  --volume  "${HOME}/etc/profile:/etc/profile:ro" \
+  --volume  "${HOME}/.bin:/root/.bin:ro" \
+  --volume  "${HOME}/etc:/root/etc:ro" \
+  --volume  "${HOME}/lib:/root/lib:ro" \
+  --volume  "${HOME}/opt:/root/opt:ro" \
   --volume  "${HOME}/.Xauthority:/root/.Xauthority:ro" \
   --volume  "${PWD}:${workdir}:ro" \
   --workdir "${workdir}" \
   --env     "UID=$(id -u)" \
   --env     "DISPLAY=${DISPLAY:-:0.0}" \
-  "${image}"
-
-# --volume  '/var/run/docker.sock:/var/run/docker.sock' \
-# --volume  "/home/0.sandbox:/home/0.sandbox" \
+  "${image}" bash -l

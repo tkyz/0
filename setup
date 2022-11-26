@@ -71,7 +71,7 @@ if ! openpgp4fpr &> /dev/null; then
   colddir="${HOME}/.gnupg_cold_${openpgp4fpr}_${fqdn}"
   fprdir="${HOME}/src/0.gpg/${openpgp4fpr}"
 
-  printf "cold key. \e[2m%s\e[0m\n" "${colddir}"
+  printf "cold. \e[2m%s\e[0m\n" "${colddir}"
 
   gpg --passphrase "${passphrase}" --armor --export-secret-keys ="${openpgp4fpr}"                                                               > "${colddir}/mst"
   gpg --passphrase "${passphrase}" --armor --export             ="${openpgp4fpr}"                                                               > "${colddir}/pub" # mstから発行可能
@@ -123,6 +123,8 @@ fi
 #----------------------------------------------------------------
 # git clone
 
+repos_dir="${HOME}/.0/${openpgp4fpr}/git"
+
 function _git-remote-set() {
   git remote add "${@}" 2> /dev/null || git remote set-url "${@}"
 }
@@ -130,8 +132,7 @@ function _git-remote-set() {
 function _git-clone() {
 
   local -r clone_dir="${1}"
-  local -r repos_dir="${2}"
-  local -r repo_name="${3}"
+  local -r repo_name="${2}"
 
   local -r bare_dir="${repos_dir}/${repo_name}"
 
@@ -193,8 +194,8 @@ function _git-clone() {
 
 }
 
-_git-clone "${HOME}"                   "${HOME}/.0/${openpgp4fpr}/git" '0.git'
-_git-clone "${HOME}/.0/${openpgp4fpr}" "${HOME}/.0/${openpgp4fpr}/git" "${openpgp4fpr}.git"
+_git-clone "${HOME}"                   '0.git'
+_git-clone "${HOME}/.0/${openpgp4fpr}" "${openpgp4fpr}.git"
 
 unset -f \
   _git-remote-set \
