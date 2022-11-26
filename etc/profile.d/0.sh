@@ -207,26 +207,40 @@ if false; then
 fi
 
 # skel
-find "${HOME}/etc/skel" | while read item; do
+find "${HOME}/etc/skel" -mindepth 1 | while read item; do
 
-  if [[ -d "${item}" ]]; then
-    mkdir -p "${item}"
-    continue
-  fi
   item="$(echo "${item}" | sed "s#^${HOME}/etc/skel/##")"
 
-  if [[ '.gnupg/gpg.conf' == "${item}" ]]; then
-    cp -n "${HOME}/etc/skel/${item}" "${HOME}/${item}"
+  # .gnupg
+  if [[ "${item}" =~ ^\.gnupg.*$ ]]; then
+
+    if [[ '.gnupg' == "${item}" ]]; then
+      mkdir -p "${HOME}/${item}"
+
+    elif [[ '.gnupg/gpg.conf' == "${item}" ]]; then
+      cp -n "${HOME}/etc/skel/${item}" "${HOME}/${item}"
+
+    else
+      ln -fs "../etc/skel/${item}" "${HOME}/${item}"
+    fi
+
+    continue
+
+  fi
+
+  if [[ "${item}" =~ ^.*/.*$ ]]; then
     continue
   fi
 
-  if [[ ! -L "${HOME}/${item}" ]]; then
-    rm -f "${HOME}/${item}" &> /dev/null
+  if [[ "${HOME}/${item}" && ! -L "${HOME}/${item}" ]]; then
+    mv "${HOME}/${item}" "${HOME}/${item}_$(date "+%Y%m%d_%H%M%S_%N")" &> /dev/null
   fi
 
-  # TODO: サブディレクトリ配下の相対パス
-# ln -fs "./etc/skel/${item}" "${HOME}/${item}"
-  ln -fs "${HOME}/etc/skel/${item}" "${HOME}/${item}"
+  if [[ -d "${HOME}/etc/skel/${item}" ]]; then
+    ln -fsn "./etc/skel/${item}" "${HOME}/${item}"
+  elif [[ -f "${HOME}/etc/skel/${item}" ]]; then
+    ln -fs  "./etc/skel/${item}" "${HOME}/${item}"
+  fi
 
 done
 unset item
