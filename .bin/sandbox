@@ -15,6 +15,7 @@ docker run \
   --name    "0.sandbox.$(uuidgen)" \
   --network host \
   --volume  "${HOME}/etc/profile:/etc/profile:ro" \
+  --volume  "${HOME}/etc/bash.bashrc:/etc/bash.bashrc:ro" \
   --volume  "${HOME}/.bin:/root/.bin:ro" \
   --volume  "${HOME}/etc:/root/etc:ro" \
   --volume  "${HOME}/lib:/root/lib:ro" \

@@ -1,0 +1,12 @@
+#!/bin/bash
+# ---------------- Linux Shell Script [LF] ----------------
+set -o errexit
+set -o nounset
+set -o pipefail
+
+  jdk_ver='latest'
+  JAVA_HOME="${HOME}/opt/net.java.jdk/${jdk_ver}"
+
+  "${JAVA_HOME}/bin/java" -cp "${0}" Entrypoint "$@"
+
+exit "${?}"

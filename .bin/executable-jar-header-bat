@@ -1,0 +1,15 @@
+: <<END_OF_BATCH
+@REM ---------------- Windows Batch [CRLF] ----------------
+@echo off
+setlocal
+
+  set "jdk_ver=latest"
+  set "JAVA_HOME=%USERPROFILE%/opt/net.java.jdk/%jdk_ver%"
+
+  "%JAVA_HOME%/bin/java.exe" -cp "%~nx0" Entrypoint %*
+
+  set ret=%ERRORLEVEL%
+
+endlocal
+exit /b %ret%
+END_OF_BATCH

@@ -9,6 +9,7 @@ import java.io.StringWriter;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
+import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -36,6 +37,8 @@ public final class _0 {
 //	public static final boolean macos   = System.getProperty("os.name").toLowerCase().startsWith("mac");
 //	public static final boolean solaris = System.getProperty("os.name").toLowerCase().startsWith("sun");
 //	public static final boolean freebsd = System.getProperty("os.name").toLowerCase().startsWith("freebsd");
+
+	public static final Path userhome = Path.of(System.getProperty("user.home"));
 
 	public static final String encoding = _0.nvl(System.getProperty("native.encoding"), System.getProperty("file.encoding"));
 

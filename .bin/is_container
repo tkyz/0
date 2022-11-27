@@ -8,14 +8,16 @@ cgroup="$(tail -n 1 /proc/1/cgroup)"
 
 # containerd
 if [[ "${cgroup}" == '0::/system.slice/containerd.service' ]]; then
-  true
-
-# docker run
-elif [[ "${cgroup}" == '0::/' ]]; then
-  true
-
-elif is_docker_build; then
-  true
+  exit 0
 fi
 
-false
+# docker run
+if [[ "${cgroup}" == '0::/' ]]; then
+  exit 0
+fi
+
+if is_docker_build; then
+  exit 0
+fi
+
+exit 1

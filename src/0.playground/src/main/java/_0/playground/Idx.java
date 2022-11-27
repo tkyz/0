@@ -1,5 +1,6 @@
-package _0.idx;
+package _0.playground;
 
+import java.io.Closeable;
 import java.io.FileFilter;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -14,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -35,7 +37,7 @@ import com.healthmarketscience.jackcess.Table;
 import _0.Jdbc;
 import _0._0;
 
-public final class Idx {
+public final class Idx implements Closeable {
 
 	private static final Logger log = LoggerFactory.getLogger(Idx.class);
 
@@ -47,20 +49,16 @@ public final class Idx {
 
 	private static final Map<String, Map<String, Object>> cache = new HashMap<>();
 
-	// TOOD: private
-	public static Connection con = null;
-
 	public static boolean ip = true;
 
-	private Idx() {
-	}
+	private Connection con = null;
 
-	public static void init()
+	public Idx()
 			throws SQLException {
 
 		con = jdbc.connect();
 
-		execute("DROP TABLE IF EXISTS " + name);
+//		execute("DROP TABLE IF EXISTS " + name);
 
 		StringBuilder query = new StringBuilder();
 		query.append("CREATE TABLE IF NOT EXISTS " + name + " ( ");
@@ -77,16 +75,263 @@ public final class Idx {
 
 	}
 
+	@Override
+	public void close() {
+		_0.close(con);
+	}
+
 	public static Jdbc jdbc() {
 		return jdbc;
 	}
 
-	public static void file(final Path path, final FileFilter filter)
-			throws IOException {
-		file(_0.ip(), path, filter);
+	public void set(final String type, final String key)
+			throws SQLException {
+		set(type, key, (JSONObject)null);
 	}
 
-	public static void file(final InetAddress host, final Path path, final FileFilter filter)
+	public void set(final String type, final String key, final Map<String, Object> val)
+			throws SQLException {
+		set(type, key, new JSONObject(val));
+	}
+
+	public synchronized void set(final String type, final String key, final JSONObject val)
+			throws SQLException {
+
+		String now = _0.ymdhmss();
+
+		Map<String, Object> map = new HashMap<>();
+		map.put("ins_date", now);
+		map.put("upd_date", now);
+		map.put("type",     type);
+		map.put("val",      val);
+
+		cache.put(key, map);
+
+		// TODO: cachesize
+		if (8192 <= cache.size()) {
+			flush();
+		}
+
+	}
+
+	public synchronized String get(final String key)
+			throws SQLException {
+
+		String val = null;
+
+		if (cache.containsKey(key)) {
+			val = (String)cache.get(key).get("val");
+
+		} else {
+
+			StringBuilder query = new StringBuilder();
+			query.append("SELECT ");
+			query.append("    val ");
+			query.append("  FROM ");
+			query.append("    idx ");
+			query.append("  WHERE ");
+			query.append("    key = ? ");
+
+			try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
+
+				stmt.setObject(1, key);
+
+				try (ResultSet rs = stmt.executeQuery()) {
+
+					if (rs.next()) {
+						val = (String)rs.getObject("val");
+					}
+
+					if (rs.next()) {
+						throw new SQLException(key);
+					}
+
+				}
+
+			}
+
+		}
+
+		return val;
+
+	}
+
+//	public synchronized void del(final String key)
+//			throws SQLException {
+//
+//		cache.put(key, null);
+//
+//		// TODO: cachesize
+//		if (8192 <= cache.size()) {
+//			flush();
+//		}
+//
+//	}
+
+	public synchronized void flush()
+			throws SQLException {
+
+		// delete
+		{
+
+			List<String> del_keys = new LinkedList<>();
+
+			Iterator<Entry<String, Map<String, Object>>> ite = cache.entrySet().iterator();
+			while (ite.hasNext()) {
+
+				Entry<String, Map<String, Object>> entry = ite.next();
+
+				String del_key = entry.getKey();
+				Object del_rec = entry.getValue();
+
+				if (null != del_rec) {
+					continue;
+				}
+
+				del_keys.add(del_key);
+
+				ite.remove();
+
+			}
+
+			if (!del_keys.isEmpty()) {
+
+				// TODO: in limit
+				StringBuilder query = new StringBuilder();
+				query.append("DELETE ");
+				query.append("  FROM ");
+				query.append("    idx ");
+				query.append("  WHERE ");
+				query.append("    key IN (");
+				for (int i = 0; i < del_keys.size(); i++) {
+					query.append(0 == i ? "" : ",");
+					query.append("?");
+				}
+				query.append(") ");
+
+				try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
+
+					int idx = 1;
+					while (!del_keys.isEmpty()) {
+						stmt.setObject(idx++, del_keys.remove(0));
+					}
+
+					stmt.executeUpdate();
+
+				}
+
+			}
+
+		}
+
+		// insert-update
+		if (!cache.isEmpty()) {
+
+			// TODO: bulksize limit
+			StringBuilder query  = new StringBuilder();
+			query.append("INSERT INTO ");
+			query.append("    idx ");
+			query.append("  VALUES ");
+			for (int i = 0; i < cache.size(); i++) {
+				query.append(i == 0 ? "" : ",");
+				query.append("(?,?,?,?,?)");
+			}
+			query.append("  ON CONFLICT ");
+			query.append("    (key) ");
+			query.append("  DO UPDATE SET ");
+			query.append("     upd_date = excluded.upd_date ");
+			query.append("    ,type     = excluded.type ");
+			query.append("    ,val      = excluded.val ");
+
+			List<Object> params = new LinkedList<>();
+			Iterator<Entry<String, Map<String, Object>>> ite = cache.entrySet().iterator();
+			while (ite.hasNext()) {
+
+				Entry<String, Map<String, Object>> entry = ite.next();
+				ite.remove();
+
+				String              ins_key = entry.getKey();
+				Map<String, Object> ins_rec = entry.getValue();
+
+				params.add(ins_rec.get("ins_date"));
+				params.add(ins_rec.get("upd_date"));
+				params.add(ins_rec.get("type"));
+				params.add(ins_key);
+				params.add(ins_rec.get("val"));
+
+			}
+
+			try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
+
+				int idx = 1;
+				while (!params.isEmpty()) {
+					stmt.setObject(idx++, params.remove(0));
+				}
+
+				stmt.executeUpdate();
+
+			}
+
+		}
+
+	}
+
+	public void vacuum()
+			throws SQLException {
+		flush();
+		execute("VACUUM");
+	}
+
+	private void execute(final CharSequence query)
+			throws SQLException {
+
+		try (Statement stmt = con.createStatement()) {
+			stmt.execute(query.toString());
+		}
+
+	}
+
+	private static final String type(final Object type) {
+
+		Integer key = Integer.valueOf(type.toString());
+
+		Map<Integer, String> types = new HashMap<>();
+		types.put(Types.BIT,           "bool");
+		types.put(Types.BOOLEAN,       "bool");
+		types.put(Types.TINYINT,       "int");
+		types.put(Types.SMALLINT,      "int");
+		types.put(Types.INTEGER,       "int");
+		types.put(Types.BIGINT,        "int");
+		types.put(Types.NUMERIC,       "int");
+		types.put(Types.FLOAT,         "decimal");
+		types.put(Types.DOUBLE,        "decimal");
+		types.put(Types.REAL,          "decimal");
+		types.put(Types.DECIMAL,       "decimal");
+		types.put(Types.CHAR,          "text");
+		types.put(Types.NCHAR,         "text");
+		types.put(Types.VARCHAR,       "text");
+		types.put(Types.NVARCHAR,      "text");
+		types.put(Types.LONGVARCHAR,   "text");
+		types.put(Types.LONGNVARCHAR,  "text");
+		types.put(Types.TIMESTAMP,     "text");
+		types.put(Types.DATE,          "text");
+		types.put(Types.TIME,          "text");
+		types.put(Types.BINARY,        "binary");
+		types.put(Types.VARBINARY,     "binary");
+		types.put(Types.LONGVARBINARY, "binary");
+		types.put(Types.DISTINCT,      "unknown");
+		types.put(Types.ARRAY,         "unknown");
+		types.put(Types.OTHER,         "unknown");
+
+		if (!types.containsKey(key)) {
+			throw new UnsupportedOperationException(String.valueOf(key));
+		}
+
+		return types.get(key);
+
+	}
+
+	public void file(final InetAddress host, final Path path, final FileFilter filter)
 			throws IOException {
 
 		String path_ = path.toString().replace("\\", "/");
@@ -200,12 +445,7 @@ public final class Idx {
 
 	}
 
-	public static void table()
-			throws IOException, SQLException {
-		table(jdbc);
-	}
-
-	public static void table(final Jdbc jdbc)
+	public void table(final Jdbc jdbc)
 			throws IOException, SQLException {
 
 		try (Connection con = jdbc.connect()) {
@@ -214,7 +454,7 @@ public final class Idx {
 
 	}
 
-	public static void table(final Jdbc jdbc, final Connection con)
+	public void table(final Jdbc jdbc, final Connection con)
 			throws IOException, SQLException {
 
 		List<String> catalogs = new ArrayList<>();
@@ -258,7 +498,6 @@ public final class Idx {
 				}
 
 				for (Map<String, Object> tablemap : tablemaps) {
-
 					String catalog_ = _0.nvl(catalog, (String)tablemap.get("TABLE_CAT"));
 					String schema_  = _0.nvl(schema,  (String)tablemap.get("TABLE_SCHEM"));
 					String table_   = (String)tablemap.get("TABLE_NAME");
@@ -298,7 +537,7 @@ public final class Idx {
 
 	}
 
-	public static void table(InetAddress host, Path file)
+	public void table(InetAddress host, Path file)
 			throws IOException, SQLException {
 
 		String host_ = host.getHostAddress();
@@ -398,213 +637,6 @@ public final class Idx {
 //
 //			}
 
-		}
-
-	}
-
-	public static void set(final String type, final String key)
-			throws SQLException {
-		set(type, key, (JSONObject)null);
-	}
-
-	public static void set(final String type, final String key, final Map<String, Object> val)
-			throws SQLException {
-		set(type, key, new JSONObject(val));
-	}
-
-	public static synchronized void set(final String type, final String key, final JSONObject val)
-			throws SQLException {
-
-		String now = _0.ymdhmss();
-
-		Map<String, Object> map = new HashMap<>();
-		map.put("ins_date", now);
-		map.put("upd_date", now);
-		map.put("type",     type);
-		map.put("val",      val);
-
-		cache.put(key, map);
-
-		// TODO: cachesize
-		if (8192 <= cache.size()) {
-			flush();
-		}
-
-	}
-
-	public static synchronized String get(final String key)
-			throws SQLException {
-
-		String val = null;
-
-		if (cache.containsKey(key)) {
-			val = (String)cache.get(key).get("val");
-
-		} else {
-
-			StringBuilder query = new StringBuilder();
-			query.append("SELECT ");
-			query.append("    val ");
-			query.append("  FROM ");
-			query.append("    idx ");
-			query.append("  WHERE ");
-			query.append("    key = ? ");
-
-			try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
-
-				stmt.setObject(1, key);
-
-				try (ResultSet rs = stmt.executeQuery()) {
-
-					if (rs.next()) {
-						val = (String)rs.getObject("val");
-					}
-
-					if (rs.next()) {
-						throw new SQLException(key);
-					}
-
-				}
-
-			}
-
-		}
-
-		return val;
-
-	}
-
-	public static synchronized void del(final String key)
-			throws SQLException {
-
-		cache.put(key, null);
-
-		// TODO: cachesize
-		if (8192 <= cache.size()) {
-			flush();
-		}
-
-	}
-
-	public static synchronized void flush()
-			throws SQLException {
-
-		// delete
-		{
-
-			List<String> del_keys = new LinkedList<>();
-
-			Iterator<Entry<String, Map<String, Object>>> ite = cache.entrySet().iterator();
-			while (ite.hasNext()) {
-
-				Entry<String, Map<String, Object>> entry = ite.next();
-
-				String del_key = entry.getKey();
-				Object del_rec = entry.getValue();
-
-				if (null != del_rec) {
-					continue;
-				}
-
-				del_keys.add(del_key);
-
-				ite.remove();
-
-			}
-
-			if (!del_keys.isEmpty()) {
-
-				// TODO: in limit
-				StringBuilder query = new StringBuilder();
-				query.append("DELETE ");
-				query.append("  FROM ");
-				query.append("    idx ");
-				query.append("  WHERE ");
-				query.append("    key IN (");
-				for (int i = 0; i < del_keys.size(); i++) {
-					query.append(0 == i ? "" : ",");
-					query.append("?");
-				}
-				query.append(") ");
-
-				try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
-
-					int idx = 1;
-					while (!del_keys.isEmpty()) {
-						stmt.setObject(idx++, del_keys.remove(0));
-					}
-
-					stmt.executeUpdate();
-
-				}
-
-			}
-
-		}
-
-		// insert-update
-		if (!cache.isEmpty()) {
-
-			// TODO: bulksize limit
-			StringBuilder query  = new StringBuilder();
-			query.append("INSERT INTO ");
-			query.append("    idx ");
-			query.append("  VALUES ");
-			for (int i = 0; i < cache.size(); i++) {
-				query.append(i == 0 ? "" : ",");
-				query.append("(?,?,?,?,?)");
-			}
-			query.append("  ON CONFLICT ");
-			query.append("    (key) ");
-			query.append("  DO UPDATE SET ");
-			query.append("     upd_date = excluded.upd_date ");
-			query.append("    ,type     = excluded.type ");
-			query.append("    ,val      = excluded.val ");
-
-			List<Object> params = new LinkedList<>();
-			Iterator<Entry<String, Map<String, Object>>> ite = cache.entrySet().iterator();
-			while (ite.hasNext()) {
-
-				Entry<String, Map<String, Object>> entry = ite.next();
-				ite.remove();
-
-				String              ins_key = entry.getKey();
-				Map<String, Object> ins_rec = entry.getValue();
-
-				params.add(ins_rec.get("ins_date"));
-				params.add(ins_rec.get("upd_date"));
-				params.add(ins_rec.get("type"));
-				params.add(ins_key);
-				params.add(ins_rec.get("val"));
-
-			}
-
-			try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
-
-				int idx = 1;
-				while (!params.isEmpty()) {
-					stmt.setObject(idx++, params.remove(0));
-				}
-
-				stmt.executeUpdate();
-
-			}
-
-		}
-
-	}
-
-	public static void vacuum()
-			throws SQLException {
-		flush();
-		execute("VACUUM");
-	}
-
-	private static void execute(final CharSequence query)
-			throws SQLException {
-
-		try (Statement stmt = con.createStatement()) {
-			stmt.execute(query.toString());
 		}
 
 	}

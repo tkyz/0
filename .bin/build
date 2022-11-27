@@ -19,19 +19,19 @@ if [[ -f ./pom.xml ]]; then
       --tty \
       --rm \
       --network host \
-      --volume '/.bin:/usr/local/bin:ro' \
-      --volume '/etc/profile.d/0.sh:/etc/profile.d/0.sh:ro' \
-      --volume '/opt/net.java.jdk:/opt/net.java.jdk:ro' \
-      --volume '/opt/org.apache.maven:/opt/org.apache.maven:ro' \
-      --volume '/home/org.apache.maven:/home/org.apache.maven' \
+      --volume "${HOME}/.bin:/usr/local/bin:ro" \
+      --volume "${HOME}/.m2:/root/.m2:ro" \
+      --volume "${HOME}/lib:/root/lib" \
+      --volume "${HOME}/opt/net.java.jdk:/root/opt/net.java.jdk:ro" \
+      --volume "${HOME}/opt/org.apache.maven:/root/opt/org.apache.maven:ro" \
+      --volume "${HOME}/var/org.apache.maven:/root/var/org.apache.maven" \
       --volume "${PWD}:${workdir}" \
       --workdir "${workdir}" \
-      debian:latest bash -l -c "
+      debian:latest bash -c "
         build "${@}"
         chown -R $(id -u):$(id -g) .
       "
 
-#     --hostname builder \
 #     --name "build_$(date '+%Y%m%d_%H%M%S')" \
 
   else
@@ -53,6 +53,22 @@ if [[ -f ./pom.xml ]]; then
       clean \
       package \
       install
+
+    # executable-jar
+    suffix='-jar-with-dependencies.jar'
+    jarwithdeps="$(find target -mindepth 1 -maxdepth 1 -type f -name "*${suffix}" 2> /dev/null || true)"
+    jarwithexec="$(echo "${jarwithdeps}" | sed "s/${suffix}//")"
+    if [[ -n "${jarwithdeps}" ]]; then
+
+      cat \
+        '/usr/local/bin/executable-jar-header-bat' \
+        '/usr/local/bin/executable-jar-header-sh'  \
+        '/usr/local/bin/executable-jar-header-jar' \
+        "${jarwithdeps}" > "${jarwithexec}"
+
+      chmod +x "${jarwithexec}"
+
+    fi
 
   fi
 

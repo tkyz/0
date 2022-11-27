@@ -141,7 +141,7 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
           <version>3.3.0</version>
-          <configuration>
+          <!-- configuration>
             <outputDirectory>${user.home}/lib</outputDirectory>
             <archive>
               <manifestEntries>
@@ -155,7 +155,7 @@
               </manifest>
             </archive>
             <skipIfEmpty>true</skipIfEmpty>
-          </configuration>
+          </configuration -->
         </plugin>
 
         <plugin>

@@ -218,7 +218,7 @@ find "${HOME}/etc/skel" -mindepth 1 | while read item; do
       mkdir -p "${HOME}/${item}"
 
     elif [[ '.gnupg/gpg.conf' == "${item}" ]]; then
-      cp -n "${HOME}/etc/skel/${item}" "${HOME}/${item}"
+      cp -n "${HOME}/etc/skel/${item}" "${HOME}/${item}" > /dev/null
 
     else
       ln -fs "../etc/skel/${item}" "${HOME}/${item}"

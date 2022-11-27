@@ -1,3 +1,5 @@
+package _0.playground;
+
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
@@ -17,8 +19,6 @@ import java.net.NetworkInterface;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.file.Path;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Comparator;
@@ -36,12 +36,12 @@ import org.slf4j.LoggerFactory;
 
 import _0.Jdbc;
 import _0._0;
-import _0.idx.Idx;
-import _0.sshd.Sshd;
 
 public final class Main {
 
-	private static final Logger log = LoggerFactory.getLogger(_0.class);
+	private static final Logger log = LoggerFactory.getLogger(Main.class);
+
+	private static InetAddress ip = null;
 
 	private Main() {
 	}
@@ -49,12 +49,54 @@ public final class Main {
 	public static final void main(final String... args)
 			throws Exception {
 
-		debug();
-		clip();
-		sshd();
-		idx();
+		Sshd sshd = null;
+		Idx  idx  = null;
+		try {
 
-		cli();
+			ip = _0.ip();
+
+			debug();
+
+			sshd = new Sshd(0);
+			idx  = new Idx();
+
+			idx.table(Idx.jdbc());
+			idx.table(new Jdbc("mariadb").host("mariadb.0").username("root").password("mariadb"));
+			idx.table(new Jdbc("postgres").host("pgsql.0").username("postgres").password("pgsql"));
+
+			if (_0.windows) {
+				for (int i = 0; i <= 'Z' - 'A'; i++) {
+					idx.file(ip, Path.of((char)('A' + i) + ":/"), e-> true);
+				}
+			} else {
+				idx.file(ip, _0.userhome, e -> true);
+			}
+
+			idx.vacuum();
+
+			idx();
+
+//			clip();
+
+//			Thread.sleep(Long.MAX_VALUE);
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
+				while (true) {
+
+					String line = in.readLine();
+
+					if ("exit".equals(line)) {
+						break;
+					}
+
+					System.out.println(line);
+
+				}
+			}
+
+		} finally {
+			_0.close(sshd);
+			_0.close(idx);
+		}
 
 	}
 
@@ -178,32 +220,6 @@ public final class Main {
 
 	}
 
-	private static void cli()
-			throws IOException {
-
-//		Thread.sleep(Long.MAX_VALUE);
-
-		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
-			while (true) {
-
-				String line = in.readLine();
-
-				if ("exit".equals(line)) {
-					break;
-				}
-
-				System.out.println(line);
-
-			}
-		}
-
-	}
-
-	private static final void sshd()
-			throws IOException {
-		new Sshd();
-	}
-
 	// TODO: 拾えないことが多い
 	private static final void clip() {
 
@@ -280,6 +296,13 @@ public final class Main {
 			exts.add("cob");
 			exts.add("sql"); exts.add("ddl");
 
+			exts.add("Makefile");
+			exts.add("Dockerfile");
+			exts.add("Vagrantfile");
+
+		}
+		if (true) {
+
 			exts.add("htm"); exts.add("html");
 			exts.add("css");
 
@@ -289,10 +312,6 @@ public final class Main {
 			exts.add("json");
 			exts.add("yml"); exts.add("yaml");
 			exts.add("xml");
-
-			exts.add("Makefile");
-			exts.add("Dockerfile");
-			exts.add("Vagrantfile");
 
 		}
 		if (true) {
@@ -333,74 +352,6 @@ public final class Main {
 			exts.add("avi");
 		}
 
-		Idx.init();
-
-		Idx.table();
-		Idx.table(new Jdbc("mariadb").host("mariadb.0").username("root").password("mariadb"));
-		Idx.table(new Jdbc("postgres").host("pgsql.0").username("postgres").password("pgsql"));
-
-		if (_0.windows) {
-			for (int i = 0; i <= 'Z' - 'A'; i++) {
-				Idx.file(Path.of((char)('A' + i) + ":/"), e-> true);
-			}
-		} else {
-			Idx.file(Path.of("/home"), e -> true);
-		}
-
-		Idx.vacuum();
-
-		try (PreparedStatement stmt = Idx.con.prepareStatement("SELECT * FROM idx ORDER BY key")) {
-
-			stmt.setFetchSize(Jdbc.fetchsize);
-
-			try (ResultSet rs = stmt.executeQuery()) {
-				while (rs.next()) {
-					log.debug("{}", Jdbc.map(rs));
-				}
-			}
-
-		}
-
 	}
-
-//	private static final String type(final Object type) {
-//
-//		Integer key = Integer.valueOf(type.toString());
-//
-//		Map<Integer, String> types = new HashMap<>();
-//		types.put(Types.BIT,           "bool");
-//		types.put(Types.BOOLEAN,       "bool");
-//		types.put(Types.TINYINT,       "int");
-//		types.put(Types.SMALLINT,      "int");
-//		types.put(Types.INTEGER,       "int");
-//		types.put(Types.BIGINT,        "int");
-//		types.put(Types.NUMERIC,       "int");
-//		types.put(Types.FLOAT,         "decimal");
-//		types.put(Types.DOUBLE,        "decimal");
-//		types.put(Types.REAL,          "decimal");
-//		types.put(Types.DECIMAL,       "decimal");
-//		types.put(Types.CHAR,          "text");
-//		types.put(Types.NCHAR,         "text");
-//		types.put(Types.VARCHAR,       "text");
-//		types.put(Types.NVARCHAR,      "text");
-//		types.put(Types.LONGVARCHAR,   "text");
-//		types.put(Types.LONGNVARCHAR,  "text");
-//		types.put(Types.TIMESTAMP,     "text");
-//		types.put(Types.DATE,          "text");
-//		types.put(Types.TIME,          "text");
-//		types.put(Types.BINARY,        "binary");
-//		types.put(Types.VARBINARY,     "binary");
-//		types.put(Types.LONGVARBINARY, "binary");
-//		types.put(Types.DISTINCT,      "unknown");
-//		types.put(Types.ARRAY,         "unknown");
-//		types.put(Types.OTHER,         "unknown");
-//
-//		if (!types.containsKey(key)) {
-//			throw new UnsupportedOperationException(String.valueOf(key));
-//		}
-//
-//		return types.get(key);
-//
-//	}
 
 }
