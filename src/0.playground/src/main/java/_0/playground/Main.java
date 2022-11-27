@@ -123,16 +123,28 @@ public final class Main {
 		Idx idx = new Idx();
 
 		idx.table(Idx.jdbc());
-		for (Map<String, Object> jdbc : (Collection<Map<String, Object>>)selector.get("playground").get("idx").get("jdbc").val()) {
-			idx.table(new Jdbc(jdbc));
-		}
+		for (Map<String, Object> map : (Collection<Map<String, Object>>)selector.get("playground").get("idx").get("hosts").val()) {
 
-		if (_0.windows) {
-			for (int i = 0; i <= 'Z' - 'A'; i++) {
-				idx.file(ip, Path.of((char)('A' + i) + ":/"), exts_filter);
+			if ("file".equals(map.get("type"))) {
+
+				String host = (String)map.get("host");
+				String path = (String)map.get("path");
+
+				if (null != host) {
+					idx.file(InetAddress.getByName(host), Path.of(path), exts_filter);
+
+				} else if (_0.windows) {
+					for (int i = 0; i <= 'Z' - 'A'; i++) {
+						idx.file(ip, Path.of((char)('A' + i) + ":/"), exts_filter);
+					}
+				} else {
+					idx.file(ip, _0.userhome, exts_filter);
+				}
+
+			} else {
+				idx.table(new Jdbc(map));
 			}
-		} else {
-			idx.file(ip, _0.userhome, exts_filter);
+
 		}
 
 		idx.vacuum();

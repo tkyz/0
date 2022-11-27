@@ -57,7 +57,7 @@ public final class ValSelector {
 
 	}
 
-	public static <T> T get(List<?> list, Object... keys) {
+	public static <T> T val(List<?> list, Object... keys) {
 
 		ValSelector selector = ValSelector.of(list);
 		for (Object key : keys) {
@@ -68,7 +68,7 @@ public final class ValSelector {
 
 	}
 
-	public static <T> T get(Map<?, ?> map, Object... keys) {
+	public static <T> T val(Map<?, ?> map, Object... keys) {
 
 		ValSelector selector = ValSelector.of(map);
 		for (Object key : keys) {

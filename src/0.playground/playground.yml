@@ -1,8 +1,12 @@
 playground:
+  sshd:
+    enabled: true
   idx:
-    jdbc:
-      - {type: mariadb,  host: mariadb.0, username: root,     password: mariadb}
-      - {type: postgres, host: pgsql.0,   username: postgres, password: pgsql}
+    enabled: true
+    hosts:
+      - {host: mariadb.0, type: mariadb,  username: root,     password: mariadb}
+      - {host: pgsql.0,   type: postgres, username: postgres, password: pgsql}
+      - {host: null,      type: file,     path: /}
     exts:
       - c
       - cpp
