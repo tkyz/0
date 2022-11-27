@@ -72,7 +72,7 @@ if ! openpgp4fpr &> /dev/null; then
   fprdir="${HOME}/src/0.gpg/${openpgp4fpr}"
 
   printf "cold. \e[2m%s\e[0m\n" "${colddir}"
-  mkdir -p "${colddir}"
+  mkdir -p "${colddir}" "${fprdir}"
 
   gpg --passphrase "${passphrase}" --armor --export-secret-keys ="${openpgp4fpr}"                                                               > "${colddir}/mst"
   gpg --passphrase "${passphrase}" --armor --export             ="${openpgp4fpr}"                                                               > "${colddir}/pub" # mstから発行可能

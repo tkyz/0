@@ -39,7 +39,7 @@ if [[ -f ./pom.xml ]]; then
     export MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData'
 
     define=()
-    defune+=("--define" "version=${version}")
+    defune+=("--define" "version=${version}") # TODO: version
     if ! grep -q '<packaging>pom</packaging>' ./pom.xml; then
       defune+=("--define" "checkstyle.skip=false")
       defune+=("--define" "maven.test.skip=false")
