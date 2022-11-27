@@ -7,6 +7,8 @@ import java.awt.datatransfer.FlavorEvent;
 import java.awt.datatransfer.FlavorListener;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.BufferedReader;
+import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -20,12 +22,14 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -33,15 +37,20 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
 import _0.Jdbc;
+import _0.ValSelector;
 import _0._0;
+import _0.playground.sshd.Sshd;
 
 public final class Main {
 
 	private static final Logger log = LoggerFactory.getLogger(Main.class);
 
 	private static InetAddress ip = null;
+
+	private static ValSelector selector = null;
 
 	private Main() {
 	}
@@ -53,30 +62,13 @@ public final class Main {
 		Idx  idx  = null;
 		try {
 
-			ip = _0.ip();
+			ip       = _0.ip();
+			selector = ValSelector.of(yml("playground.yml"));
 
 			debug();
 
-			sshd = new Sshd(0);
-			idx  = new Idx();
-
-			idx.table(Idx.jdbc());
-			idx.table(new Jdbc("mariadb").host("mariadb.0").username("root").password("mariadb"));
-			idx.table(new Jdbc("postgres").host("pgsql.0").username("postgres").password("pgsql"));
-
-			if (_0.windows) {
-				for (int i = 0; i <= 'Z' - 'A'; i++) {
-					idx.file(ip, Path.of((char)('A' + i) + ":/"), e-> true);
-				}
-			} else {
-				idx.file(ip, _0.userhome, e -> true);
-			}
-
-			idx.vacuum();
-
-			idx();
-
-//			clip();
+			sshd = sshd();
+			idx  = idx();
 
 //			Thread.sleep(Long.MAX_VALUE);
 			try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
@@ -100,7 +92,70 @@ public final class Main {
 
 	}
 
-	private static final void debug(final String... args)
+	public static Sshd sshd()
+			throws IOException {
+		return new Sshd(0);
+	}
+
+	public static Idx idx()
+			throws IOException, SQLException {
+
+		Set<String> exts_set = new HashSet<>((Collection<String>)selector.get("playground").get("idx").get("exts").val());
+
+		FileFilter exts_filter = f -> {
+
+			String ext = f.getName().toString();
+
+			int lastidx = ext.lastIndexOf("/");
+			if (-1 < lastidx) {
+				ext = ext.substring(lastidx + 1);
+			}
+
+			lastidx = ext.lastIndexOf(".");
+			if (-1 < lastidx) {
+				ext = ext.substring(lastidx + 1);
+			}
+
+			return exts_set.contains(ext);
+
+		};
+
+		Idx idx = new Idx();
+
+		idx.table(Idx.jdbc());
+		for (Map<String, Object> jdbc : (Collection<Map<String, Object>>)selector.get("playground").get("idx").get("jdbc").val()) {
+			idx.table(new Jdbc(jdbc));
+		}
+
+		if (_0.windows) {
+			for (int i = 0; i <= 'Z' - 'A'; i++) {
+				idx.file(ip, Path.of((char)('A' + i) + ":/"), exts_filter);
+			}
+		} else {
+			idx.file(ip, _0.userhome, exts_filter);
+		}
+
+		idx.vacuum();
+
+		return idx;
+
+	}
+
+	@SuppressWarnings("unchecked")
+	public static Map<String, Object> yml(String file)
+			throws IOException {
+
+		Map<String, Object> map = null;
+
+		try (InputStream in = new FileInputStream(Path.of(file).toFile())) {
+			map = (Map<String, Object>)new Yaml().loadAs(in, Map.class);
+		}
+
+		return map;
+
+	}
+
+	private static void debug(final String... args)
 			throws IOException {
 
 		if (log.isDebugEnabled()) {
@@ -274,83 +329,6 @@ public final class Main {
 			}
 
 		});
-
-	}
-
-	private static final void idx()
-			throws IOException, SQLException {
-
-		Set<String> exts = new HashSet<>();
-		if (true) {
-
-			exts.add("c"); exts.add("cpp"); exts.add("cs"); exts.add("h");
-			exts.add("rs");
-			exts.add("go");
-			exts.add("java");
-			exts.add("php");
-			exts.add("pl");
-			exts.add("py");
-			exts.add("js");
-			exts.add("sh"); exts.add("bat");
-			exts.add("bas"); exts.add("frm");
-			exts.add("cob");
-			exts.add("sql"); exts.add("ddl");
-
-			exts.add("Makefile");
-			exts.add("Dockerfile");
-			exts.add("Vagrantfile");
-
-		}
-		if (true) {
-
-			exts.add("htm"); exts.add("html");
-			exts.add("css");
-
-			exts.add("cnf"); exts.add("conf"); exts.add("config");
-			exts.add("ini");
-			exts.add("properties");
-			exts.add("json");
-			exts.add("yml"); exts.add("yaml");
-			exts.add("xml");
-
-		}
-		if (true) {
-			exts.add("tsv"); exts.add("csv");
-			exts.add("avro"); exts.add("avsc");
-		}
-		if (true) {
-			exts.add("key");
-			exts.add("pub");
-			exts.add("crt");
-			exts.add("csr");
-			exts.add("pem");
-			exts.add("id_rsa");
-		}
-		if (true) {
-			exts.add("jar"); exts.add("war"); exts.add("ear");
-			exts.add("tar");
-			exts.add("bz2");
-			exts.add("gz");
-			exts.add("zip");
-			exts.add("lzh");
-		}
-		if (true) {
-			exts.add("mdb"); exts.add("accdb");
-			exts.add("xls"); exts.add("xlsx");
-			exts.add("pdf");
-			exts.add("txt");
-		}
-		if (true) {
-			exts.add("png");
-			exts.add("gif");
-			exts.add("jpg"); exts.add("jpeg");
-			exts.add("bmp");
-		}
-		if (true) {
-			exts.add("mp4");
-			exts.add("flv");
-			exts.add("avi");
-		}
 
 	}
 

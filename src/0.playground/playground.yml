@@ -1,0 +1,71 @@
+playground:
+  idx:
+    jdbc:
+      - {type: mariadb,  host: mariadb.0, username: root,     password: mariadb}
+      - {type: postgres, host: pgsql.0,   username: postgres, password: pgsql}
+    exts:
+      - c
+      - cpp
+      - cs
+      - h
+      - rs
+      - go
+      - java
+      - php
+      - pl
+      - py
+      - js
+      - sh
+      - bat
+      - bas
+      - frm
+      - cob
+      - sql
+      - ddl
+      - Makefile
+      - Dockerfile
+      - Vagrantfile
+      - htm
+      - html
+      - css
+      - cnf
+      - conf
+      - config
+      - ini
+      - properties
+      - json
+      - yml
+      - yaml
+      - xml
+      - tsv
+      - csv
+      - avro
+      - avsc
+      - key
+      - pub
+      - crt
+      - csr
+      - pem
+      - id_rsa
+      - jar
+      - war
+      - ear
+      - tar
+      - bz2
+      - gz
+      - zip
+      - lzh
+      - mdb
+      - accdb
+      - xls
+      - xlsx
+      - pdf
+      - txt
+      - png
+      - gif
+      - jpg
+      - jpeg
+      - bmp
+      - mp4
+      - flv
+      - avi

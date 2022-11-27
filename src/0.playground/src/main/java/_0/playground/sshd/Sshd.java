@@ -1,4 +1,4 @@
-package _0.playground;
+package _0.playground.sshd;
 
 import java.io.Closeable;
 import java.io.IOException;
