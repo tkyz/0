@@ -413,7 +413,7 @@ public final class Idx implements Closeable {
 						String lower = key.toLowerCase();
 						if (lower.endsWith(".mdb") || lower.endsWith(".accdb")) {
 
-							String target = key.replaceAll("//[^/]+", "");
+							String target = key.replaceAll("^//[^/]+", "");
 							if (target.matches("^[A-Za-z]\\$.*$")) {
 								target = target.replaceAll("(?<letter>[A-Za-z])\\$", "${letter}:");
 							}
@@ -617,17 +617,7 @@ public final class Idx implements Closeable {
 					continue;
 				}
 
-				String key_path = path.toAbsolutePath().toString();
-				key_path = key_path.replace("\\", "/");
-				if (key_path.startsWith("/")) {
-					key_path = key_path.replaceAll("^/+", "");
-				} else if (key_path.matches("^[A-Za-z]:/.*")) {
-					key_path = key_path.replaceAll("^(?<letter>[A-Za-z]):(?<path>.*)$", "${letter}\\$${path}");
-				} else {
-					throw new IllegalArgumentException(key_path);
-				}
-
-				String key = "//" + host_ + "/" + key_path + "/" + name;
+				String key = key_prefix + "/" + name;
 
 				set("table", key);
 
