@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 import com.healthmarketscience.jackcess.Database;
 import com.healthmarketscience.jackcess.DatabaseBuilder;
 import com.healthmarketscience.jackcess.Table;
+import com.healthmarketscience.jackcess.impl.UnsupportedCodecException;
+import com.microsoft.sqlserver.jdbc.SQLServerException;
 
 import _0.Jdbc;
 import _0._0;
@@ -70,6 +72,29 @@ public final class Idx implements Closeable {
 		query.append("  ,PRIMARY KEY (key) ");
 		query.append(")");
 		execute(query);
+
+		execute("DROP INDEX IF EXISTS [idx/idx1]");
+		execute("CREATE INDEX [idx/idx1] ON idx (type, key)");
+
+		List<String> types = new LinkedList<>();
+		types.add("file");
+		types.add("table");
+		for (String type : types) {
+
+			execute("DROP VIEW IF EXISTS [idx/" + type + "]");
+
+			query.setLength(0);
+			query.append("CREATE VIEW [idx/" + type + "] AS ");
+			query.append("  SELECT ");
+			query.append("       key ");
+			query.append("      ,val ");
+			query.append("    FROM ");
+			query.append("      idx ");
+			query.append("    WHERE ");
+			query.append("      type = '" + type + "' ");
+			execute(query);
+
+		}
 
 		log.info("{} init.", name);
 
@@ -334,45 +359,33 @@ public final class Idx implements Closeable {
 	public void file(final InetAddress host, final Path path, final FileFilter filter)
 			throws IOException {
 
-		String path_ = path.toString().replace("\\", "/");
+		InetAddress host_ = null == host || host.getHostAddress().startsWith("127.") ? _0.ip() : host;
 
-		Path target = null;
-		if (_0.windows) {
+		String path_ = null;
+		{
 
-			if (!path_.matches("^[A-Za-z]:/.*$")) {
-				throw new IllegalArgumentException(path_);
-			}
+			String str = path.toString().replace("\\", "/");
+			if (str.matches("^[A-Za-z]:.*$")) {
 
-			StringBuilder unc = new StringBuilder();
-			unc.append("//");
-			if (host.getHostAddress().startsWith("127.")) {
-				unc.append(_0.ip().getHostAddress());
+				StringBuilder sb = new StringBuilder();
+				sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${letter}").toLowerCase());
+				sb.append("$");
+				sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${path}"));
+
+				path_ = "/" + sb.toString();
+
+			} else if (str.startsWith("/") && !str.startsWith("//")) {
+				path_ = str;
+
 			} else {
-				unc.append(host.getHostAddress());
-			}
-			unc.append("/");
-			unc.append(path_.replaceAll("(?<letter>[A-Za-z]):(<?<path>.*)$", "${letter}").toLowerCase() + "$");
-			unc.append(path_.replaceAll("(?<letter>[A-Za-z]):(<?<path>.*)$", "${path}"));
-
-			target = Path.of(unc.toString());
-
-		} else if (_0.linux) {
-
-			if (null != host && !host.getHostAddress().startsWith("127.") && !_0.ip().getHostAddress().equals(host.getHostAddress())) {
-				throw new UnsupportedOperationException(host.getHostAddress());
+				throw new UnsupportedOperationException(str);
 			}
 
-			if (path_.startsWith("//") || !path_.startsWith("/")) {
-				throw new IllegalArgumentException(path_);
-			}
-
-			target = Path.of(path_);
-
-		} else {
-			throw new UnsupportedOperationException(path_);
 		}
 
-		Files.walkFileTree(target, new FileVisitor<Path>() {
+		String key_prefix = "//" + host_.getHostAddress() + path_;
+
+		Files.walkFileTree(Path.of(key_prefix), new FileVisitor<Path>() {
 
 			@Override
 			public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs)
@@ -386,23 +399,31 @@ public final class Idx implements Closeable {
 
 				if (filter.accept(file.toFile())) {
 
+					String     key = file.toString().replace('\\', '/');
+					JSONObject val = null;
+
+					try {
+						set("file", key, val);
+					} catch (SQLException e) {
+						log.trace("{}", file, e);
+					}
+
 					try {
 
-						String     key = null;
-						JSONObject val = null;
+						String lower = key.toLowerCase();
+						if (lower.endsWith(".mdb") || lower.endsWith(".accdb")) {
 
-						if (_0.windows) {
-							key = file.toString().replace("\\", "/");
+							String target = key.replaceAll("//[^/]+", "");
+							if (target.matches("^[A-Za-z]\\$.*$")) {
+								target = target.replaceAll("(?<letter>[A-Za-z])\\$", "${letter}:");
+							}
 
-						} else if (_0.linux) {
-							key = "//" + host.getHostAddress() + file;
+							table(host_, Path.of(target));
 
-						} else {
-							throw new UnsupportedOperationException(key);
 						}
 
-						set("file", key, val);
-
+					} catch (IOException e) {
+						log.trace("{}", file, e);
 					} catch (SQLException e) {
 						log.trace("{}", file, e);
 					}
@@ -475,8 +496,13 @@ public final class Idx implements Closeable {
 
 			List<String> schemas = new ArrayList<>();
 			try {
-				schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("table_schem")).toList());
-//				schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("TABLE_SCHEM")).toList());
+//				schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("table_schem")).toList());
+				schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("TABLE_SCHEM")).toList());
+			} catch (SQLServerException e) {
+				log.trace("{}", e.toString());
+				continue;
+			} catch (AbstractMethodError e) {
+				log.trace("{}", e.toString());
 			} catch (SQLException e) {
 				log.trace("", e);
 			}
@@ -498,6 +524,7 @@ public final class Idx implements Closeable {
 				}
 
 				for (Map<String, Object> tablemap : tablemaps) {
+
 					String catalog_ = _0.nvl(catalog, (String)tablemap.get("TABLE_CAT"));
 					String schema_  = _0.nvl(schema,  (String)tablemap.get("TABLE_SCHEM"));
 					String table_   = (String)tablemap.get("TABLE_NAME");
@@ -537,13 +564,37 @@ public final class Idx implements Closeable {
 
 	}
 
-	public void table(InetAddress host, Path file)
+	public void table(InetAddress host, Path path)
 			throws IOException, SQLException {
 
-		String host_ = host.getHostAddress();
+		InetAddress host_ = null == host || host.getHostAddress().startsWith("127.") ? _0.ip() : host;
+
+		String path_ = null;
+		{
+
+			String str = path.toString().replace("\\", "/");
+			if (str.matches("^[A-Za-z]:.*$")) {
+
+				StringBuilder sb = new StringBuilder();
+				sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${letter}").toLowerCase());
+				sb.append("$");
+				sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${path}"));
+
+				path_ = "/" + sb.toString();
+
+			} else if (str.startsWith("/") && !str.startsWith("//")) {
+				path_ = str;
+
+			} else {
+				throw new UnsupportedOperationException(str);
+			}
+
+		}
+
+		String key_prefix = "//" + host_.getHostAddress() + path_;
 
 		// TODO: InputStream
-		try (Database mdb = DatabaseBuilder.open(file)) {
+		try (Database mdb = DatabaseBuilder.open(Path.of(key_prefix))) {
 
 			Table sys_table = mdb.getSystemTable("MSysObjects");
 			for (com.healthmarketscience.jackcess.Row sys_row : sys_table) {
@@ -566,7 +617,7 @@ public final class Idx implements Closeable {
 					continue;
 				}
 
-				String key_path = file.toAbsolutePath().toString();
+				String key_path = path.toAbsolutePath().toString();
 				key_path = key_path.replace("\\", "/");
 				if (key_path.startsWith("/")) {
 					key_path = key_path.replaceAll("^/+", "");
@@ -637,6 +688,8 @@ public final class Idx implements Closeable {
 //
 //			}
 
+		} catch (UnsupportedCodecException e) {
+			log.trace("{}", e.toString());
 		}
 
 	}

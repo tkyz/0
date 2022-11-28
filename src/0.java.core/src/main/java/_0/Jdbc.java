@@ -10,7 +10,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -424,10 +423,6 @@ public final class Jdbc {
 			while (rs.next()) {
 				list.add(map(rs));
 			}
-		} catch (AbstractMethodError e) {
-			log.trace("{}", catalog, e);
-		} catch (SQLFeatureNotSupportedException e) {
-			// pass
 		}
 
 		return list;
@@ -463,7 +458,7 @@ public final class Jdbc {
 
 			}
 		} catch (SQLException e) {
-			log.trace("", e);
+			log.trace("{}", e.toString());
 		}
 
 		List<Map<String, Object>> list = new LinkedList<>();

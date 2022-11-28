@@ -9,7 +9,7 @@
 
     <version>0.0.1-SNAPSHOT</version>
 
-    <java.version>19</java.version>
+    <java.version>18</java.version>
     <java.encode>UTF-8</java.encode>
 
     <maven.compiler.target>${java.version}</maven.compiler.target>

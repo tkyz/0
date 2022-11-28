@@ -139,7 +139,7 @@ public final class _0 {
 	 * @return true: メインスレッドの場合、false:それ以外の場合
 	 */
 	public static final boolean main() {
-		return 1 == Thread.currentThread().threadId();
+		return 1 == Thread.currentThread().getId();
 	}
 
 	/**
