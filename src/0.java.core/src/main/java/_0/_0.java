@@ -42,6 +42,9 @@ public final class _0 {
 
 	public static final String encoding = nvl(System.getProperty("native.encoding"), System.getProperty("file.encoding"));
 
+	/** 論理プロセッサ数 */
+	public static final int availableProcessors = Runtime.getRuntime().availableProcessors();
+
 	private static final SimpleDateFormat fmt_ymdhmss = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
 	private static final DecimalFormat fmt_size = new DecimalFormat("#,##0.00");

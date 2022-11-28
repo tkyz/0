@@ -18,6 +18,7 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.file.Path;
@@ -25,6 +26,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -32,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -47,6 +51,8 @@ import _0.playground.sshd.Sshd;
 public final class Main {
 
 	private static final Logger log = LoggerFactory.getLogger(Main.class);
+
+	public static ExecutorService worker = Executors.newFixedThreadPool(Math.min(1, _0.availableProcessors >> 1));
 
 	private static InetAddress ip = null;
 
@@ -70,20 +76,8 @@ public final class Main {
 			sshd = sshd();
 			idx  = idx();
 
+			cli();
 //			Thread.sleep(Long.MAX_VALUE);
-			try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
-				while (true) {
-
-					String line = in.readLine();
-
-					if ("exit".equals(line)) {
-						break;
-					}
-
-					System.out.println(line);
-
-				}
-			}
 
 		} finally {
 			_0.close(sshd);
@@ -106,6 +100,13 @@ public final class Main {
 		@SuppressWarnings("unchecked")
 		Collection<Map<String, Object>> hosts = (Collection<Map<String, Object>>)selector.get("playground").get("idx").get("hosts").val();
 
+		// TODO: hostsに追加
+//		for (int i = 0; i <= 'Z' - 'A'; i++) {
+//			idx.file(ip, Path.of((char)('A' + i) + ":/"), exts_filter);
+//		}
+//		idx.file(ip, _0.userhome, exts_filter);
+//		idx.table(Idx.jdbc());
+
 		FileFilter exts_filter = f -> {
 
 			String ext = f.getName().toString().toLowerCase();
@@ -124,30 +125,56 @@ public final class Main {
 
 		};
 
-		Idx idx = new Idx();
-
-		idx.table(Idx.jdbc());
+		// ip毎に集約
+		Map<String, List<Map<String, Object>>> ip_hosts = new HashMap<>();
 		for (Map<String, Object> host_map : hosts) {
 
-			if ("file".equals(host_map.get("type"))) {
+			String host = (String)host_map.get("host");
+			if (null == host) {
+				host = ip.getHostAddress();
+			}
 
-				String host = (String)host_map.get("host");
-				String path = (String)host_map.get("path");
+			String ip = null;
+			try {
+				ip = InetAddress.getByName(host).getHostAddress();
+			} catch (UnknownHostException e) {
+				continue;
+			}
 
-				if (null != host) {
-					idx.file(InetAddress.getByName(host), Path.of(path), exts_filter);
+			if (!ip_hosts.containsKey(ip)) {
+				ip_hosts.put(ip, new LinkedList<>());
+			}
 
-				} else if (_0.windows) {
-					for (int i = 0; i <= 'Z' - 'A'; i++) {
-						idx.file(ip, Path.of((char)('A' + i) + ":/"), exts_filter);
+			ip_hosts.get(ip).add(host_map);
+
+		}
+
+		Idx idx = new Idx();
+
+		// ip毎にスレッド化
+		for (Entry<String, List<Map<String, Object>>> entry : ip_hosts.entrySet()) {
+
+			String host = entry.getKey();
+
+			worker.submit(() -> {
+
+				for (Map<String, Object> map : entry.getValue()) {
+
+					if ("file".equals(map.get("type"))) {
+
+						String path = (String)map.get("path");
+
+						idx.file(InetAddress.getByName(host), Path.of(path), exts_filter);
+
+					} else {
+						idx.table(new Jdbc(map));
 					}
-				} else {
-					idx.file(ip, _0.userhome, exts_filter);
+
 				}
 
-			} else {
-				idx.table(new Jdbc(host_map));
-			}
+				return null;
+
+			});
 
 		}
 
@@ -287,6 +314,25 @@ public final class Main {
 
 			}
 
+		}
+
+	}
+
+	private static void cli()
+			throws IOException {
+
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
+			while (true) {
+
+				String line = in.readLine();
+
+				if ("exit".equals(line)) {
+					break;
+				}
+
+				System.out.println(line);
+
+			}
 		}
 
 	}

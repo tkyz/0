@@ -1,12 +1,15 @@
 playground:
+
   sshd:
-    enabled: true
+    schedule: start
+    port: 0
+
   idx:
-    enabled: true
+    schedule: 00:00:00
     hosts:
       - {host: mariadb.0, type: mariadb,  username: root,     password: mariadb}
       - {host: pgsql.0,   type: postgres, username: postgres, password: pgsql}
-      - {host: null,      type: file,     path: /}
+      - {host: null,      type: file}
     exts:
       - c
       - cpp
@@ -73,3 +76,8 @@ playground:
       - mp4
       - flv
       - avi
+
+  dataset:
+    schedule: 03:00:00
+    keys:
+      - //0.0.0.0/${HOME}/src/0.playground/idx.db/idx
