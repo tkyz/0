@@ -2,6 +2,7 @@ package _0;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class ValSelector {
 
@@ -34,6 +35,10 @@ public final class ValSelector {
 
 	public void reset() {
 		select = root;
+	}
+
+	public Set<?> keys() {
+		return ((Map<?, ?>)select).keySet();
 	}
 
 	public ValSelector get(Object... keys) {

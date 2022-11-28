@@ -1,11 +1,14 @@
 playground:
 
+  debug:
+    schedule: start
+
   sshd:
     schedule: start
     port: 0
 
   idx:
-    schedule: 00:00:00
+    schedule: start
     hosts:
       - {host: mariadb.0, type: mariadb,  username: root,     password: mariadb}
       - {host: pgsql.0,   type: postgres, username: postgres, password: pgsql}
@@ -78,6 +81,6 @@ playground:
       - avi
 
   dataset:
-    schedule: 03:00:00
+    schedule: start
     keys:
       - //0.0.0.0/${HOME}/src/0.playground/idx.db/idx

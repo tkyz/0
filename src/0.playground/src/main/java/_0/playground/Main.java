@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -71,10 +72,39 @@ public final class Main {
 			ip       = _0.ip();
 			selector = ValSelector.of(yml("playground.yml"));
 
-			debug();
+			for (Object key : selector.get("playground").keys()) {
 
-			sshd = sshd();
-			idx  = idx();
+				selector.reset();
+
+				Object schedule = selector.get("playground", key, "schedule").val();
+				if (null == schedule) {
+					continue;
+				}
+
+				// TODO: args
+				// TODO: schedule
+				// TODO: closeable
+
+				Method method = null;
+				try {
+					method = Main.class.getDeclaredMethod(String.valueOf(key));
+				} catch (NoSuchMethodException e) {
+					log.trace("{}", e.toString());
+					continue;
+				}
+
+				Object retval = null;
+				if ("start".equals(schedule)) {
+					retval = method.invoke(null);
+				}
+
+				if ("sshd".equals(key)) {
+					sshd = (Sshd)retval;
+				} else if ("idx".equals(key)) {
+					idx  = (Idx)retval;
+				}
+
+			}
 
 			cli();
 //			Thread.sleep(Long.MAX_VALUE);
@@ -88,17 +118,20 @@ public final class Main {
 
 	public static Sshd sshd()
 			throws IOException {
-		return new Sshd(0);
+
+		int port = selector.get("playground", "sshd", "port").val();
+
+		return new Sshd(port);
+
 	}
 
 	public static Idx idx()
 			throws IOException, SQLException {
 
-		@SuppressWarnings("unchecked")
-		Set<String> exts_set = new HashSet<>((Collection<String>)selector.get("playground").get("idx").get("exts").val());
+		Idx idx = null;
 
-		@SuppressWarnings("unchecked")
-		Collection<Map<String, Object>> hosts = (Collection<Map<String, Object>>)selector.get("playground").get("idx").get("hosts").val();
+		Collection<Map<String, Object>> hosts = selector.get("playground", "idx", "hosts").val();
+		Set<String> exts = new HashSet<>(selector.get("playground", "idx", "exts").val());
 
 		// TODO: hostsに追加
 //		for (int i = 0; i <= 'Z' - 'A'; i++) {
@@ -121,7 +154,7 @@ public final class Main {
 				ext = ext.substring(lastidx + 1);
 			}
 
-			return exts_set.contains(ext.toLowerCase());
+			return exts.contains(ext.toLowerCase());
 
 		};
 
@@ -149,11 +182,12 @@ public final class Main {
 
 		}
 
-		Idx idx = new Idx();
+		idx = new Idx();
 
 		// ip毎にスレッド化
 		for (Entry<String, List<Map<String, Object>>> entry : ip_hosts.entrySet()) {
 
+			Idx    idx_ = idx;
 			String host = entry.getKey();
 
 			worker.submit(() -> {
@@ -164,10 +198,10 @@ public final class Main {
 
 						String path = (String)map.get("path");
 
-						idx.file(InetAddress.getByName(host), Path.of(path), exts_filter);
+						idx_.file(InetAddress.getByName(host), Path.of(path), exts_filter);
 
 					} else {
-						idx.table(new Jdbc(map));
+						idx_.table(new Jdbc(map));
 					}
 
 				}
@@ -196,6 +230,11 @@ public final class Main {
 
 		return map;
 
+	}
+
+	private static void debug()
+			throws IOException {
+		debug(new String[0]);
 	}
 
 	private static void debug(final String... args)
