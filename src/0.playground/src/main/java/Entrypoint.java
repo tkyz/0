@@ -5,8 +5,8 @@ public final class Entrypoint {
 	private Entrypoint() {
 	}
 
-	public static final void main(final String... args)
-			throws Exception {
+	public static void main(final String... args)
+			throws Throwable {
 		Main.main(args);
 	}
 

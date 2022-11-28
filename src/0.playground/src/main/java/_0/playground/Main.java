@@ -7,6 +7,7 @@ import java.awt.datatransfer.FlavorEvent;
 import java.awt.datatransfer.FlavorListener;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -47,6 +48,7 @@ import org.yaml.snakeyaml.Yaml;
 import _0.Jdbc;
 import _0.ValSelector;
 import _0._0;
+import _0.debug.StopWatch;
 import _0.playground.sshd.Sshd;
 
 public final class Main {
@@ -55,21 +57,26 @@ public final class Main {
 
 	public static ExecutorService worker = Executors.newFixedThreadPool(Math.min(1, _0.availableProcessors >> 1));
 
+	private static List<Closeable> closeables = new LinkedList<>();
+
 	private static InetAddress ip = null;
 
 	private Main() {
 	}
 
 	public static final void main(final String... args)
-			throws Exception {
+			throws Throwable {
 
-		Sshd sshd = null;
-		Idx  idx  = null;
+		StopWatch sw = new StopWatch();
 		try {
+
+			log.trace("start");
+
+			debug();
 
 			ip = _0.ip();
 
-			ValSelector selector = ValSelector.of(yml("playground.yml")).get("playground").of();
+			ValSelector selector = ValSelector.of(map("playground.yml")).get("playground").of();
 			for (Object key : selector.keys()) {
 
 				ValSelector yml = selector.get(key).of();
@@ -96,10 +103,8 @@ public final class Main {
 					retval = method.invoke(null, yml);
 				}
 
-				if ("sshd".equals(key)) {
-					sshd = (Sshd)retval;
-				} else if ("idx".equals(key)) {
-					idx  = (Idx)retval;
+				if (retval instanceof Closeable) {
+					closeables.add((Closeable)retval);
 				}
 
 			}
@@ -107,9 +112,20 @@ public final class Main {
 			cli();
 //			Thread.sleep(Long.MAX_VALUE);
 
+			log.trace("end time={}", sw.stop());
+
+		} catch (Throwable e) {
+			log.trace("err time={}", sw.stop(), e);
+			throw e;
+
 		} finally {
-			_0.close(sshd);
-			_0.close(idx);
+
+			worker.shutdown();
+
+			while (!closeables.isEmpty()) {
+				_0.close(closeables.remove(0));
+			}
+
 		}
 
 	}
@@ -421,7 +437,7 @@ public final class Main {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static Map<String, Object> yml(String file)
+	public static Map<String, Object> map(String file)
 			throws IOException {
 
 		Map<String, Object> map = null;

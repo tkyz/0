@@ -1,8 +1,5 @@
 playground:
 
-  debug:
-    schedule: start
-
   sshd:
     schedule: start
     port: 0
