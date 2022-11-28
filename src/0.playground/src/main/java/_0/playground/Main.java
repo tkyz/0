@@ -57,8 +57,6 @@ public final class Main {
 
 	private static InetAddress ip = null;
 
-	private static ValSelector selector = null;
-
 	private Main() {
 	}
 
@@ -69,14 +67,14 @@ public final class Main {
 		Idx  idx  = null;
 		try {
 
-			ip       = _0.ip();
-			selector = ValSelector.of(yml("playground.yml"));
+			ip = _0.ip();
 
-			for (Object key : selector.get("playground").keys()) {
+			ValSelector selector = ValSelector.of(yml("playground.yml")).get("playground").of();
+			for (Object key : selector.keys()) {
 
-				selector.reset();
+				ValSelector yml = selector.get(key).of();
 
-				Object schedule = selector.get("playground", key, "schedule").val();
+				Object schedule = yml.get("schedule").val();
 				if (null == schedule) {
 					continue;
 				}
@@ -87,7 +85,7 @@ public final class Main {
 
 				Method method = null;
 				try {
-					method = Main.class.getDeclaredMethod(String.valueOf(key));
+					method = Main.class.getDeclaredMethod(String.valueOf(key), ValSelector.class);
 				} catch (NoSuchMethodException e) {
 					log.trace("{}", e.toString());
 					continue;
@@ -95,7 +93,7 @@ public final class Main {
 
 				Object retval = null;
 				if ("start".equals(schedule)) {
-					retval = method.invoke(null);
+					retval = method.invoke(null, yml);
 				}
 
 				if ("sshd".equals(key)) {
@@ -116,22 +114,22 @@ public final class Main {
 
 	}
 
-	public static Sshd sshd()
+	protected static Sshd sshd(ValSelector yml)
 			throws IOException {
 
-		int port = selector.get("playground", "sshd", "port").val();
+		int port = yml.get("port").val();
 
 		return new Sshd(port);
 
 	}
 
-	public static Idx idx()
+	protected static Idx idx(ValSelector yml)
 			throws IOException, SQLException {
 
 		Idx idx = null;
 
-		Collection<Map<String, Object>> hosts = selector.get("playground", "idx", "hosts").val();
-		Set<String> exts = new HashSet<>(selector.get("playground", "idx", "exts").val());
+		Collection<Map<String, Object>> hosts = yml.get("hosts").val();
+		Set<String> exts = new HashSet<>(yml.get("exts").val());
 
 		// TODO: hostsに追加
 //		for (int i = 0; i <= 'Z' - 'A'; i++) {
@@ -197,6 +195,9 @@ public final class Main {
 					if ("file".equals(map.get("type"))) {
 
 						String path = (String)map.get("path");
+						if (null == path) {
+							path = _0.userhome.toString();
+						}
 
 						idx_.file(InetAddress.getByName(host), Path.of(path), exts_filter);
 
@@ -218,21 +219,7 @@ public final class Main {
 
 	}
 
-	@SuppressWarnings("unchecked")
-	public static Map<String, Object> yml(String file)
-			throws IOException {
-
-		Map<String, Object> map = null;
-
-		try (InputStream in = new FileInputStream(Path.of(file).toFile())) {
-			map = (Map<String, Object>)new Yaml().loadAs(in, Map.class);
-		}
-
-		return map;
-
-	}
-
-	private static void debug()
+	protected static void debug(ValSelector yml)
 			throws IOException {
 		debug(new String[0]);
 	}
@@ -430,6 +417,20 @@ public final class Main {
 			}
 
 		});
+
+	}
+
+	@SuppressWarnings("unchecked")
+	public static Map<String, Object> yml(String file)
+			throws IOException {
+
+		Map<String, Object> map = null;
+
+		try (InputStream in = new FileInputStream(Path.of(file).toFile())) {
+			map = (Map<String, Object>)new Yaml().loadAs(in, Map.class);
+		}
+
+		return map;
 
 	}
 

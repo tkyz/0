@@ -33,6 +33,18 @@ public final class ValSelector {
 
 	}
 
+	public ValSelector of() {
+
+		ValSelector selector = new ValSelector();
+		selector.root = this.select;
+		selector.reset();
+
+		reset();
+
+		return selector;
+
+	}
+
 	public void reset() {
 		select = root;
 	}
