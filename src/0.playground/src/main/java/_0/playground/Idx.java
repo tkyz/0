@@ -14,6 +14,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
@@ -361,31 +362,9 @@ public final class Idx implements Closeable {
 
 		InetAddress host_ = null == host || host.getHostAddress().startsWith("127.") ? _0.ip() : host;
 
-		String path_ = null;
-		{
+		Path uncpath = _0.uncpath(host, path);
 
-			String str = path.toString().replace("\\", "/");
-			if (str.matches("^[A-Za-z]:.*$")) {
-
-				StringBuilder sb = new StringBuilder();
-				sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${letter}").toLowerCase());
-				sb.append("$");
-				sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${path}"));
-
-				path_ = "/" + sb.toString();
-
-			} else if (str.startsWith("/") && !str.startsWith("//")) {
-				path_ = str;
-
-			} else {
-				throw new UnsupportedOperationException(str);
-			}
-
-		}
-
-		String key_prefix = "//" + host_.getHostAddress() + path_;
-
-		Files.walkFileTree(Path.of(key_prefix), new FileVisitor<Path>() {
+		Files.walkFileTree(uncpath, new FileVisitor<Path>() {
 
 			@Override
 			public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs)
@@ -394,38 +373,40 @@ public final class Idx implements Closeable {
 			}
 
 			@Override
-			public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs)
+			public FileVisitResult visitFile(final Path uncpath, final BasicFileAttributes attrs)
 					throws IOException {
 
-				if (filter.accept(file.toFile())) {
+				if (filter.accept(uncpath.toFile())) {
 
-					String     key = file.toString().replace('\\', '/');
-					JSONObject val = null;
+					String key      = uncpath.toString().replace('\\', '/');
+					String hostpath = _0.hostpath(uncpath);
 
 					try {
+
+						Map<String, Object> val = new HashMap<>();
+						val.put("host", host_.getHostAddress());
+						val.put("path", hostpath);
+
 						set("file", key, val);
+
 					} catch (SQLException e) {
-						log.trace("{}", file, e);
+						log.trace("{}", uncpath, e);
 					}
 
-					try {
+					String lower = key.toLowerCase();
+					if (lower.endsWith(".mdb") || lower.endsWith(".accdb")) {
 
-						String lower = key.toLowerCase();
-						if (lower.endsWith(".mdb") || lower.endsWith(".accdb")) {
+						try {
 
-							String target = key.replaceAll("^//[^/]+", "");
-							if (target.matches("^[A-Za-z]\\$.*$")) {
-								target = target.replaceAll("(?<letter>[A-Za-z])\\$", "${letter}:");
-							}
+							table(host_, Path.of(hostpath));
 
-							table(host_, Path.of(target));
+						} catch (IOException e) {
+							log.trace("{}", uncpath, e);
 
+						} catch (SQLException e) {
+							log.trace("{}", uncpath, e);
 						}
 
-					} catch (IOException e) {
-						log.trace("{}", file, e);
-					} catch (SQLException e) {
-						log.trace("{}", file, e);
 					}
 
 				}
@@ -501,8 +482,10 @@ public final class Idx implements Closeable {
 			} catch (SQLServerException e) {
 				log.trace("{}", e.toString());
 				continue;
+			} catch (SQLFeatureNotSupportedException e) {
+				// pass
 			} catch (AbstractMethodError e) {
-				log.trace("{}", e.toString());
+				// pass
 			} catch (SQLException e) {
 				log.trace("", e);
 			}
@@ -564,37 +547,15 @@ public final class Idx implements Closeable {
 
 	}
 
-	public void table(InetAddress host, Path path)
+	public void table(final InetAddress host, final Path path)
 			throws IOException, SQLException {
 
 		InetAddress host_ = null == host || host.getHostAddress().startsWith("127.") ? _0.ip() : host;
 
-		String path_ = null;
-		{
-
-			String str = path.toString().replace("\\", "/");
-			if (str.matches("^[A-Za-z]:.*$")) {
-
-				StringBuilder sb = new StringBuilder();
-				sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${letter}").toLowerCase());
-				sb.append("$");
-				sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${path}"));
-
-				path_ = "/" + sb.toString();
-
-			} else if (str.startsWith("/") && !str.startsWith("//")) {
-				path_ = str;
-
-			} else {
-				throw new UnsupportedOperationException(str);
-			}
-
-		}
-
-		String key_prefix = "//" + host_.getHostAddress() + path_;
+		Path uncpath = _0.uncpath(host_, path);
 
 		// TODO: InputStream
-		try (Database mdb = DatabaseBuilder.open(Path.of(key_prefix))) {
+		try (Database mdb = DatabaseBuilder.open(uncpath)) {
 
 			Table sys_table = mdb.getSystemTable("MSysObjects");
 			for (com.healthmarketscience.jackcess.Row sys_row : sys_table) {
@@ -617,7 +578,7 @@ public final class Idx implements Closeable {
 					continue;
 				}
 
-				String key = key_prefix + "/" + name;
+				String key = uncpath.toString().replace('\\', '/') + "/" + name;
 
 				set("table", key);
 

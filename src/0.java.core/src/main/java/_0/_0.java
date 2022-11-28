@@ -40,7 +40,7 @@ public final class _0 {
 
 	public static final Path userhome = Path.of(System.getProperty("user.home"));
 
-	public static final String encoding = _0.nvl(System.getProperty("native.encoding"), System.getProperty("file.encoding"));
+	public static final String encoding = nvl(System.getProperty("native.encoding"), System.getProperty("file.encoding"));
 
 	private static final SimpleDateFormat fmt_ymdhmss = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
@@ -665,6 +665,58 @@ public final class _0 {
 		times[2] = attrs.lastModifiedTime().toMillis();
 
 		return max(times);
+
+	}
+
+	public static Path uncpath(final InetAddress host, final Path path)
+			throws IOException {
+
+		String unc = null;
+
+		String str = path.toString().replace("\\", "/");
+		if (str.startsWith("//")) {
+			unc = str;
+
+		} else if (str.startsWith("/")) {
+			unc = "\\\\" + host.getHostAddress() + str;
+
+		} else if (str.matches("^[A-Za-z]:.*$")) {
+
+			StringBuilder sb = new StringBuilder();
+			sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${letter}").toLowerCase());
+			sb.append("$");
+			sb.append(str.replaceAll("(?<letter>[A-Za-z]):(?<path>.*)", "${path}"));
+
+			unc = "\\\\" + host.getHostAddress() + "/" + sb.toString();
+
+		} else {
+			throw new UnsupportedOperationException(str);
+		}
+
+		return Path.of(unc);
+
+	}
+
+	public static String hostpath(Path unc) {
+
+		String path = unc.toString().replace('\\', '/');
+
+		if (path.startsWith("//")) {
+			path = path.replaceAll("^//[^/]+", "");
+		}
+
+		if (path.matches("/[A-Za-z]\\$")) {
+
+			StringBuilder sb = new StringBuilder();
+			sb.append(path.replaceAll("/(?<letter>[A-Za-z])\\$(?<path>.*)$", "${letter}").toUpperCase());
+			sb.append(":");
+			sb.append(path.replaceAll("/(?<letter>[A-Za-z])\\$(?<path>.*)$", "${path}"));
+
+			path = sb.toString();
+
+		}
+
+		return path;
 
 	}
 

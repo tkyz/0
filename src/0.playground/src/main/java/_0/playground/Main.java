@@ -100,11 +100,15 @@ public final class Main {
 	public static Idx idx()
 			throws IOException, SQLException {
 
+		@SuppressWarnings("unchecked")
 		Set<String> exts_set = new HashSet<>((Collection<String>)selector.get("playground").get("idx").get("exts").val());
+
+		@SuppressWarnings("unchecked")
+		Collection<Map<String, Object>> hosts = (Collection<Map<String, Object>>)selector.get("playground").get("idx").get("hosts").val();
 
 		FileFilter exts_filter = f -> {
 
-			String ext = f.getName().toString();
+			String ext = f.getName().toString().toLowerCase();
 
 			int lastidx = ext.lastIndexOf("/");
 			if (-1 < lastidx) {
@@ -116,19 +120,19 @@ public final class Main {
 				ext = ext.substring(lastidx + 1);
 			}
 
-			return exts_set.contains(ext);
+			return exts_set.contains(ext.toLowerCase());
 
 		};
 
 		Idx idx = new Idx();
 
 		idx.table(Idx.jdbc());
-		for (Map<String, Object> map : (Collection<Map<String, Object>>)selector.get("playground").get("idx").get("hosts").val()) {
+		for (Map<String, Object> host_map : hosts) {
 
-			if ("file".equals(map.get("type"))) {
+			if ("file".equals(host_map.get("type"))) {
 
-				String host = (String)map.get("host");
-				String path = (String)map.get("path");
+				String host = (String)host_map.get("host");
+				String path = (String)host_map.get("path");
 
 				if (null != host) {
 					idx.file(InetAddress.getByName(host), Path.of(path), exts_filter);
@@ -142,7 +146,7 @@ public final class Main {
 				}
 
 			} else {
-				idx.table(new Jdbc(map));
+				idx.table(new Jdbc(host_map));
 			}
 
 		}
