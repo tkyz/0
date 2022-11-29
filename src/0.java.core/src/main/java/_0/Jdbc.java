@@ -309,12 +309,12 @@ public final class Jdbc {
 
 		Map<Integer, String> types = new HashMap<>();
 		types.put(Types.BIT,           "INTEGER");
-		types.put(Types.BOOLEAN,       "INTEGEE");
-		types.put(Types.TINYINT,       "INTEGEE");
-		types.put(Types.SMALLINT,      "INTEGEE");
-		types.put(Types.INTEGER,       "INTEGEE");
-		types.put(Types.BIGINT,        "INTEGEE");
-		types.put(Types.NUMERIC,       "INTEGEE");
+		types.put(Types.BOOLEAN,       "INTEGER");
+		types.put(Types.TINYINT,       "INTEGER");
+		types.put(Types.SMALLINT,      "INTEGER");
+		types.put(Types.INTEGER,       "INTEGER");
+		types.put(Types.BIGINT,        "INTEGER");
+		types.put(Types.NUMERIC,       "INTEGER");
 		types.put(Types.FLOAT,         "REAL");
 		types.put(Types.DOUBLE,        "REAL");
 		types.put(Types.REAL,          "REAL");
@@ -597,7 +597,7 @@ public final class Jdbc {
 //
 //		List<Map<String, Object>> entities = new LinkedList<>();
 //
-//		try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
+//		try (PreparedStatement stmt = con.prepareStatement(query)) {
 //
 //			stmt.setFetchSize(fetchsize);
 //			bind(stmt, params);
@@ -648,7 +648,7 @@ public final class Jdbc {
 
 		long cnt = 0;
 
-		try (PreparedStatement in_stmt = in.prepareStatement(in_query.toString())) {
+		try (PreparedStatement in_stmt = in.prepareStatement(in_query)) {
 
 			in_stmt.setFetchSize(fetchsize);
 
@@ -686,7 +686,7 @@ public final class Jdbc {
 						}
 						out_values.append(")");
 
-						out_query_base.append("INSERT INTO " );
+						out_query_base.append("INSERT INTO ");
 						out_query_base.append("    " + out_table + " (");
 						for (Iterator<String> ite = map.keySet().iterator(); ite.hasNext();) {
 							out_values.append(esc(out, ite.next()));
