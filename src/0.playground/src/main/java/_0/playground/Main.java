@@ -55,7 +55,7 @@ public final class Main {
 
 	private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-	public static ExecutorService worker = Executors.newFixedThreadPool(Math.min(1, _0.availableProcessors >> 1));
+	public static ExecutorService worker = Executors.newFixedThreadPool(Math.max(1, _0.availableProcessors >> 1));
 
 	private static List<Closeable> closeables = new LinkedList<>();
 

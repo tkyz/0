@@ -384,8 +384,9 @@ public final class Idx implements Closeable {
 					try {
 
 						Map<String, Object> val = new HashMap<>();
-						val.put("host", host_.getHostAddress());
-						val.put("path", hostpath);
+						val.put("host",   host_.getHostAddress());
+						val.put("path",   hostpath);
+						val.put("latest", _0.ymdhmss(_0.latest(attrs)));
 
 						set("file", key, val);
 
@@ -525,7 +526,16 @@ public final class Idx implements Closeable {
 						tbl_key = "//" + jdbc.host() + "/" + String.join("/", Arrays.asList(catalog_, schema_, table_).stream().filter(Objects::nonNull).toList());
 					}
 
-					set("table", tbl_key, jdbc.attrs());
+					Map<String, Object> val = jdbc.attrs();
+					if (null != catalog_) {
+						val.put("catalog", catalog_);
+					}
+					if (null != schema_) {
+						val.put("schema", schema_);
+					}
+					val.put("table", table_);
+
+					set("table", tbl_key, val);
 
 //					List<Map<String, Object>> columnmaps = Jdbc.columns(con, catalog_, schema_, table_);
 //					for (Map<String, Object> columnmap : columnmaps) {
@@ -554,6 +564,9 @@ public final class Idx implements Closeable {
 
 		Path uncpath = _0.uncpath(host_, path);
 
+		String key      = uncpath.toString().replace('\\', '/') + "/" + name;
+		String hostpath = _0.hostpath(uncpath);
+
 		// TODO: InputStream
 		try (Database mdb = DatabaseBuilder.open(uncpath)) {
 
@@ -578,9 +591,12 @@ public final class Idx implements Closeable {
 					continue;
 				}
 
-				String key = uncpath.toString().replace('\\', '/') + "/" + name;
+				Map<String, Object> val = new HashMap<>();
+				val.put("host",  host_.getHostAddress());
+				val.put("path",  hostpath);
+				val.put("table", name);
 
-				set("table", key);
+				set("table", key, val);
 
 //				List<? extends Column> columns = table.getColumns();
 //				for (Column column : columns) {
@@ -639,8 +655,14 @@ public final class Idx implements Closeable {
 //
 //			}
 
+		} catch (IllegalArgumentException e) {
+			log.trace("{} {} {}", host_.getHostAddress(), hostpath, e.toString());
+
+		} catch (IOException e) {
+			log.trace("{} {} {}", host_.getHostAddress(), hostpath, e.toString());
+
 		} catch (UnsupportedCodecException e) {
-			log.trace("{}", e.toString());
+			log.trace("{} {} {}", host_.getHostAddress(), hostpath, e.toString());
 		}
 
 	}

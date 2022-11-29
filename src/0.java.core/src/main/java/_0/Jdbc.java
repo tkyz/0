@@ -261,19 +261,21 @@ public final class Jdbc {
 //		con.setAutoCommit(false);
 
 		if (log.isDebugEnabled()) {
-			DatabaseMetaData meta = con.getMetaData();
-			log.debug("---");
-			log.debug("connect:");
-			log.debug("  database:");
-			log.debug("    name: {}",       meta.getDatabaseProductName());
-			log.debug("    version: {}",    meta.getDatabaseProductVersion());
-			log.debug("  jdbc:");
-			log.debug("    version: {}.{}", meta.getJDBCMajorVersion(), meta.getJDBCMinorVersion());
-			log.debug("    driver:");
-			log.debug("      class: {}",    driver);
-			log.debug("      name: {}",     meta.getDriverName());
-			log.debug("      version: {}",  meta.getDriverVersion());
-			log.debug("    uri: {}",        uri);
+			synchronized (log) {
+				DatabaseMetaData meta = con.getMetaData();
+				log.debug("---");
+				log.debug("connect:");
+				log.debug("  database:");
+				log.debug("    name: {}",       meta.getDatabaseProductName());
+				log.debug("    version: {}",    meta.getDatabaseProductVersion());
+				log.debug("  jdbc:");
+				log.debug("    version: {}.{}", meta.getJDBCMajorVersion(), meta.getJDBCMinorVersion());
+				log.debug("    driver:");
+				log.debug("      class: {}",    driver);
+				log.debug("      name: {}",     meta.getDriverName());
+				log.debug("      version: {}",  meta.getDriverVersion());
+				log.debug("    uri: {}",        uri);
+			}
 		}
 
 		return con;
