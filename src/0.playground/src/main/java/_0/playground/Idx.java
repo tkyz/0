@@ -130,7 +130,7 @@ public final class Idx implements Closeable {
 		map.put("val",      val);
 
 		cache.put(key, map);
-log.debug("{}", key);
+
 		// TODO: cachesize
 		if (8192 <= cache.size()) {
 			flush();

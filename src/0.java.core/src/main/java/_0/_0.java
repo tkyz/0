@@ -17,6 +17,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -45,6 +46,7 @@ public final class _0 {
 	/** 論理プロセッサ数 */
 	public static final int availableProcessors = Runtime.getRuntime().availableProcessors();
 
+	private static final SimpleDateFormat fmt_ymdhms  = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	private static final SimpleDateFormat fmt_ymdhmss = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
 	private static final DecimalFormat fmt_size = new DecimalFormat("#,##0.00");
@@ -644,6 +646,22 @@ public final class _0 {
 
 	}
 
+	public static final String ymdhms() {
+		return ymdhms(System.currentTimeMillis());
+	}
+
+	public static final synchronized String ymdhms(final long millis) {
+
+		String val = null;
+
+		synchronized (fmt_ymdhms) {
+			val = fmt_ymdhms.format(new Date(millis));
+		}
+
+		return val;
+
+	}
+
 	public static final String ymdhmss() {
 		return ymdhmss(System.currentTimeMillis());
 	}
@@ -720,6 +738,48 @@ public final class _0 {
 		}
 
 		return path;
+
+	}
+
+	public static long delay(String syntax) {
+
+		long delay = -1;
+
+		long now = System.currentTimeMillis();
+		String[] items = syntax.split("[\\-/: ]");
+
+		if (6 == items.length) {
+			throw new UnsupportedOperationException(syntax);
+
+		} else if (3 == items.length && 4 == items[0].length()) {
+			throw new UnsupportedOperationException(syntax);
+
+		} else if (3 == items.length && 2 == items[0].length()) {
+
+			Calendar cal = Calendar.getInstance();
+			cal.setTimeInMillis(now);
+
+			cal.set(Calendar.HOUR_OF_DAY, Integer.parseInt(items[0]));
+			cal.set(Calendar.MINUTE,      Integer.parseInt(items[1]));
+			cal.set(Calendar.SECOND,      Integer.parseInt(items[2]));
+			cal.set(Calendar.MILLISECOND, 0);
+
+			long next = cal.getTimeInMillis();
+			while (next - now < 0) {
+
+				cal.add(Calendar.DATE, 1);
+
+				next = cal.getTimeInMillis();
+
+			}
+
+			delay = next - now;
+
+		} else {
+			throw new IllegalArgumentException(syntax);
+		}
+
+		return delay;
 
 	}
 

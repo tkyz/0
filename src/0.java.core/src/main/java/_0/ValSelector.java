@@ -53,6 +53,10 @@ public final class ValSelector {
 		return ((Map<?, ?>)select).keySet();
 	}
 
+	public int size() {
+		return ((List<?>)select).size();
+	}
+
 	public ValSelector get(Object... keys) {
 
 		for (Object key : keys) {
@@ -90,6 +94,11 @@ public final class ValSelector {
 
 	public static <T> T val(Map<?, ?> map, Object... keys) {
 		return of(map).get(keys).val();
+	}
+
+	@Override
+	public String toString() {
+		return select.toString();
 	}
 
 }

@@ -1,83 +1,105 @@
 playground:
 
-  sshd:
+  - name:     debug
+    type:     null
     schedule: start
-    port: 0
+    in:
 
-  idx:
+  - name:     sshd
+    type:     null
     schedule: start
-    hosts:
-      - {host: mariadb.0, type: mariadb,  username: root,     password: mariadb}
-      - {host: pgsql.0,   type: postgres, username: postgres, password: pgsql}
-#     - {host: null,      type: file}
-    exts:
-      - c
-      - cpp
-      - cs
-      - h
-      - rs
-      - go
-      - java
-      - php
-      - pl
-      - py
-      - js
-      - sh
-      - bat
-      - bas
-      - frm
-      - cob
-      - sql
-      - ddl
-      - Makefile
-      - Dockerfile
-      - Vagrantfile
-      - htm
-      - html
-      - css
-      - cnf
-      - conf
-      - config
-      - ini
-      - properties
-      - json
-      - yml
-      - yaml
-      - xml
-      - tsv
-      - csv
-      - avro
-      - avsc
-      - key
-      - pub
-      - crt
-      - csr
-      - pem
-      - id_rsa
-      - jar
-      - war
-      - ear
-      - tar
-      - bz2
-      - gz
-      - zip
-      - lzh
-      - mdb
-      - accdb
-      - xls
-      - xlsx
-      - pdf
-      - txt
-      - png
-      - gif
-      - jpg
-      - jpeg
-      - bmp
-      - mp4
-      - flv
-      - avi
+    in:
+      port: 0
 
-  dataset:
-    schedule: start
-    keys:
-      - //0.0.0.0/${HOME}/src/0.playground/idx.db/idx
+  - name:     idx
+    type:     null
+    schedule: 01:24:00
+    in:
+      hosts:
+        - {host: mariadb.0, type: mariadb,  username: root,     password: mariadb}
+        - {host: pgsql.0,   type: postgres, username: postgres, password: pgsql}
+#       - {host: null,      type: file}
+      exts:
+        # source
+        - c
+        - cpp
+        - cs
+        - h
+        - rs
+        - go
+        - java
+        - php
+        - pl
+        - py
+        - js
+        - sh
+        - bat
+        - bas
+        - frm
+        - cob
+        - sql
+        - ddl
+        - Makefile
+        - Dockerfile
+        - Vagrantfile
+        - htm
+        - html
+        - css
+        - cnf
+        - conf
+        - config
+        - ini
+        - properties
+        - json
+        - yml
+        - yaml
+        - xml
+        # data
+        - tsv
+        - csv
+        - avro
+        - avsc
+        # sec
+        - key
+        - pub
+        - crt
+        - csr
+        - pem
+        - id_rsa
+        # archive
+        - jar
+        - war
+        - ear
+        - tar
+        - bz2
+        - gz
+        - rar
+        - zip
+        - 7z
+        - lzh
+        # ms
+        - mdb
+        - accdb
+        - xls
+        - xlsx
+        # media
+        - png
+        - gif
+        - jpg
+        - jpeg
+        - bmp
+        - mp4
+        - flv
+        - avi
+        - wav
+        - mp3
+        # other
+        - txt
+        - pdf
+
+  - name:     dataset
+    type:     null
+    schedule: null
+    in:
+      keys:
+        - //0.0.0.0/${HOME}/src/0.playground/idx.db/idx

@@ -36,8 +36,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -56,7 +58,7 @@ public final class Main {
 
 	private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-	public static ExecutorService worker = Executors.newFixedThreadPool(Math.max(1, _0.availableProcessors >> 1));
+	public static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(1, _0.availableProcessors >> 1));
 
 	private static InetAddress ip = null;
 
@@ -82,34 +84,65 @@ public final class Main {
 			closeables.add(idx);
 
 			ValSelector selector = ValSelector.of(map("playground.yml")).get("playground").of();
-			for (Object key : selector.keys()) {
+			for (int i = 0; i < selector.size(); i++) {
 
-				ValSelector yml = selector.get(key).of();
+				ValSelector item = selector.get(i).of();
 
-				Object schedule = yml.get("schedule").val();
+				log.debug("{}", item);
+
+				Object schedule = item.get("schedule").val();
 				if (null == schedule) {
 					continue;
 				}
 
-				// TODO: args
-				// TODO: schedule
-				// TODO: closeable
+				String name = item.get("name").val();
+				ValSelector in = item.get("in").of();
 
 				Method method = null;
 				try {
-					method = Main.class.getDeclaredMethod(String.valueOf(key), ValSelector.class);
+					method = Main.class.getDeclaredMethod(name, ValSelector.class);
 				} catch (NoSuchMethodException e) {
 					log.trace("{}", e.toString());
 					continue;
 				}
 
-				Object retval = null;
 				if ("start".equals(schedule)) {
-					retval = method.invoke(null, yml);
-				}
 
-				if (retval instanceof Closeable) {
-					closeables.add((Closeable)retval);
+					Object retval = method.invoke(null, in);
+
+					if (retval instanceof Closeable) {
+						closeables.add((Closeable)retval);
+					}
+
+				} else if (((String)schedule).matches("^[0-9]{2}(:[0-9]{2}){2}$")) {
+
+					Method method_ = method;
+					Callable<Void> invoke = new Callable<>() {
+
+						@Override
+						public Void call()
+								throws Exception {
+
+							Object retval = method_.invoke(null, in);
+
+							boolean close = true;
+							close &= retval instanceof Closeable;
+							close &= retval != idx;
+
+							if (close) {
+								_0.close((Closeable)retval);
+							}
+
+							worker.schedule(this, _0.delay((String)schedule), TimeUnit.MILLISECONDS);
+
+							return null;
+
+						}
+
+					};
+
+					worker.schedule(invoke, _0.delay((String)schedule), TimeUnit.MILLISECONDS);
+
 				}
 
 			}
@@ -195,12 +228,12 @@ public final class Main {
 			}
 		} else {
 
-//			Map<String, Object> host = new HashMap<>();
-//			host.put("host", ip.getHostAddress());
-//			host.put("type", "file");
-//			host.put("path", "/");
-//
-//			hosts.add(host);
+			Map<String, Object> host = new HashMap<>();
+			host.put("host", ip.getHostAddress());
+			host.put("type", "file");
+			host.put("path", "/");
+
+			hosts.add(host);
 
 		}
 
