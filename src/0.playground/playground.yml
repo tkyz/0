@@ -9,7 +9,7 @@ playground:
     hosts:
       - {host: mariadb.0, type: mariadb,  username: root,     password: mariadb}
       - {host: pgsql.0,   type: postgres, username: postgres, password: pgsql}
-      - {host: null,      type: file}
+#     - {host: null,      type: file}
     exts:
       - c
       - cpp

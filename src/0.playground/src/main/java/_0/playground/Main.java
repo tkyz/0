@@ -45,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
+import _0.Ansi;
 import _0.Jdbc;
 import _0.ValSelector;
 import _0._0;
@@ -57,9 +58,11 @@ public final class Main {
 
 	public static ExecutorService worker = Executors.newFixedThreadPool(Math.max(1, _0.availableProcessors >> 1));
 
-	private static List<Closeable> closeables = new LinkedList<>();
-
 	private static InetAddress ip = null;
+
+	private static Idx idx = null;
+
+	private static Set<Closeable> closeables = new HashSet<>();
 
 	private Main() {
 	}
@@ -74,7 +77,9 @@ public final class Main {
 
 			debug();
 
-			ip = _0.ip();
+			ip  = _0.ip();
+			idx = new Idx();
+			closeables.add(idx);
 
 			ValSelector selector = ValSelector.of(map("playground.yml")).get("playground").of();
 			for (Object key : selector.keys()) {
@@ -122,9 +127,10 @@ public final class Main {
 
 			worker.shutdown();
 
-			while (!closeables.isEmpty()) {
-				_0.close(closeables.remove(0));
-			}
+			idx = null;
+			closeables.stream()
+					.parallel()
+					.forEach(_0::close);
 
 		}
 
@@ -142,18 +148,9 @@ public final class Main {
 	protected static Idx idx(ValSelector yml)
 			throws IOException, SQLException {
 
-		Idx idx = null;
-
 		Collection<Map<String, Object>> hosts = yml.get("hosts").val();
+
 		Set<String> exts = new HashSet<>(yml.get("exts").val());
-
-		// TODO: hostsに追加
-//		for (int i = 0; i <= 'Z' - 'A'; i++) {
-//			idx.file(ip, Path.of((char)('A' + i) + ":/"), exts_filter);
-//		}
-//		idx.file(ip, _0.userhome, exts_filter);
-//		idx.table(Idx.jdbc());
-
 		FileFilter exts_filter = f -> {
 
 			String ext = f.getName().toString().toLowerCase();
@@ -171,6 +168,41 @@ public final class Main {
 			return exts.contains(ext.toLowerCase());
 
 		};
+
+		{
+
+			Map<String, Object> host = new HashMap<>();
+			host.put("host", ip.getHostAddress());
+			host.put("type", "file");
+			host.put("path", _0.userhome.toString());
+
+			hosts.add(host);
+
+		}
+
+//		idx.table(Idx.jdbc());
+
+		if (_0.windows) {
+			for (int i = 0; i <= 'Z' - 'A'; i++) {
+
+				Map<String, Object> host = new HashMap<>();
+				host.put("host", ip.getHostAddress());
+				host.put("type", "file");
+				host.put("path", (char)('A' + i) + ":/");
+
+				hosts.add(host);
+
+			}
+		} else {
+
+//			Map<String, Object> host = new HashMap<>();
+//			host.put("host", ip.getHostAddress());
+//			host.put("type", "file");
+//			host.put("path", "/");
+//
+//			hosts.add(host);
+
+		}
 
 		// ip毎に集約
 		Map<String, List<Map<String, Object>>> ip_hosts = new HashMap<>();
@@ -196,12 +228,9 @@ public final class Main {
 
 		}
 
-		idx = new Idx();
-
 		// ip毎にスレッド化
 		for (Entry<String, List<Map<String, Object>>> entry : ip_hosts.entrySet()) {
 
-			Idx    idx_ = idx;
 			String host = entry.getKey();
 
 			worker.submit(() -> {
@@ -211,14 +240,11 @@ public final class Main {
 					if ("file".equals(map.get("type"))) {
 
 						String path = (String)map.get("path");
-						if (null == path) {
-							path = _0.userhome.toString();
-						}
 
-						idx_.file(InetAddress.getByName(host), Path.of(path), exts_filter);
+						idx.file(InetAddress.getByName(host), Path.of(path), exts_filter);
 
 					} else {
-						idx_.table(new Jdbc(map));
+						idx.table(new Jdbc(map));
 					}
 
 				}
@@ -249,6 +275,7 @@ public final class Main {
 
 			String path_separator = System.getProperty("path.separator");
 
+			log.debug("{}---", Ansi.gray);
 			log.debug("debug:");
 
 			log.debug("  args:");
@@ -355,6 +382,8 @@ public final class Main {
 				}
 
 			}
+
+			log.debug("{}", Ansi.reset);
 
 		}
 

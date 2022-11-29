@@ -70,7 +70,7 @@ public final class Idx implements Closeable {
 		query.append("  ,val      TEXT ");
 		query.append("  ,PRIMARY KEY (key) ");
 		query.append(")");
-		Jdbc.execute(con, query);
+		Jdbc.execute(con, query.toString());
 
 		Jdbc.execute(con, "DROP INDEX IF EXISTS [idx/idx1]");
 		Jdbc.execute(con, "CREATE INDEX [idx/idx1] ON idx (type, key)");
@@ -91,7 +91,7 @@ public final class Idx implements Closeable {
 			query.append("      idx ");
 			query.append("    WHERE ");
 			query.append("      type = '" + type + "' ");
-			Jdbc.execute(con, query);
+			Jdbc.execute(con, query.toString());
 
 		}
 
@@ -130,7 +130,7 @@ public final class Idx implements Closeable {
 		map.put("val",      val);
 
 		cache.put(key, map);
-
+log.debug("{}", key);
 		// TODO: cachesize
 		if (8192 <= cache.size()) {
 			flush();

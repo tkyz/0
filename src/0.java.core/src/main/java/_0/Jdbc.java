@@ -266,7 +266,7 @@ public final class Jdbc {
 		if (log.isDebugEnabled()) {
 			synchronized (log) {
 				DatabaseMetaData meta = con.getMetaData();
-				log.debug("---");
+				log.debug("{}---", Ansi.gray);
 				log.debug("connect:");
 				log.debug("  database:");
 				log.debug("    name: {}",       meta.getDatabaseProductName());
@@ -278,6 +278,7 @@ public final class Jdbc {
 				log.debug("      name: {}",     meta.getDriverName());
 				log.debug("      version: {}",  meta.getDriverVersion());
 				log.debug("    uri: {}",        uri);
+				log.debug("{}", Ansi.reset);
 			}
 		}
 
@@ -301,42 +302,44 @@ public final class Jdbc {
 	public static String type(final Connection con, final int type)
 			throws SQLException {
 
-		if (!sqlite(con)) {
+		Map<Integer, String> types = new HashMap<>();
+
+		if (sqlite(con)) {
+
+			types.put(Types.BIT,           "INTEGER");
+			types.put(Types.BOOLEAN,       "INTEGER");
+			types.put(Types.TINYINT,       "INTEGER");
+			types.put(Types.SMALLINT,      "INTEGER");
+			types.put(Types.INTEGER,       "INTEGER");
+			types.put(Types.BIGINT,        "INTEGER");
+			types.put(Types.NUMERIC,       "INTEGER");
+			types.put(Types.FLOAT,         "REAL");
+			types.put(Types.DOUBLE,        "REAL");
+			types.put(Types.REAL,          "REAL");
+			types.put(Types.DECIMAL,       "REAL");
+			types.put(Types.CHAR,          "TEXT");
+			types.put(Types.NCHAR,         "TEXT");
+			types.put(Types.VARCHAR,       "TEXT");
+			types.put(Types.NVARCHAR,      "TEXT");
+			types.put(Types.LONGVARCHAR,   "TEXT");
+			types.put(Types.LONGNVARCHAR,  "TEXT");
+			types.put(Types.TIMESTAMP,     "TEXT");
+			types.put(Types.DATE,          "TEXT");
+			types.put(Types.TIME,          "TEXT");
+			types.put(Types.BINARY,        "BLOB");
+			types.put(Types.VARBINARY,     "BLOB");
+			types.put(Types.LONGVARBINARY, "BLOB");
+			types.put(Types.DISTINCT,      "NULL");
+			types.put(Types.ARRAY,         "NULL");
+			types.put(Types.OTHER,         "NULL");
+
+		} else {
 			throw new UnsupportedOperationException();
 		}
 
 		Integer key = Integer.valueOf(type);
-
-		Map<Integer, String> types = new HashMap<>();
-		types.put(Types.BIT,           "INTEGER");
-		types.put(Types.BOOLEAN,       "INTEGER");
-		types.put(Types.TINYINT,       "INTEGER");
-		types.put(Types.SMALLINT,      "INTEGER");
-		types.put(Types.INTEGER,       "INTEGER");
-		types.put(Types.BIGINT,        "INTEGER");
-		types.put(Types.NUMERIC,       "INTEGER");
-		types.put(Types.FLOAT,         "REAL");
-		types.put(Types.DOUBLE,        "REAL");
-		types.put(Types.REAL,          "REAL");
-		types.put(Types.DECIMAL,       "REAL");
-		types.put(Types.CHAR,          "TEXT");
-		types.put(Types.NCHAR,         "TEXT");
-		types.put(Types.VARCHAR,       "TEXT");
-		types.put(Types.NVARCHAR,      "TEXT");
-		types.put(Types.LONGVARCHAR,   "TEXT");
-		types.put(Types.LONGNVARCHAR,  "TEXT");
-		types.put(Types.TIMESTAMP,     "TEXT");
-		types.put(Types.DATE,          "TEXT");
-		types.put(Types.TIME,          "TEXT");
-		types.put(Types.BINARY,        "BLOB");
-		types.put(Types.VARBINARY,     "BLOB");
-		types.put(Types.LONGVARBINARY, "BLOB");
-		types.put(Types.DISTINCT,      "NULL");
-		types.put(Types.ARRAY,         "NULL");
-		types.put(Types.OTHER,         "NULL");
-
 		if (!types.containsKey(key)) {
-			throw new UnsupportedOperationException(String.valueOf(key));
+			throw new IllegalArgumentException(String.valueOf(key));
 		}
 
 		return types.get(key);
