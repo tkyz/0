@@ -10,6 +10,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -282,7 +284,65 @@ public final class Jdbc {
 
 	}
 
-	public static final Map<String, Object> map(final ResultSet rs)
+	public static boolean execute(final Connection con, final CharSequence query)
+			throws SQLException {
+
+		boolean result = false;
+
+		try (Statement stmt = con.createStatement()) {
+			result = stmt.execute(query.toString());
+		}
+
+		return result;
+
+	}
+
+	public static String type(final Connection con, final int type)
+			throws SQLException {
+
+		if (!sqlite(con)) {
+			throw new IllegalArgumentException();
+		}
+
+		Integer key = Integer.valueOf(type);
+
+		Map<Integer, String> types = new HashMap<>();
+		types.put(Types.BIT,           "bool");
+		types.put(Types.BOOLEAN,       "bool");
+		types.put(Types.TINYINT,       "int");
+		types.put(Types.SMALLINT,      "int");
+		types.put(Types.INTEGER,       "int");
+		types.put(Types.BIGINT,        "int");
+		types.put(Types.NUMERIC,       "int");
+		types.put(Types.FLOAT,         "decimal");
+		types.put(Types.DOUBLE,        "decimal");
+		types.put(Types.REAL,          "decimal");
+		types.put(Types.DECIMAL,       "decimal");
+		types.put(Types.CHAR,          "text");
+		types.put(Types.NCHAR,         "text");
+		types.put(Types.VARCHAR,       "text");
+		types.put(Types.NVARCHAR,      "text");
+		types.put(Types.LONGVARCHAR,   "text");
+		types.put(Types.LONGNVARCHAR,  "text");
+		types.put(Types.TIMESTAMP,     "text");
+		types.put(Types.DATE,          "text");
+		types.put(Types.TIME,          "text");
+		types.put(Types.BINARY,        "binary");
+		types.put(Types.VARBINARY,     "binary");
+		types.put(Types.LONGVARBINARY, "binary");
+		types.put(Types.DISTINCT,      "unknown");
+		types.put(Types.ARRAY,         "unknown");
+		types.put(Types.OTHER,         "unknown");
+
+		if (!types.containsKey(key)) {
+			throw new UnsupportedOperationException(String.valueOf(key));
+		}
+
+		return types.get(key);
+
+	}
+
+	public static Map<String, Object> map(final ResultSet rs)
 			throws SQLException {
 
 		Map<String, Object> map = new LinkedHashMap<>();
@@ -301,12 +361,12 @@ public final class Jdbc {
 
 	}
 
-	public static final void bind(final PreparedStatement stmt, final List<?> params)
+	public static void bind(final PreparedStatement stmt, final List<?> params)
 			throws SQLException {
 		bind(stmt, params.toArray());
 	}
 
-	public static final void bind(final PreparedStatement stmt, final Object... params)
+	public static void bind(final PreparedStatement stmt, final Object... params)
 			throws SQLException {
 		for (int i = 0; i < params.length; i++) {
 			stmt.setObject(1 + i, params[i]);
@@ -522,19 +582,19 @@ public final class Jdbc {
 
 	}
 
-//	public static final List<Map<String, Object>> list(final Connection con, final CharSequence query, final Object... params)
+//	public static List<Map<String, Object>> list(final Connection con, final CharSequence query, final Object... params)
 //			throws SQLException {
 //
 //		List<Map<String, Object>> entities = new LinkedList<>();
 //
 //		try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
 //
-//			stmt.setFetchSize(Jdbc.fetchsize);
-//			Jdbc.bind(stmt, params);
+//			stmt.setFetchSize(fetchsize);
+//			bind(stmt, params);
 //
 //			try (ResultSet rs = stmt.executeQuery()) {
 //				while (rs.next()) {
-//					entities.add(Jdbc.map(rs));
+//					entities.add(map(rs));
 //				}
 //			}
 //
@@ -544,18 +604,45 @@ public final class Jdbc {
 //
 //	}
 
-	public static final long transfer(final Connection in, final CharSequence in_query, final List<Object> in_params, final Consumer<Map<String, Object>> filter, final Connection out, final CharSequence out_table)
+	private static void create_table(final ResultSetMetaData in_meta, final Connection out, final CharSequence out_table)
+			throws SQLException {
+
+		if (!sqlite(out)) {
+			throw new IllegalArgumentException();
+		}
+
+		StringBuilder query = new StringBuilder();
+		query.append("CREATE TABLE IF NOT EXISTS [" + out_table + "] ( ");
+		for (int i = 1; i <= in_meta.getColumnCount(); i++) {
+
+			String name = in_meta.getColumnLabel(i);
+			int    type = in_meta.getColumnType(i);
+
+			query.append(1 == i ? "" : ",");
+			query.append(name);
+			// TODO: type
+
+		}
+		query.append(")");
+
+		execute(out, query);
+
+	}
+
+	public static long transfer(final Connection in, final CharSequence in_query, final List<Object> in_params, final Consumer<Map<String, Object>> filter, final Connection out, final CharSequence out_table)
 			throws SQLException {
 
 		int cnt = 0;
 
 		try (PreparedStatement in_stmt = in.prepareStatement(in_query.toString())) {
 
-			in_stmt.setFetchSize(Jdbc.fetchsize);
+			in_stmt.setFetchSize(fetchsize);
 
-			Jdbc.bind(in_stmt, in_params);
+			bind(in_stmt, in_params);
 
 			try (ResultSet in_rs = in_stmt.executeQuery()) {
+
+				create_table(in_rs.getMetaData(), out, out_table);
 
 				StringBuilder out_values     = null;
 				StringBuilder out_query_base = null;
@@ -566,7 +653,7 @@ public final class Jdbc {
 
 				while (in_rs.next()) {
 
-					Map<String, Object> map = Jdbc.map(in_rs);
+					Map<String, Object> map = map(in_rs);
 					if (null != filter) {
 						filter.accept(map);
 					}
@@ -590,7 +677,7 @@ public final class Jdbc {
 						out_query_base.append("    (" + String.join(",", map.keySet()) + ")");
 						out_query_base.append("  VALUES ");
 
-						bulksize = Jdbc.bulksize(out, map.size());
+						bulksize = bulksize(out, map.size());
 
 					}
 
@@ -613,7 +700,7 @@ public final class Jdbc {
 
 						try (PreparedStatement out_stmt = out.prepareStatement(out_query.toString())) {
 
-							Jdbc.bind(out_stmt, out_params);
+							bind(out_stmt, out_params);
 
 							cnt += out_stmt.executeUpdate();
 
@@ -639,7 +726,7 @@ public final class Jdbc {
 
 					try (PreparedStatement out_stmt = out.prepareStatement(out_query.toString())) {
 
-						Jdbc.bind(out_stmt, out_params);
+						bind(out_stmt, out_params);
 
 						cnt += out_stmt.executeUpdate();
 

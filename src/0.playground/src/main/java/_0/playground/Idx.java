@@ -15,8 +15,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.sql.Statement;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -72,17 +70,17 @@ public final class Idx implements Closeable {
 		query.append("  ,val      TEXT ");
 		query.append("  ,PRIMARY KEY (key) ");
 		query.append(")");
-		execute(query);
+		Jdbc.execute(con, query);
 
-		execute("DROP INDEX IF EXISTS [idx/idx1]");
-		execute("CREATE INDEX [idx/idx1] ON idx (type, key)");
+		Jdbc.execute(con, "DROP INDEX IF EXISTS [idx/idx1]");
+		Jdbc.execute(con, "CREATE INDEX [idx/idx1] ON idx (type, key)");
 
 		List<String> types = new LinkedList<>();
 		types.add("file");
 		types.add("table");
 		for (String type : types) {
 
-			execute("DROP VIEW IF EXISTS [idx/" + type + "]");
+			Jdbc.execute(con, "DROP VIEW IF EXISTS [idx/" + type + "]");
 
 			query.setLength(0);
 			query.append("CREATE VIEW [idx/" + type + "] AS ");
@@ -93,7 +91,7 @@ public final class Idx implements Closeable {
 			query.append("      idx ");
 			query.append("    WHERE ");
 			query.append("      type = '" + type + "' ");
-			execute(query);
+			Jdbc.execute(con, query);
 
 		}
 
@@ -305,56 +303,7 @@ public final class Idx implements Closeable {
 	public void vacuum()
 			throws SQLException {
 		flush();
-		execute("VACUUM");
-	}
-
-	private void execute(final CharSequence query)
-			throws SQLException {
-
-		try (Statement stmt = con.createStatement()) {
-			stmt.execute(query.toString());
-		}
-
-	}
-
-	private static final String type(final Object type) {
-
-		Integer key = Integer.valueOf(type.toString());
-
-		Map<Integer, String> types = new HashMap<>();
-		types.put(Types.BIT,           "bool");
-		types.put(Types.BOOLEAN,       "bool");
-		types.put(Types.TINYINT,       "int");
-		types.put(Types.SMALLINT,      "int");
-		types.put(Types.INTEGER,       "int");
-		types.put(Types.BIGINT,        "int");
-		types.put(Types.NUMERIC,       "int");
-		types.put(Types.FLOAT,         "decimal");
-		types.put(Types.DOUBLE,        "decimal");
-		types.put(Types.REAL,          "decimal");
-		types.put(Types.DECIMAL,       "decimal");
-		types.put(Types.CHAR,          "text");
-		types.put(Types.NCHAR,         "text");
-		types.put(Types.VARCHAR,       "text");
-		types.put(Types.NVARCHAR,      "text");
-		types.put(Types.LONGVARCHAR,   "text");
-		types.put(Types.LONGNVARCHAR,  "text");
-		types.put(Types.TIMESTAMP,     "text");
-		types.put(Types.DATE,          "text");
-		types.put(Types.TIME,          "text");
-		types.put(Types.BINARY,        "binary");
-		types.put(Types.VARBINARY,     "binary");
-		types.put(Types.LONGVARBINARY, "binary");
-		types.put(Types.DISTINCT,      "unknown");
-		types.put(Types.ARRAY,         "unknown");
-		types.put(Types.OTHER,         "unknown");
-
-		if (!types.containsKey(key)) {
-			throw new UnsupportedOperationException(String.valueOf(key));
-		}
-
-		return types.get(key);
-
+		Jdbc.execute(con, "VACUUM");
 	}
 
 	public void file(final InetAddress host, final Path path, final FileFilter filter)
