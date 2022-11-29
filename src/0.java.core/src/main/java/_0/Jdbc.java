@@ -14,6 +14,7 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -284,13 +285,13 @@ public final class Jdbc {
 
 	}
 
-	public static boolean execute(final Connection con, final CharSequence query)
+	public static boolean execute(final Connection con, final String query)
 			throws SQLException {
 
 		boolean result = false;
 
 		try (Statement stmt = con.createStatement()) {
-			result = stmt.execute(query.toString());
+			result = stmt.execute(query);
 		}
 
 		return result;
@@ -301,38 +302,38 @@ public final class Jdbc {
 			throws SQLException {
 
 		if (!sqlite(con)) {
-			throw new IllegalArgumentException();
+			throw new UnsupportedOperationException();
 		}
 
 		Integer key = Integer.valueOf(type);
 
 		Map<Integer, String> types = new HashMap<>();
-		types.put(Types.BIT,           "bool");
-		types.put(Types.BOOLEAN,       "bool");
-		types.put(Types.TINYINT,       "int");
-		types.put(Types.SMALLINT,      "int");
-		types.put(Types.INTEGER,       "int");
-		types.put(Types.BIGINT,        "int");
-		types.put(Types.NUMERIC,       "int");
-		types.put(Types.FLOAT,         "decimal");
-		types.put(Types.DOUBLE,        "decimal");
-		types.put(Types.REAL,          "decimal");
-		types.put(Types.DECIMAL,       "decimal");
-		types.put(Types.CHAR,          "text");
-		types.put(Types.NCHAR,         "text");
-		types.put(Types.VARCHAR,       "text");
-		types.put(Types.NVARCHAR,      "text");
-		types.put(Types.LONGVARCHAR,   "text");
-		types.put(Types.LONGNVARCHAR,  "text");
-		types.put(Types.TIMESTAMP,     "text");
-		types.put(Types.DATE,          "text");
-		types.put(Types.TIME,          "text");
-		types.put(Types.BINARY,        "binary");
-		types.put(Types.VARBINARY,     "binary");
-		types.put(Types.LONGVARBINARY, "binary");
-		types.put(Types.DISTINCT,      "unknown");
-		types.put(Types.ARRAY,         "unknown");
-		types.put(Types.OTHER,         "unknown");
+		types.put(Types.BIT,           "INTEGER");
+		types.put(Types.BOOLEAN,       "INTEGEE");
+		types.put(Types.TINYINT,       "INTEGEE");
+		types.put(Types.SMALLINT,      "INTEGEE");
+		types.put(Types.INTEGER,       "INTEGEE");
+		types.put(Types.BIGINT,        "INTEGEE");
+		types.put(Types.NUMERIC,       "INTEGEE");
+		types.put(Types.FLOAT,         "REAL");
+		types.put(Types.DOUBLE,        "REAL");
+		types.put(Types.REAL,          "REAL");
+		types.put(Types.DECIMAL,       "REAL");
+		types.put(Types.CHAR,          "TEXT");
+		types.put(Types.NCHAR,         "TEXT");
+		types.put(Types.VARCHAR,       "TEXT");
+		types.put(Types.NVARCHAR,      "TEXT");
+		types.put(Types.LONGVARCHAR,   "TEXT");
+		types.put(Types.LONGNVARCHAR,  "TEXT");
+		types.put(Types.TIMESTAMP,     "TEXT");
+		types.put(Types.DATE,          "TEXT");
+		types.put(Types.TIME,          "TEXT");
+		types.put(Types.BINARY,        "BLOB");
+		types.put(Types.VARBINARY,     "BLOB");
+		types.put(Types.LONGVARBINARY, "BLOB");
+		types.put(Types.DISTINCT,      "NULL");
+		types.put(Types.ARRAY,         "NULL");
+		types.put(Types.OTHER,         "NULL");
 
 		if (!types.containsKey(key)) {
 			throw new UnsupportedOperationException(String.valueOf(key));
@@ -404,16 +405,19 @@ public final class Jdbc {
 		String esc = val;
 		if (null != esc) {
 
-//			boolean is_esc = false;
-//			is_esc |= -1 < esc.indexOf('.');
-//			is_esc |= -1 < esc.indexOf('/');
-//			is_esc |= -1 < esc.indexOf('-');
-//			is_esc |= -1 < esc.indexOf(' '); is_esc |= -1 < esc.indexOf('　');
-//			is_esc |= -1 < esc.indexOf('('); is_esc |= -1 < esc.indexOf('（');
-//			is_esc |= -1 < esc.indexOf(')'); is_esc |= -1 < esc.indexOf('）');
-//			is_esc |= esc.matches("^[0-9].*$");
+			boolean is_esc = false;
+			is_esc |= -1 < esc.indexOf('.');
+			is_esc |= -1 < esc.indexOf('/');
+			is_esc |= -1 < esc.indexOf('-');
+			is_esc |= -1 < esc.indexOf(' '); is_esc |= -1 < esc.indexOf('　');
+			is_esc |= -1 < esc.indexOf('('); is_esc |= -1 < esc.indexOf('（');
+			is_esc |= -1 < esc.indexOf(')'); is_esc |= -1 < esc.indexOf('）');
+			is_esc |= esc.matches("^[0-9].*$");
 
-			if (mysql(con) || mariadb(con)) {
+			if (!is_esc) {
+				// pass
+
+			} else if (mysql(con) || mariadb(con)) {
 				esc = "`" + esc + "`";
 
 			} else {
@@ -574,15 +578,21 @@ public final class Jdbc {
 
 		int bulksize = fetchsize;
 
-		if (sqlserver(con)) {
-			bulksize = cols / (2100 - 1);
+		if (sqlite(con)) {
+
+			// TODO: SQLITE_MAX_SQL_LENGTH:      1,000,000,000
+			// TODO: SQLITE_MAX_VARIABLE_NUMBER:        32,766
+			bulksize = 32766 / cols;
+
+		} else if (sqlserver(con)) {
+			bulksize = 2100 / cols;
 		}
 
 		return bulksize;
 
 	}
 
-//	public static List<Map<String, Object>> list(final Connection con, final CharSequence query, final Object... params)
+//	public static List<Map<String, Object>> list(final Connection con, final String query, final Object... params)
 //			throws SQLException {
 //
 //		List<Map<String, Object>> entities = new LinkedList<>();
@@ -604,35 +614,39 @@ public final class Jdbc {
 //
 //	}
 
-	private static void create_table(final ResultSetMetaData in_meta, final Connection out, final CharSequence out_table)
+	private static void create_table(final ResultSetMetaData in_meta, final Connection out, final String out_table)
 			throws SQLException {
 
-		if (!sqlite(out)) {
-			throw new IllegalArgumentException();
+		if (sqlite(out)) {
+
+			execute(out, "DROP TABLE IF EXISTS " + out_table);
+
+			StringBuilder query = new StringBuilder();
+			query.append("CREATE TABLE IF NOT EXISTS " + out_table + " ( ");
+			for (int i = 1; i <= in_meta.getColumnCount(); i++) {
+
+				String name = in_meta.getColumnLabel(i);
+				int    type = in_meta.getColumnType(i);
+
+				query.append(1 == i ? "" : ",");
+				query.append(esc(out, name));
+				query.append(" ");
+				query.append(type(out, type));
+
+			}
+			query.append(")");
+			execute(out, query.toString());
+
+		} else {
+//			throw new UnsupportedOperationException();
 		}
-
-		StringBuilder query = new StringBuilder();
-		query.append("CREATE TABLE IF NOT EXISTS [" + out_table + "] ( ");
-		for (int i = 1; i <= in_meta.getColumnCount(); i++) {
-
-			String name = in_meta.getColumnLabel(i);
-			int    type = in_meta.getColumnType(i);
-
-			query.append(1 == i ? "" : ",");
-			query.append(name);
-			// TODO: type
-
-		}
-		query.append(")");
-
-		execute(out, query);
 
 	}
 
-	public static long transfer(final Connection in, final CharSequence in_query, final List<Object> in_params, final Consumer<Map<String, Object>> filter, final Connection out, final CharSequence out_table)
+	public static long transfer(final Connection in, final String in_query, final List<Object> in_params, final Consumer<Map<String, Object>> filter, final Connection out, final String out_table)
 			throws SQLException {
 
-		int cnt = 0;
+		long cnt = 0;
 
 		try (PreparedStatement in_stmt = in.prepareStatement(in_query.toString())) {
 
@@ -672,10 +686,13 @@ public final class Jdbc {
 						}
 						out_values.append(")");
 
-						out_query_base.append("INSERT INTO ");
-						out_query_base.append("  " + out_table + " ");
-						out_query_base.append("    (" + String.join(",", map.keySet()) + ")");
-						out_query_base.append("  VALUES ");
+						out_query_base.append("INSERT INTO " );
+						out_query_base.append("    " + out_table + " (");
+						for (Iterator<String> ite = map.keySet().iterator(); ite.hasNext();) {
+							out_values.append(esc(out, ite.next()));
+							out_values.append(ite.hasNext() ? "," : "");
+						}
+						out_query_base.append(") VALUES ");
 
 						bulksize = bulksize(out, map.size());
 
