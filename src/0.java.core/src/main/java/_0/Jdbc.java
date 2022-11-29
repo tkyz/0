@@ -689,8 +689,8 @@ public final class Jdbc {
 						out_query_base.append("INSERT INTO ");
 						out_query_base.append("    " + out_table + " (");
 						for (Iterator<String> ite = map.keySet().iterator(); ite.hasNext();) {
-							out_values.append(esc(out, ite.next()));
-							out_values.append(ite.hasNext() ? "," : "");
+							out_query_base.append(esc(out, ite.next()));
+							out_query_base.append(ite.hasNext() ? "," : "");
 						}
 						out_query_base.append(") VALUES ");
 
