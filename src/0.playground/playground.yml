@@ -1,10 +1,5 @@
 playground:
 
-  - name:     debug
-    type:     null
-    schedule: start
-    in:
-
   - name:     sshd
     type:     null
     schedule: start

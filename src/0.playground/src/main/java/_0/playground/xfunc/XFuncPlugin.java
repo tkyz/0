@@ -1,6 +1,9 @@
 package _0.playground.xfunc;
 
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,5 +54,24 @@ public abstract class XFuncPlugin extends Function implements Plugin {
 
 	protected abstract void impl()
 			throws Exception;
+
+	public static void load(Connection con)
+			throws ReflectiveOperationException, SQLException {
+
+		List<Class<? extends XFuncPlugin>> funcs = new LinkedList<>();
+		funcs.add(Matches.class);
+		funcs.add(Replace.class);
+		funcs.add(Sha256.class);
+		funcs.add(Trim.class);
+
+		for (Class<? extends XFuncPlugin> func : funcs) {
+
+			XFuncPlugin impl = func.getConstructor().newInstance();
+
+;			Function.create(con, impl.name(), impl);
+
+		}
+
+	}
 
 }

@@ -37,6 +37,7 @@ import com.microsoft.sqlserver.jdbc.SQLServerException;
 
 import _0.Jdbc;
 import _0._0;
+import _0.playground.xfunc.XFuncPlugin;
 
 public final class Idx implements Closeable {
 
@@ -55,9 +56,11 @@ public final class Idx implements Closeable {
 	private Connection con = null;
 
 	public Idx()
-			throws SQLException {
+			throws ReflectiveOperationException, SQLException {
 
 		con = jdbc.connect();
+
+		XFuncPlugin.load(con);
 
 //		execute("DROP TABLE IF EXISTS " + name);
 

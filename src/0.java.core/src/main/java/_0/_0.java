@@ -453,6 +453,10 @@ public final class _0 {
 
 	}
 
+	public static String trim(String val) {
+		return null == val ? null : val.replaceAll("^" + regex_spaces + "|" + regex_spaces + "$", "");
+	}
+
 	public static final byte[] sha256(final byte[] data) {
 
 		byte[] hash = null;
@@ -486,6 +490,17 @@ public final class _0 {
 		}
 
 		return hash;
+
+	}
+
+	public static String hex(final byte v) {
+
+		StringBuilder s = new StringBuilder();
+		for (int i = 0; i < 8; i++) {
+			s.append(0 < (v & (1 << (7 - i))) ? '1' : '0');
+		}
+
+		return s.toString();
 
 	}
 
