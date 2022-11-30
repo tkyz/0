@@ -34,16 +34,16 @@ if [[ 0 == "$(id -u)" ]]; then
     systemctl start clamav-freshclam
   fi
 
-  if type docker &> /dev/null; then
+fi
 
-    while read -a item; do
-      docker pull "${item}" || true
-    done < <(docker images --format "{{.Repository}}:{{.Tag}}")
+if type docker &> /dev/null; then
 
-    docker volume  prune --force
-    docker network prune --force
-    docker system  prune --force
+  while read -a item; do
+    docker pull "${item}" || true
+  done < <(docker images --format "{{.Repository}}:{{.Tag}}")
 
-  fi
+  docker volume  prune --force
+  docker network prune --force
+  docker system  prune --force
 
 fi

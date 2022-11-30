@@ -4,6 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+name="$(echo "${PWD##*/}" | sed 's/^0\.//')"
 version=${1:-0}
 
 #----------------------------------------------------------------
@@ -28,7 +29,7 @@ if [[ -f ./pom.xml ]]; then
       --volume "${PWD}:${workdir}" \
       --workdir "${workdir}" \
       debian:latest bash -c "
-        build "${@}"
+        build
         chown -R $(id -u):$(id -g) .
       "
 
@@ -58,7 +59,7 @@ if [[ -f ./pom.xml ]]; then
     suffix='-jar-with-dependencies.jar'
     jarwithdeps="$(find target -mindepth 1 -maxdepth 1 -type f -name "*${suffix}" 2> /dev/null || true)"
     jarwithexec="$(echo "${jarwithdeps}" | sed "s/${suffix}//")"
-    if [[ -n "${jarwithdeps}" ]]; then
+    if false && [[ -n "${jarwithdeps}" ]]; then
 
       cat \
         '/usr/local/bin/executable-jar-header-bat' \
@@ -71,5 +72,18 @@ if [[ -f ./pom.xml ]]; then
     fi
 
   fi
+
+fi
+
+#----------------------------------------------------------------
+# docker
+if type docker &> /dev/null && [[ -f ./Dockerfile ]]; then
+
+  docker build \
+    --build-arg name="${name}" \
+    --build-arg version="${version}" \
+    --tag "container.0/${name}:${version}" \
+    --tag "${name}:${version}" \
+    .
 
 fi
