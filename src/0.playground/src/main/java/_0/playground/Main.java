@@ -114,7 +114,7 @@ public final class Main {
 						closeables.add((Closeable)retval);
 					}
 
-				} else if (((String)schedule).matches("^[0-9]{2}(:[0-9]{2}){2}$")) {
+				} else {
 
 					Method method_ = method;
 					Callable<Void> invoke = new Callable<>() {

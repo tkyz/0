@@ -13,7 +13,7 @@ playground:
 
   - name:     idx
     type:     null
-    schedule: 01:24:00
+    schedule: null
     in:
       hosts:
         - {host: mariadb.0, type: mariadb,  username: root,     password: mariadb}

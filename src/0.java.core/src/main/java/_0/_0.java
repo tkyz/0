@@ -741,27 +741,57 @@ public final class _0 {
 
 	}
 
-	public static long delay(String syntax) {
+	public static long delay(final String syntax) {
 
 		long delay = -1;
 
+		// split
+		String[] date = null;
+		String[] time = null;
+		{
+
+			String syntax_ = syntax.replace('/', '-');
+
+			if (-1 < syntax_.indexOf(" ")) {
+				String[] items = syntax_.split(" ");
+				date = items[0].split("-");
+				time = items[1].split(":");
+
+			} else if (-1 < syntax_.indexOf("-")) {
+				date = syntax_.split("-");
+
+			} else if (-1 < syntax_.indexOf(":")) {
+				time = syntax_.split(":");
+
+			} else {
+				throw new IllegalArgumentException(syntax);
+			}
+
+			if (null != date && 3 != date.length) {
+				throw new IllegalArgumentException(syntax);
+			}
+			if (null != time && 3 != time.length) {
+				throw new IllegalArgumentException(syntax);
+			}
+
+		}
+
 		long now = System.currentTimeMillis();
-		String[] items = syntax.split("[\\-/: ]");
 
-		if (6 == items.length) {
+		if (null != date && null != time) {
 			throw new UnsupportedOperationException(syntax);
 
-		} else if (3 == items.length && 4 == items[0].length()) {
+		} else if (null != date) {
 			throw new UnsupportedOperationException(syntax);
 
-		} else if (3 == items.length && 2 == items[0].length()) {
+		} else if (null != time) {
 
 			Calendar cal = Calendar.getInstance();
 			cal.setTimeInMillis(now);
 
-			cal.set(Calendar.HOUR_OF_DAY, Integer.parseInt(items[0]));
-			cal.set(Calendar.MINUTE,      Integer.parseInt(items[1]));
-			cal.set(Calendar.SECOND,      Integer.parseInt(items[2]));
+			cal.set(Calendar.HOUR_OF_DAY, Integer.parseInt(time[0]));
+			cal.set(Calendar.MINUTE,      Integer.parseInt(time[1]));
+			cal.set(Calendar.SECOND,      Integer.parseInt(time[2]));
 			cal.set(Calendar.MILLISECOND, 0);
 
 			long next = cal.getTimeInMillis();

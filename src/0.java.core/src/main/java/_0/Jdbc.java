@@ -646,6 +646,11 @@ public final class Jdbc {
 
 	}
 
+	public static long transfer(final Connection in, final String in_table, final Connection out, final String out_table)
+			throws SQLException {
+		return transfer(in, "SELECT * FROM " + in_table, List.of(), null, out, out_table);
+	}
+
 	public static long transfer(final Connection in, final String in_query, final List<Object> in_params, final Consumer<Map<String, Object>> filter, final Connection out, final String out_table)
 			throws SQLException {
 
