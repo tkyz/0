@@ -83,7 +83,7 @@ if type docker &> /dev/null && [[ -f ./Dockerfile ]]; then
     --build-arg name="${name}" \
     --build-arg version="${version}" \
     --tag "container.0/${name}:${version}" \
-    --tag "${name}:${version}" \
+    --tag "${name}:latest" \
     .
 
 fi
