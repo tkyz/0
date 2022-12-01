@@ -5,8 +5,9 @@ setlocal
 
   set "jdk_ver=latest"
   set "JAVA_HOME=%USERPROFILE%/opt/net.java.jdk/%jdk_ver%"
+  set "CLASSPATH=%~nx0"
 
-  "%JAVA_HOME%/bin/java.exe" -cp "%~nx0" Entrypoint %*
+  "%JAVA_HOME%/bin/java.exe" Entrypoint %*
 
   set ret=%ERRORLEVEL%
 

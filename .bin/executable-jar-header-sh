@@ -6,7 +6,8 @@ set -o pipefail
 
   jdk_ver='latest'
   JAVA_HOME="${HOME}/opt/net.java.jdk/${jdk_ver}"
+  CLASSPATH="${0}"
 
-  "${JAVA_HOME}/bin/java" -cp "${0}" Entrypoint "$@"
+  "${JAVA_HOME}/bin/java" Entrypoint "$@"
 
 exit "${?}"

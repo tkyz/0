@@ -56,7 +56,7 @@ public abstract class XFuncPlugin extends Function implements Plugin {
 			throws Exception;
 
 	public static void load(Connection con)
-			throws ReflectiveOperationException, SQLException {
+			throws SQLException {
 
 		// TODO: auto load
 		List<Class<? extends XFuncPlugin>> funcs = new LinkedList<>();
@@ -70,7 +70,13 @@ public abstract class XFuncPlugin extends Function implements Plugin {
 
 		for (Class<? extends XFuncPlugin> func : funcs) {
 
-			XFuncPlugin impl = func.getConstructor().newInstance();
+			XFuncPlugin impl = null;
+
+			try {
+				impl = func.getConstructor().newInstance();
+			} catch (ReflectiveOperationException e) {
+				throw new RuntimeException(e);
+			}
 
 			Function.create(con, impl.name(), impl);
 

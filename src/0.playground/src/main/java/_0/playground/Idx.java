@@ -15,6 +15,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,6 +26,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVFormat.Builder;
+import org.apache.commons.csv.CSVPrinter;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +40,7 @@ import com.healthmarketscience.jackcess.impl.UnsupportedCodecException;
 import com.microsoft.sqlserver.jdbc.SQLServerException;
 
 import _0.Jdbc;
+import _0.ValSelector;
 import _0._0;
 import _0.playground.xfunc.XFuncPlugin;
 
@@ -47,8 +52,6 @@ public final class Idx implements Closeable {
 
 	private static final String dbfile = name + ".db";
 
-	private static final Jdbc jdbc = new Jdbc("sqlite").file(dbfile);
-
 	private static final Map<String, Map<String, Object>> cache = new HashMap<>();
 
 	public static boolean ip = true;
@@ -56,13 +59,23 @@ public final class Idx implements Closeable {
 	private Connection con = null;
 
 	public Idx()
-			throws ReflectiveOperationException, SQLException {
+			throws IOException, SQLException {
+		this(new Jdbc("sqlite").file(dbfile));
+	}
+
+	public Idx(Path file)
+			throws IOException, SQLException {
+		this(new Jdbc("sqlite").file(file));
+	}
+
+	public Idx(Jdbc jdbc)
+			throws IOException, SQLException {
 
 		con = jdbc.connect();
 
 		XFuncPlugin.load(con);
 
-//		execute("DROP TABLE IF EXISTS " + name);
+//		Jdbc.execute(con, "DROP TABLE IF EXISTS " + name);
 
 		StringBuilder query = new StringBuilder();
 		query.append("CREATE TABLE IF NOT EXISTS " + name + " ( ");
@@ -98,17 +111,33 @@ public final class Idx implements Closeable {
 
 		}
 
-		log.info("{} init.", name);
+		// TODO: スレッド化
+		boolean enabled = false;
+		if (enabled) {
+
+			table(jdbc);
+
+			List<Path> paths = new LinkedList<>();
+			paths.add(_0.userhome);
+			if (_0.windows) {
+				for (int i = 0; i <= 'Z' - 'A'; i++) {
+					paths.add(Path.of((char)('A' + i) + ":/"));
+				}
+			} else {
+				paths.add(Path.of("/"));
+			}
+
+			while (!paths.isEmpty()) {
+				file(_0.ip(), paths.remove(0), f -> false);
+			}
+
+		}
 
 	}
 
 	@Override
 	public void close() {
 		_0.close(con);
-	}
-
-	public static Jdbc jdbc() {
-		return jdbc;
 	}
 
 	public void set(final String type, final String key)
@@ -141,13 +170,13 @@ public final class Idx implements Closeable {
 
 	}
 
-	public synchronized String get(final String key)
+	public synchronized Map<String, Object> get(final String key)
 			throws SQLException {
 
-		String val = null;
+		JSONObject val = null;
 
 		if (cache.containsKey(key)) {
-			val = (String)cache.get(key).get("val");
+			val = (JSONObject)cache.get(key).get("val");
 
 		} else {
 
@@ -166,7 +195,11 @@ public final class Idx implements Closeable {
 				try (ResultSet rs = stmt.executeQuery()) {
 
 					if (rs.next()) {
-						val = (String)rs.getObject("val");
+
+						String v = (String)rs.getObject("val");
+
+						val = null == v ? null : new JSONObject(v);
+
 					}
 
 					if (rs.next()) {
@@ -179,27 +212,16 @@ public final class Idx implements Closeable {
 
 		}
 
-		return val;
+		return null == val ? null : val.toMap();
 
 	}
-
-//	public synchronized void del(final String key)
-//			throws SQLException {
-//
-//		cache.put(key, null);
-//
-//		// TODO: cachesize
-//		if (8192 <= cache.size()) {
-//			flush();
-//		}
-//
-//	}
 
 	public synchronized void flush()
 			throws SQLException {
 
 		// delete
-		{
+		boolean enabled = false;
+		if (enabled) {
 
 			List<String> del_keys = new LinkedList<>();
 
@@ -251,7 +273,6 @@ public final class Idx implements Closeable {
 
 		}
 
-		// insert-update
 		if (!cache.isEmpty()) {
 
 			// TODO: bulksize limit
@@ -404,102 +425,97 @@ public final class Idx implements Closeable {
 			throws IOException, SQLException {
 
 		try (Connection con = jdbc.connect()) {
-			table(jdbc, con);
-		}
 
-	}
-
-	public void table(final Jdbc jdbc, final Connection con)
-			throws IOException, SQLException {
-
-		List<String> catalogs = new ArrayList<>();
-		try {
-			catalogs.addAll(Jdbc.catalogs(con).stream().map(e -> (String)e.get("TABLE_CAT")).toList());
-		} catch (SQLException e) {
-			log.trace("", e);
-		}
-		if (catalogs.isEmpty()) {
-			catalogs.add(null);
-		}
-
-		for (String catalog : catalogs) {
-
-			if (Jdbc.meta(con, catalog, null, null)) {
-				continue;
-			}
-
-			List<String> schemas = new ArrayList<>();
+			List<String> catalogs = new ArrayList<>();
 			try {
-//				schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("table_schem")).toList());
-				schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("TABLE_SCHEM")).toList());
-			} catch (SQLServerException e) {
-				log.trace("{}", e.toString());
-				continue;
-			} catch (SQLFeatureNotSupportedException e) {
-				// pass
-			} catch (AbstractMethodError e) {
-				// pass
+				catalogs.addAll(Jdbc.catalogs(con).stream().map(e -> (String)e.get("TABLE_CAT")).toList());
 			} catch (SQLException e) {
 				log.trace("", e);
 			}
-			if (schemas.isEmpty()) {
-				schemas.add(null);
+			if (catalogs.isEmpty()) {
+				catalogs.add(null);
 			}
 
-			for (String schema : schemas) {
+			for (String catalog : catalogs) {
 
-				if (Jdbc.meta(con, catalog, schema, null)) {
+				if (Jdbc.meta(con, catalog, null, null)) {
 					continue;
 				}
 
-				List<Map<String, Object>> tablemaps = new ArrayList<>();
+				List<String> schemas = new ArrayList<>();
 				try {
-					tablemaps.addAll(Jdbc.tables(con, catalog, schema));
+//					schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("table_schem")).toList());
+					schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("TABLE_SCHEM")).toList());
+				} catch (SQLServerException e) {
+					log.trace("{}", e.toString());
+					continue;
+				} catch (SQLFeatureNotSupportedException e) {
+					// pass
+				} catch (AbstractMethodError e) {
+					// pass
 				} catch (SQLException e) {
 					log.trace("", e);
 				}
+				if (schemas.isEmpty()) {
+					schemas.add(null);
+				}
 
-				for (Map<String, Object> tablemap : tablemaps) {
+				for (String schema : schemas) {
 
-					String catalog_ = _0.nvl(catalog, (String)tablemap.get("TABLE_CAT"));
-					String schema_  = _0.nvl(schema,  (String)tablemap.get("TABLE_SCHEM"));
-					String table_   = (String)tablemap.get("TABLE_NAME");
-
-					if (Jdbc.meta(con, catalog_, schema_, table_)) {
+					if (Jdbc.meta(con, catalog, schema, null)) {
 						continue;
 					}
 
-					String tbl_key = null;
-					if (Jdbc.sqlite(con)) {
-						tbl_key = "//" + _0.ip().getHostAddress() + "/" + jdbc.file().toAbsolutePath() + "/" + table_;
-					} else if (ip) {
-						tbl_key = "//" + InetAddress.getByName(jdbc.host()).getHostAddress() + "/" + String.join("/", Arrays.asList(catalog_, schema_, table_).stream().filter(Objects::nonNull).toList());
-					} else {
-						tbl_key = "//" + jdbc.host() + "/" + String.join("/", Arrays.asList(catalog_, schema_, table_).stream().filter(Objects::nonNull).toList());
+					List<Map<String, Object>> tablemaps = new ArrayList<>();
+					try {
+						tablemaps.addAll(Jdbc.tables(con, catalog, schema));
+					} catch (SQLException e) {
+						log.trace("", e);
 					}
 
-					Map<String, Object> val = jdbc.attrs();
-					if (null != catalog_) {
-						val.put("catalog", catalog_);
-					}
-					if (null != schema_) {
-						val.put("schema", schema_);
-					}
-					val.put("table", table_);
+					for (Map<String, Object> tablemap : tablemaps) {
 
-					set("table", tbl_key, val);
+						String catalog_ = _0.nvl(catalog, (String)tablemap.get("TABLE_CAT"));
+						String schema_  = _0.nvl(schema,  (String)tablemap.get("TABLE_SCHEM"));
+						String table_   = (String)tablemap.get("TABLE_NAME");
 
-//					List<Map<String, Object>> columnmaps = Jdbc.columns(con, catalog_, schema_, table_);
-//					for (Map<String, Object> columnmap : columnmaps) {
+						if (Jdbc.meta(con, catalog_, schema_, table_)) {
+							continue;
+						}
+
+						String tbl_key = null;
+						if (Jdbc.sqlite(con)) {
+							tbl_key = "//" + _0.ip().getHostAddress() + "/" + jdbc.file().toAbsolutePath() + "/" + table_;
+						} else if (ip) {
+							tbl_key = "//" + InetAddress.getByName(jdbc.host()).getHostAddress() + "/" + String.join("/", Arrays.asList(catalog_, schema_, table_).stream().filter(Objects::nonNull).toList());
+						} else {
+							tbl_key = "//" + jdbc.host() + "/" + String.join("/", Arrays.asList(catalog_, schema_, table_).stream().filter(Objects::nonNull).toList());
+						}
+
+						Map<String, Object> val = jdbc.attrs();
+						if (null != catalog_) {
+							val.put("catalog", catalog_);
+						}
+						if (null != schema_) {
+							val.put("schema", schema_);
+						}
+						val.put("table", table_);
+
+						set("table", tbl_key, val);
+
+//						List<Map<String, Object>> columnmaps = Jdbc.columns(con, catalog_, schema_, table_);
+//						for (Map<String, Object> columnmap : columnmaps) {
 //
-//						String column    = (String)columnmap.get("COLUMN_NAME");
-//						int    data_type = _0.cast(int.class, columnmap.get("DATA_TYPE"));
+//							String column    = (String)columnmap.get("COLUMN_NAME");
+//							int    data_type = _0.cast(int.class, columnmap.get("DATA_TYPE"));
 //
-//						String col_key = tbl_key + "/" + column;
+//							String col_key = tbl_key + "/" + column;
 //
-//						set("column", col_key, jdbc.attrs());
+//							set("column", col_key, jdbc.attrs());
 //
-//					}
+//						}
+
+					}
 
 				}
 
@@ -509,14 +525,13 @@ public final class Idx implements Closeable {
 
 	}
 
-	public void table(final InetAddress host, final Path path)
+	private void table(final InetAddress host, final Path path)
 			throws IOException, SQLException {
 
 		InetAddress host_ = null == host || host.getHostAddress().startsWith("127.") ? _0.ip() : host;
 
 		Path uncpath = _0.uncpath(host_, path);
 
-		String key      = uncpath.toString().replace('\\', '/') + "/" + name;
 		String hostpath = _0.hostpath(uncpath);
 
 		// TODO: InputStream
@@ -542,6 +557,8 @@ public final class Idx implements Closeable {
 				if (null == table) {
 					continue;
 				}
+
+				String key = uncpath.toString().replace('\\', '/') + "/" + name;
 
 				Map<String, Object> val = new HashMap<>();
 				val.put("host",  host_.getHostAddress());
@@ -615,6 +632,83 @@ public final class Idx implements Closeable {
 
 		} catch (UnsupportedCodecException e) {
 			log.trace("{} {} {}", host_.getHostAddress(), hostpath, e.toString());
+		}
+
+	}
+
+	public void load(String key)
+			throws SQLException {
+
+		Map<String, Object> val = get(key);
+
+		if (null != val) {
+
+			set("load", key, val);
+
+			load(val);
+
+		}
+
+	}
+
+	public void load(Map<String, Object> val)
+			throws SQLException {
+
+		String type = ValSelector.val(val, "type");
+		String path = ValSelector.val(val, "path");
+
+		// TODO: 拡張性 filter, idx, load
+
+		if ("file".equals(type) && null != path) {
+
+			path = path.toLowerCase();
+			if (path.endsWith(".mdb") || path.endsWith(".accdb")) {
+				mdb(val);
+			}
+
+		} else {
+			jdbc(val);
+		}
+
+	}
+
+	private void jdbc(Map<String, Object> val)
+			throws SQLException {
+
+		// TODO: load jdbc idx
+
+	}
+
+	private void mdb(Map<String, Object> val)
+			throws SQLException {
+
+		// TODO: load mdb idx
+
+	}
+
+	public void output(String table, Path file)
+			throws IOException, SQLException {
+		output(table, file, CSVFormat.TDF.builder().setRecordSeparator('\n'));
+	}
+
+	public void output(String table, Path file, Builder builder)
+			throws IOException, SQLException {
+
+		Files.createDirectories(file.getParent());
+
+		try (Statement stmt = con.createStatement()) {
+
+			stmt.setFetchSize(Jdbc.fetchsize);
+
+			try (ResultSet rs = stmt.executeQuery("SELECT * FROM [" + table + "]"); CSVPrinter ptr = builder.build().printer()) {
+
+				ptr.printHeaders(rs);
+				ptr.printRecords(rs);
+
+				_0.flush(ptr);
+
+			}
+
 		}
 
 	}

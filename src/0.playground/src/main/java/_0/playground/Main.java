@@ -58,7 +58,7 @@ public final class Main {
 
 	private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-	public static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(1, _0.availableProcessors >> 1));
+	public static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(4, _0.availableProcessors >> 1));
 
 	private static InetAddress ip = null;
 
@@ -201,41 +201,6 @@ public final class Main {
 			return exts.contains(ext.toLowerCase());
 
 		};
-
-		{
-
-			Map<String, Object> host = new HashMap<>();
-			host.put("host", ip.getHostAddress());
-			host.put("type", "file");
-			host.put("path", _0.userhome.toString());
-
-			hosts.add(host);
-
-		}
-
-//		idx.table(Idx.jdbc());
-
-		if (_0.windows) {
-			for (int i = 0; i <= 'Z' - 'A'; i++) {
-
-				Map<String, Object> host = new HashMap<>();
-				host.put("host", ip.getHostAddress());
-				host.put("type", "file");
-				host.put("path", (char)('A' + i) + ":/");
-
-				hosts.add(host);
-
-			}
-		} else {
-
-			Map<String, Object> host = new HashMap<>();
-			host.put("host", ip.getHostAddress());
-			host.put("type", "file");
-			host.put("path", "/");
-
-			hosts.add(host);
-
-		}
 
 		// ip毎に集約
 		Map<String, List<Map<String, Object>>> ip_hosts = new HashMap<>();
