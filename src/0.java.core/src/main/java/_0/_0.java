@@ -580,7 +580,7 @@ public final class _0 {
 						log.trace("{} {}", code, String.join(" ", commands));
 					}
 				} catch (InterruptedException e) {
-					log.trace("", e);
+					throw new IOException(e);
 				}
 
 			} else {
