@@ -4,7 +4,7 @@ import java.sql.SQLException;
 
 import _0._0;
 
-public final class Trim extends XFuncPlugin {
+public final class Normalize extends XFuncPlugin {
 
 	@Override
 	protected void impl()
@@ -13,7 +13,7 @@ public final class Trim extends XFuncPlugin {
 		String val = value_text(0);
 
 		if (val != null) {
-			val = _0.trim(val);
+			val = _0.normalize(val);
 		}
 
 		result(val);

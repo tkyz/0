@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -453,8 +454,22 @@ public final class _0 {
 
 	}
 
-	public static String trim(String val) {
+	public static String trim(final String val) {
 		return null == val ? null : val.replaceAll("^" + regex_spaces + "|" + regex_spaces + "$", "");
+	}
+
+	public static String normalize(final String val) {
+
+		String ret = val;
+
+		if (null != ret) {
+			for (Entry<String, String> entry : char_conv.entrySet()) {
+				ret = ret.replace(entry.getKey(), entry.getValue());
+			}
+		}
+
+		return ret;
+
 	}
 
 	public static final byte[] sha256(final byte[] data) {

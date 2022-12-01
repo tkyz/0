@@ -3,7 +3,7 @@ package _0.playground.xfunc;
 import java.sql.SQLException;
 import java.util.regex.Pattern;
 
-public class Matches extends XFuncPlugin {
+public final class Matches extends XFuncPlugin {
 
 	@Override
 	protected void impl()

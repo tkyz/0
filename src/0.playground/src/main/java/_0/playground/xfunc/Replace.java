@@ -2,7 +2,7 @@ package _0.playground.xfunc;
 
 import java.sql.SQLException;
 
-public class Replace extends XFuncPlugin {
+public final class Replace extends XFuncPlugin {
 
 	@Override
 	protected void impl()

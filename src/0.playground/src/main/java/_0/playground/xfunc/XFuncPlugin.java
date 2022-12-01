@@ -30,7 +30,7 @@ public abstract class XFuncPlugin extends Function implements Plugin {
 	}
 
 	@Override
-	protected void xFunc()
+	protected final void xFunc()
 			throws SQLException {
 
 		try {
@@ -58,17 +58,21 @@ public abstract class XFuncPlugin extends Function implements Plugin {
 	public static void load(Connection con)
 			throws ReflectiveOperationException, SQLException {
 
+		// TODO: auto load
 		List<Class<? extends XFuncPlugin>> funcs = new LinkedList<>();
+		funcs.add(Hash.class);
 		funcs.add(Matches.class);
+		funcs.add(Normalize.class);
+		funcs.add(Nvl.class);
 		funcs.add(Replace.class);
-		funcs.add(Sha256.class);
+		funcs.add(Split.class);
 		funcs.add(Trim.class);
 
 		for (Class<? extends XFuncPlugin> func : funcs) {
 
 			XFuncPlugin impl = func.getConstructor().newInstance();
 
-;			Function.create(con, impl.name(), impl);
+			Function.create(con, impl.name(), impl);
 
 		}
 

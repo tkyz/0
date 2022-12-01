@@ -6,17 +6,18 @@ import java.sql.SQLException;
 
 import _0._0;
 
-public class Sha256 extends XFuncPlugin {
+public final class Hash extends XFuncPlugin {
 
 	@Override
 	protected void impl()
 			throws SQLException, NoSuchAlgorithmException {
 
 		String val = value_text(0);
+		String alg = value_text(1);
 
 		if (val != null) {
 
-			MessageDigest md = MessageDigest.getInstance("SHA-256");
+			MessageDigest md = MessageDigest.getInstance(alg);
 
 			md.update(val.getBytes());
 
