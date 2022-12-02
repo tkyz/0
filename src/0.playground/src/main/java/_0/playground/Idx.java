@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVFormat.Builder;
@@ -33,6 +34,7 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.healthmarketscience.jackcess.Column;
 import com.healthmarketscience.jackcess.Database;
 import com.healthmarketscience.jackcess.DatabaseBuilder;
 import com.healthmarketscience.jackcess.Table;
@@ -50,33 +52,40 @@ public final class Idx implements Closeable {
 
 	private static final String name = Idx.class.getSimpleName().toLowerCase();
 
-	private static final String dbfile = name + ".db";
+	private static final Path dbfile = Path.of(".").resolve(name + ".db");
 
 	private static final Map<String, Map<String, Object>> cache = new HashMap<>();
 
 	public static boolean ip = true;
 
+	private Jdbc jdbc = null;
+
 	private Connection con = null;
 
 	public Idx()
-			throws IOException, SQLException {
-		this(new Jdbc("sqlite").file(dbfile));
+			throws SQLException {
+		this(dbfile);
 	}
 
 	public Idx(Path file)
-			throws IOException, SQLException {
+			throws SQLException {
 		this(new Jdbc("sqlite").file(file));
 	}
 
 	public Idx(Jdbc jdbc)
-			throws IOException, SQLException {
+			throws SQLException {
+		init(jdbc);
+	}
 
-		con = jdbc.connect();
+	private void init(Jdbc jdbc)
+			throws SQLException {
+
+		this.jdbc = jdbc;
+		this.con  = jdbc.connect();
 
 		XFuncPlugin.load(con);
 
 //		Jdbc.execute(con, "DROP TABLE IF EXISTS " + name);
-
 		StringBuilder query = new StringBuilder();
 		query.append("CREATE TABLE IF NOT EXISTS " + name + " ( ");
 		query.append("   ins_date TEXT NOT NULL ");
@@ -88,8 +97,8 @@ public final class Idx implements Closeable {
 		query.append(")");
 		Jdbc.execute(con, query.toString());
 
-		Jdbc.execute(con, "DROP INDEX IF EXISTS [idx/idx1]");
-		Jdbc.execute(con, "CREATE INDEX [idx/idx1] ON idx (type, key)");
+//		Jdbc.execute(con, "DROP INDEX IF EXISTS [idx/idx1]");
+		Jdbc.execute(con, "CREATE INDEX IF NOT EXISTS [idx/idx1] ON idx (type, key)");
 
 		List<String> types = new LinkedList<>();
 		types.add("file");
@@ -99,7 +108,7 @@ public final class Idx implements Closeable {
 			Jdbc.execute(con, "DROP VIEW IF EXISTS [idx/" + type + "]");
 
 			query.setLength(0);
-			query.append("CREATE VIEW [idx/" + type + "] AS ");
+			query.append("CREATE VIEW IF NOT EXISTS [idx/" + type + "] AS ");
 			query.append("  SELECT ");
 			query.append("       key ");
 			query.append("      ,val ");
@@ -111,33 +120,6 @@ public final class Idx implements Closeable {
 
 		}
 
-		// TODO: スレッド化
-		boolean enabled = false;
-		if (enabled) {
-
-			table(jdbc);
-
-			List<Path> paths = new LinkedList<>();
-			paths.add(_0.userhome);
-			if (_0.windows) {
-				for (int i = 0; i <= 'Z' - 'A'; i++) {
-					paths.add(Path.of((char)('A' + i) + ":/"));
-				}
-			} else {
-				paths.add(Path.of("/"));
-			}
-
-			while (!paths.isEmpty()) {
-				file(_0.ip(), paths.remove(0), f -> false);
-			}
-
-		}
-
-	}
-
-	@Override
-	public void close() {
-		_0.close(con);
 	}
 
 	public void set(final String type, final String key)
@@ -214,6 +196,12 @@ public final class Idx implements Closeable {
 
 		return null == val ? null : val.toMap();
 
+	}
+
+	public void vacuum()
+			throws SQLException {
+		flush();
+		execute("VACUUM");
 	}
 
 	public synchronized void flush()
@@ -324,13 +312,43 @@ public final class Idx implements Closeable {
 
 	}
 
-	public void vacuum()
-			throws SQLException {
-		flush();
-		Jdbc.execute(con, "VACUUM");
+	@Override
+	public void close() {
+		_0.close(con);
 	}
 
-	public void file(final InetAddress host, final Path path, final FileFilter filter)
+	public void idx()
+			throws IOException, SQLException {
+
+		idx_rdb_table(jdbc);
+
+		List<Path> paths = new LinkedList<>();
+		paths.add(_0.userhome);
+		if (_0.windows) {
+			for (int i = 0; i <= 'Z' - 'A'; i++) {
+				paths.add(Path.of((char)('A' + i) + ":/"));
+			}
+		} else {
+			paths.add(Path.of("/"));
+		}
+
+		while (!paths.isEmpty()) {
+			idx_file(_0.ip(), paths.remove(0), f -> false);
+		}
+
+	}
+
+	/**
+	 * <pre>
+	 * ファイルをインデックス化します。
+	 * </pre>
+	 *
+	 * @param host
+	 * @param path
+	 * @param filter
+	 * @throws IOException
+	 */
+	public void idx_file(final InetAddress host, final Path path, final FileFilter filter)
 			throws IOException {
 
 		InetAddress host_ = null == host || host.getHostAddress().startsWith("127.") ? _0.ip() : host;
@@ -372,7 +390,7 @@ public final class Idx implements Closeable {
 
 						try {
 
-							table(host_, Path.of(hostpath));
+							idx_mdb_table(host_, Path.of(hostpath));
 
 						} catch (IOException e) {
 							log.trace("{}", uncpath, e);
@@ -421,7 +439,16 @@ public final class Idx implements Closeable {
 
 	}
 
-	public void table(final Jdbc jdbc)
+	/**
+	 * <pre>
+	 * テーブルをインデックス化します。
+	 * </pre>
+	 *
+	 * @param jdbc
+	 * @throws IOException
+	 * @throws SQLException
+	 */
+	public void idx_rdb_table(final Jdbc jdbc)
 			throws IOException, SQLException {
 
 		try (Connection con = jdbc.connect()) {
@@ -525,7 +552,7 @@ public final class Idx implements Closeable {
 
 	}
 
-	private void table(final InetAddress host, final Path path)
+	private void idx_mdb_table(final InetAddress host, final Path path)
 			throws IOException, SQLException {
 
 		InetAddress host_ = null == host || host.getHostAddress().startsWith("127.") ? _0.ip() : host;
@@ -636,8 +663,8 @@ public final class Idx implements Closeable {
 
 	}
 
-	public void load(String key)
-			throws SQLException {
+	public void load(final String key)
+			throws IOException, SQLException {
 
 		Map<String, Object> val = get(key);
 
@@ -645,53 +672,86 @@ public final class Idx implements Closeable {
 
 			set("load", key, val);
 
-			load(val);
+			String type = ValSelector.val(val, "type");
+			String path = ValSelector.val(val, "path");
 
-		}
+			// TODO: 拡張性 filter, idx, load
 
-	}
+			if ("file".equals(type) && null != path) {
 
-	public void load(Map<String, Object> val)
-			throws SQLException {
+				path = path.toLowerCase();
+				if (path.endsWith(".mdb") || path.endsWith(".accdb")) {
+					load_mdb_table(key, val);
+				}
 
-		String type = ValSelector.val(val, "type");
-		String path = ValSelector.val(val, "path");
-
-		// TODO: 拡張性 filter, idx, load
-
-		if ("file".equals(type) && null != path) {
-
-			path = path.toLowerCase();
-			if (path.endsWith(".mdb") || path.endsWith(".accdb")) {
-				mdb(val);
+			} else {
+				load_rdb_table(key, val);
 			}
 
-		} else {
-			jdbc(val);
 		}
 
 	}
 
-	private void jdbc(Map<String, Object> val)
+	private void load_rdb_table(final String key, final Map<String, Object> val)
 			throws SQLException {
 
-		// TODO: load jdbc idx
+		try (Connection in_con = new Jdbc(val).connect()) {
+
+			String in_table  = null;
+			{
+
+				ValSelector selector = ValSelector.of(val);
+				String catalog = selector.get("catalog").val();
+				String schema  = selector.get("schema").val();
+				String table   = selector.get("table").val();
+
+				in_table = Arrays.asList(catalog, schema, table).stream()
+						.filter(Objects::nonNull)
+						.collect(Collectors.joining("."));
+
+			}
+
+			String out_table = Jdbc.esc(con, key);
+
+			Jdbc.transfer(in_con, in_table, con, out_table);
+
+		}
 
 	}
 
-	private void mdb(Map<String, Object> val)
-			throws SQLException {
+	private void load_mdb_table(final String key, final Map<String, Object> val)
+			throws IOException, SQLException {
 
-		// TODO: load mdb idx
+		ValSelector selector = ValSelector.of(val);
+		String host = selector.get("host").val();
+		String path = selector.get("path").val();
+
+		Path uncpath = _0.uncpath(InetAddress.getByName(host), Path.of(path));
+
+		try (Database mdb = DatabaseBuilder.open(uncpath)) {
+
+			Table table = mdb.getTable(selector.get("table").val());
+
+			List<? extends Column> columns = table.getColumns();
+
+			// TODO: create table
+			// TODO: transfer
+
+		}
 
 	}
 
-	public void output(String table, Path file)
+	public void execute(final String query)
+			throws SQLException {
+		Jdbc.execute(con, query);
+	}
+
+	public void output(final String table, final Path file)
 			throws IOException, SQLException {
 		output(table, file, CSVFormat.TDF.builder().setRecordSeparator('\n'));
 	}
 
-	public void output(String table, Path file, Builder builder)
+	public void output(final String table, final Path file, final Builder builder)
 			throws IOException, SQLException {
 
 		Files.createDirectories(file.getParent());
@@ -700,7 +760,7 @@ public final class Idx implements Closeable {
 
 			stmt.setFetchSize(Jdbc.fetchsize);
 
-			try (ResultSet rs = stmt.executeQuery("SELECT * FROM [" + table + "]"); CSVPrinter ptr = builder.build().printer()) {
+			try (ResultSet rs = stmt.executeQuery("SELECT * FROM " + Jdbc.esc(con, table)); CSVPrinter ptr = builder.build().printer()) {
 
 				ptr.printHeaders(rs);
 				ptr.printRecords(rs);
