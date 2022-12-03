@@ -61,6 +61,10 @@ public final class ValSelector {
 
 		for (Object key : keys) {
 
+			if (null == select) {
+				break;
+			}
+
 			if (select instanceof Map) {
 				select = ((Map<?, ?>)select).get(key);
 

@@ -8,7 +8,6 @@ import java.awt.datatransfer.FlavorListener;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.BufferedReader;
 import java.io.Closeable;
-import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -48,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import _0.Ansi;
+import _0.FileExtFilter;
 import _0.Jdbc;
 import _0.ValSelector;
 import _0._0;
@@ -183,24 +183,8 @@ public final class Main {
 
 		Collection<Map<String, Object>> hosts = yml.get("hosts").val();
 
-		Set<String> exts = new HashSet<>(yml.get("exts").val());
-		FileFilter exts_filter = f -> {
-
-			String ext = f.getName().toString().toLowerCase();
-
-			int lastidx = ext.lastIndexOf("/");
-			if (-1 < lastidx) {
-				ext = ext.substring(lastidx + 1);
-			}
-
-			lastidx = ext.lastIndexOf(".");
-			if (-1 < lastidx) {
-				ext = ext.substring(lastidx + 1);
-			}
-
-			return exts.contains(ext.toLowerCase());
-
-		};
+		List<String> exts = yml.get("exts").val();
+		FileExtFilter exts_filter = null == exts ? null : new FileExtFilter(exts);
 
 		// ip毎に集約
 		Map<String, List<Map<String, Object>>> ip_hosts = new HashMap<>();
@@ -239,10 +223,10 @@ public final class Main {
 
 						String path = (String)map.get("path");
 
-						idx.file(InetAddress.getByName(host), Path.of(path), exts_filter);
+						idx.idx_file(InetAddress.getByName(host), Path.of(path), exts_filter);
 
 					} else {
-						idx.table(new Jdbc(map));
+						idx.idx_table(new Jdbc(map));
 					}
 
 				}

@@ -19,12 +19,14 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.commons.csv.CSVFormat;
@@ -41,6 +43,7 @@ import com.healthmarketscience.jackcess.Table;
 import com.healthmarketscience.jackcess.impl.UnsupportedCodecException;
 import com.microsoft.sqlserver.jdbc.SQLServerException;
 
+import _0.FileExtFilter;
 import _0.Jdbc;
 import _0.ValSelector;
 import _0._0;
@@ -322,7 +325,7 @@ public final class Idx implements Closeable {
 	public void idx()
 			throws IOException, SQLException {
 
-		idx_rdb_table(jdbc);
+		idx_table(jdbc);
 
 		List<Path> paths = new LinkedList<>();
 		paths.add(_0.userhome);
@@ -337,6 +340,114 @@ public final class Idx implements Closeable {
 		while (!paths.isEmpty()) {
 			idx_file(_0.ip(), paths.remove(0), f -> false);
 		}
+
+	}
+
+	/**
+	 * <pre>
+	 * ファイルをインデックス化します。
+	 * </pre>
+	 *
+	 * @param host
+	 * @param path
+	 * @throws IOException
+	 */
+	public void idx_file(final InetAddress host, final Path path)
+			throws IOException {
+
+		Set<String> exts = new HashSet<>();
+
+		// source
+		if (true) {
+			exts.add("c"); exts.add("cpp"); exts.add("cs"); exts.add("h");
+			exts.add("rs");
+			exts.add("go");
+			exts.add("java");
+			exts.add("php");
+			exts.add("pl");
+			exts.add("py");
+			exts.add("js");
+			exts.add("sh");
+			exts.add("bat");
+			exts.add("bas");
+			exts.add("frm");
+			exts.add("cob");
+			exts.add("sql"); exts.add("ddl");
+			exts.add("Makefile");
+			exts.add("Dockerfile");
+			exts.add("Vagrantfile");
+			exts.add("htm"); exts.add("html");
+			exts.add("css");
+			exts.add("cnf"); exts.add("conf"); exts.add("config");
+			exts.add("ini");
+			exts.add("properties");
+			exts.add("json");
+			exts.add("yml"); exts.add("yaml");
+			exts.add("xml");
+		}
+
+		// data
+		if (true) {
+			exts.add("tsv");
+			exts.add("csv");
+			exts.add("avro");
+			exts.add("avsc");
+			exts.add("mdb");
+			exts.add("accdb");
+		}
+
+		// sec
+		if (true) {
+			exts.add("key");
+			exts.add("pub");
+			exts.add("crt");
+			exts.add("csr");
+			exts.add("pem");
+			exts.add("id_rsa");
+		}
+
+		// archive
+		if (true) {
+			exts.add("jar");
+			exts.add("war");
+			exts.add("ear");
+			exts.add("tar");
+			exts.add("bz2");
+			exts.add("gz");
+			exts.add("rar");
+			exts.add("zip");
+			exts.add("7z");
+			exts.add("lzh");
+		}
+
+		// media
+		if (true) {
+			exts.add("png");
+			exts.add("gif");
+			exts.add("jpg");
+			exts.add("jpeg");
+			exts.add("bmp");
+			exts.add("mp3");
+			exts.add("mp4");
+			exts.add("flv");
+			exts.add("avi");
+			exts.add("wav");
+		}
+
+		if (true) {
+			exts.add("txt");
+			exts.add("xls");
+			exts.add("xlsx");
+			exts.add("doc");
+			exts.add("docx");
+			exts.add("ppt");
+			exts.add("pptx");
+			exts.add("pdf");
+			exts.add("iso");
+			exts.add("img");
+		}
+
+		idx_file(host, path, new FileExtFilter(exts));
 
 	}
 
@@ -392,7 +503,7 @@ public final class Idx implements Closeable {
 
 						try {
 
-							idx_mdb_table(host_, Path.of(hostpath));
+							idx_table(host_, Path.of(hostpath));
 
 						} catch (IOException e) {
 							log.trace("{}", uncpath, e);
@@ -450,7 +561,7 @@ public final class Idx implements Closeable {
 	 * @throws IOException
 	 * @throws SQLException
 	 */
-	public void idx_rdb_table(final Jdbc jdbc)
+	public void idx_table(final Jdbc jdbc)
 			throws IOException, SQLException {
 
 		try (Connection con = jdbc.connect()) {
@@ -554,7 +665,7 @@ public final class Idx implements Closeable {
 
 	}
 
-	private void idx_mdb_table(final InetAddress host, final Path path)
+	private void idx_table(final InetAddress host, final Path path)
 			throws IOException, SQLException {
 
 		InetAddress host_ = null == host || host.getHostAddress().startsWith("127.") ? _0.ip() : host;
@@ -701,6 +812,7 @@ public final class Idx implements Closeable {
 
 	}
 
+	// TODO: 外部拡張化
 	private List<TableLoader> loaders = new LinkedList<>() {
 
 		private static final long serialVersionUID = 1L;
