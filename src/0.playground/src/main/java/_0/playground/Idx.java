@@ -44,6 +44,7 @@ import com.microsoft.sqlserver.jdbc.SQLServerException;
 import _0.Jdbc;
 import _0.ValSelector;
 import _0._0;
+import _0.debug.StopWatch;
 import _0.playground.xfunc.XFuncPlugin;
 
 public final class Idx implements Closeable {
@@ -100,6 +101,7 @@ public final class Idx implements Closeable {
 //		Jdbc.execute(con, "DROP INDEX IF EXISTS [idx/idx1]");
 		Jdbc.execute(con, "CREATE INDEX IF NOT EXISTS [idx/idx1] ON idx (type, key)");
 
+		// TODO: SELECT DISTINCT type FROM idx WHERE type IS NOT NULL
 		List<String> types = new LinkedList<>();
 		types.add("file");
 		types.add("table");
@@ -155,16 +157,19 @@ public final class Idx implements Closeable {
 	public synchronized Map<String, Object> get(final String key)
 			throws SQLException {
 
-		JSONObject val = null;
+		Map<String, Object> rec = null;
 
 		if (cache.containsKey(key)) {
-			val = (JSONObject)cache.get(key).get("val");
+
+			rec = new HashMap<>();
+			rec.put("key", key);
+			rec.putAll(cache.get(key));
 
 		} else {
 
 			StringBuilder query = new StringBuilder();
 			query.append("SELECT ");
-			query.append("    val ");
+			query.append("    * ");
 			query.append("  FROM ");
 			query.append("    idx ");
 			query.append("  WHERE ");
@@ -177,11 +182,8 @@ public final class Idx implements Closeable {
 				try (ResultSet rs = stmt.executeQuery()) {
 
 					if (rs.next()) {
-
-						String v = (String)rs.getObject("val");
-
-						val = null == v ? null : new JSONObject(v);
-
+						rec = Jdbc.map(rs);
+						rec.put("val", new JSONObject(rec.get("val")).toMap());
 					}
 
 					if (rs.next()) {
@@ -194,7 +196,7 @@ public final class Idx implements Closeable {
 
 		}
 
-		return null == val ? null : val.toMap();
+		return rec;
 
 	}
 
@@ -666,80 +668,138 @@ public final class Idx implements Closeable {
 	public void load(final String key)
 			throws IOException, SQLException {
 
-		Map<String, Object> val = get(key);
+		Map<String, Object> rec = get(key);
 
-		if (null != val) {
+		if (null != rec) {
 
-			set("load", key, val);
+			set("load", key);
 
-			String type = ValSelector.val(val, "type");
-			String path = ValSelector.val(val, "path");
+			for (TableLoader loader : loaders) {
 
-			// TODO: 拡張性 filter, idx, load
-
-			if ("file".equals(type) && null != path) {
-
-				path = path.toLowerCase();
-				if (path.endsWith(".mdb") || path.endsWith(".accdb")) {
-					load_mdb_table(key, val);
+				if (loader.is_load(rec)) {
+					continue;
 				}
 
-			} else {
-				load_rdb_table(key, val);
-			}
+				StopWatch sw = new StopWatch();
 
-		}
+				loader.load(rec);
 
-	}
-
-	private void load_rdb_table(final String key, final Map<String, Object> val)
-			throws SQLException {
-
-		try (Connection in_con = new Jdbc(val).connect()) {
-
-			String in_table  = null;
-			{
-
-				ValSelector selector = ValSelector.of(val);
-				String catalog = selector.get("catalog").val();
-				String schema  = selector.get("schema").val();
-				String table   = selector.get("table").val();
-
-				in_table = Arrays.asList(catalog, schema, table).stream()
-						.filter(Objects::nonNull)
-						.collect(Collectors.joining("."));
+				log.debug("load time={} {}", sw.stop(), key);
 
 			}
 
-			String out_table = Jdbc.esc(con, key);
-
-			Jdbc.transfer(in_con, in_table, con, out_table);
-
 		}
 
 	}
 
-	private void load_mdb_table(final String key, final Map<String, Object> val)
-			throws IOException, SQLException {
+	private interface TableLoader {
 
-		ValSelector selector = ValSelector.of(val);
-		String host = selector.get("host").val();
-		String path = selector.get("path").val();
+		public boolean is_load(final Map<String, Object> rec);
 
-		Path uncpath = _0.uncpath(InetAddress.getByName(host), Path.of(path));
-
-		try (Database mdb = DatabaseBuilder.open(uncpath)) {
-
-			Table table = mdb.getTable(selector.get("table").val());
-
-			List<? extends Column> columns = table.getColumns();
-
-			// TODO: create table
-			// TODO: transfer
-
-		}
+		public void load(final Map<String, Object> rec)
+				throws IOException, SQLException;
 
 	}
+
+	private List<TableLoader> loaders = new LinkedList<>() {
+
+		private static final long serialVersionUID = 1L;
+
+		{
+
+			add(new TableLoader() {
+
+				@Override
+				public boolean is_load(final Map<String, Object> rec) {
+
+					String type = ValSelector.val(rec, "type");
+					String path = ValSelector.val(rec, "val", "path");
+
+					boolean is_load = true;
+					is_load &= "table".equals(type);
+					is_load &= null != path && (path.endsWith(".mdb") || path.endsWith(".accdb"));
+
+					return is_load;
+
+				}
+
+				@Override
+				public void load(final Map<String, Object> rec)
+						throws IOException, SQLException {
+
+					ValSelector val = ValSelector.of(rec);
+					String val_host  = val.get("host").val();
+					String val_path  = val.get("path").val();
+					String val_table = val.get("table").val();
+
+					Path uncpath = _0.uncpath(InetAddress.getByName(val_host), Path.of(val_path));
+
+					try (Database mdb = DatabaseBuilder.open(uncpath)) {
+
+						Table table = mdb.getTable(val_table);
+
+						List<? extends Column> columns = table.getColumns();
+
+						// TODO: create table
+						// TODO: transfer
+
+					}
+
+				}
+
+			});
+
+			add(new TableLoader() {
+
+				@Override
+				public boolean is_load(final Map<String, Object> rec) {
+
+					String type = ValSelector.val(rec, "type");
+					String uri  = ValSelector.val(rec, "val", "uri");
+
+					boolean is_load = true;
+					is_load &= "table".equals(type);
+					is_load &= null != uri;
+
+					return is_load;
+
+				}
+
+				@Override
+				public void load(final Map<String, Object> rec)
+						throws IOException, SQLException {
+
+					Map<String, Object> val = ValSelector.val(rec, "val");
+
+					try (Connection in_con = new Jdbc(val).connect()) {
+
+						String key = ValSelector.val(rec, "key");
+
+						String in_table  = null;
+						{
+
+							String catalog = ValSelector.val(val, "catalog");
+							String schema  = ValSelector.val(val, "schema");
+							String table   = ValSelector.val(val, "table");
+
+							in_table = Arrays.asList(catalog, schema, table).stream()
+									.filter(Objects::nonNull)
+									.collect(Collectors.joining("."));
+
+						}
+
+						String out_table = Jdbc.esc(con, key);
+
+						Jdbc.transfer(in_con, in_table, con, out_table);
+
+					}
+
+				}
+
+			});
+
+		}
+	};
 
 	public void execute(final String query)
 			throws SQLException {
@@ -753,6 +813,8 @@ public final class Idx implements Closeable {
 
 	public void output(final String table, final Path file, final Builder builder)
 			throws IOException, SQLException {
+
+		StopWatch sw = new StopWatch();
 
 		Files.createDirectories(file.getParent());
 
@@ -770,6 +832,8 @@ public final class Idx implements Closeable {
 			}
 
 		}
+
+		log.debug("output time={} {} -> {}", table, file, sw.stop());
 
 	}
 
