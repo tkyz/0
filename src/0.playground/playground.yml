@@ -1,24 +1,16 @@
 playground:
 
-  - name:     sshd
-    type:     null
-    schedule: start
-    in:
-      port: 0
+  sshd:
+    port: 0
 
-  - name:     idx
-    type:     null
-    schedule: null
-    in:
-      hosts:
-        - {host: mariadb.0, type: mariadb,  username: root,     password: mariadb}
-        - {host: pgsql.0,   type: postgres, username: postgres, password: pgsql}
-#       - {host: 0.0.0.0,   type: file, path: /}
-      exts:
+  auth:
+    - {host: mariadb.0, type: mariadb,  username: null, password: null}
+    - {host: pgsql.0,   type: postgres, username: null, password: null}
+    - {host: 0.0.0.0,   type: cifs,     username: null, password: null, vers: "3.1.1"}
 
-  - name:     dataset
-    type:     null
-    schedule: null
-    in:
-      keys:
-        - //0.0.0.0/${HOME}/src/0.playground/idx.db/idx
+  idx:
+    target:
+      - {host: 0.0.0.0, type: table}
+#     - {host: 0.0.0.0, type: file,  path: /}
+#     - {host: 0.0.0.0, type: file,  path: C:/}
+    exts:

@@ -325,7 +325,9 @@ public final class Idx implements Closeable {
 	public void idx()
 			throws IOException, SQLException {
 
-		idx_table(jdbc);
+		if (null != jdbc) {
+			idx_table(jdbc);
+		}
 
 		List<Path> paths = new LinkedList<>();
 		paths.add(_0.userhome);

@@ -257,6 +257,27 @@ public final class _0 {
 
 	}
 
+	public static boolean empty(Object obj) {
+
+		boolean empty = false;
+
+		if (null == obj) {
+			empty = true;
+
+		} else if (obj instanceof Collection) {
+			empty = ((Collection<?>)obj).isEmpty();
+
+		} else if (obj instanceof Map) {
+			empty = ((Map<?, ?>)obj).isEmpty();
+
+		} else {
+			throw new UnsupportedOperationException(obj.getClass().getName());
+		}
+
+		return empty;
+
+	}
+
 	/**
 	 * 最初に現れるnullではないオブジェクトを返します。
 	 *
@@ -287,7 +308,6 @@ public final class _0 {
 	/**
 	 * <pre>
 	 * 最初に現れる空ではないオブジェクトを返します。
-	 * 空かどうかは{@link #empty}で判定されます。
 	 * </pre>
 	 *
 	 * @param T

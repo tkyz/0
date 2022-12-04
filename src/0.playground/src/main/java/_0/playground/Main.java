@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.lang.reflect.Method;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -35,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -60,9 +58,9 @@ public final class Main {
 
 	public static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(4, _0.availableProcessors >> 1));
 
-	private static InetAddress ip = null;
-
 	private static Idx idx = null;
+
+	private static InetAddress ip = null;
 
 	private static Set<Closeable> closeables = new HashSet<>();
 
@@ -77,75 +75,13 @@ public final class Main {
 
 			log.trace("start");
 
-			debug();
+			ip = _0.ip();
 
-			ip  = _0.ip();
-			idx = new Idx();
-			closeables.add(idx);
+			ValSelector root_yml = ValSelector.of(map("playground.yml")).get("playground").of();
 
-			ValSelector selector = ValSelector.of(map("playground.yml")).get("playground").of();
-			for (int i = 0; i < selector.size(); i++) {
-
-				ValSelector item = selector.get(i).of();
-
-				log.debug("{}", item);
-
-				Object schedule = item.get("schedule").val();
-				if (null == schedule) {
-					continue;
-				}
-
-				String name = item.get("name").val();
-				ValSelector in = item.get("in").of();
-
-				Method method = null;
-				try {
-					method = Main.class.getDeclaredMethod(name, ValSelector.class);
-				} catch (NoSuchMethodException e) {
-					log.trace("{}", e.toString());
-					continue;
-				}
-
-				if ("start".equals(schedule)) {
-
-					Object retval = method.invoke(null, in);
-
-					if (retval instanceof Closeable) {
-						closeables.add((Closeable)retval);
-					}
-
-				} else {
-
-					Method method_ = method;
-					Callable<Void> invoke = new Callable<>() {
-
-						@Override
-						public Void call()
-								throws Exception {
-
-							Object retval = method_.invoke(null, in);
-
-							boolean close = true;
-							close &= retval instanceof Closeable;
-							close &= retval != idx;
-
-							if (close) {
-								_0.close((Closeable)retval);
-							}
-
-							worker.schedule(this, _0.delay((String)schedule), TimeUnit.MILLISECONDS);
-
-							return null;
-
-						}
-
-					};
-
-					worker.schedule(invoke, _0.delay((String)schedule), TimeUnit.MILLISECONDS);
-
-				}
-
-			}
+			debug(args);
+			sshd(root_yml);
+			idx(root_yml);
 
 			cli();
 //			Thread.sleep(Long.MAX_VALUE);
@@ -160,92 +96,14 @@ public final class Main {
 
 			worker.shutdown();
 
-			idx = null;
+			idx.vacuum();
+
 			closeables.stream()
 					.parallel()
 					.forEach(_0::close);
 
 		}
 
-	}
-
-	protected static Sshd sshd(ValSelector yml)
-			throws IOException {
-
-		int port = yml.get("port").val();
-
-		return new Sshd(port);
-
-	}
-
-	protected static Idx idx(ValSelector yml)
-			throws IOException, SQLException {
-
-		Collection<Map<String, Object>> hosts = yml.get("hosts").val();
-
-		List<String> exts = yml.get("exts").val();
-		FileExtFilter exts_filter = null == exts ? null : new FileExtFilter(exts);
-
-		// ip毎に集約
-		Map<String, List<Map<String, Object>>> ip_hosts = new HashMap<>();
-		for (Map<String, Object> host_map : hosts) {
-
-			String host = (String)host_map.get("host");
-			if (null == host) {
-				host = ip.getHostAddress();
-			}
-
-			String ip = null;
-			try {
-				ip = InetAddress.getByName(host).getHostAddress();
-			} catch (UnknownHostException e) {
-				continue;
-			}
-
-			if (!ip_hosts.containsKey(ip)) {
-				ip_hosts.put(ip, new LinkedList<>());
-			}
-
-			ip_hosts.get(ip).add(host_map);
-
-		}
-
-		// ip毎にスレッド化
-		for (Entry<String, List<Map<String, Object>>> entry : ip_hosts.entrySet()) {
-
-			String host = entry.getKey();
-
-			worker.submit(() -> {
-
-				for (Map<String, Object> map : entry.getValue()) {
-
-					if ("file".equals(map.get("type"))) {
-
-						String path = (String)map.get("path");
-
-						idx.idx_file(InetAddress.getByName(host), Path.of(path), exts_filter);
-
-					} else {
-						idx.idx_table(new Jdbc(map));
-					}
-
-				}
-
-				return null;
-
-			});
-
-		}
-
-		idx.vacuum();
-
-		return idx;
-
-	}
-
-	protected static void debug(ValSelector yml)
-			throws IOException {
-		debug(new String[0]);
 	}
 
 	private static void debug(final String... args)
@@ -367,6 +225,118 @@ public final class Main {
 
 			log.debug("{}", Ansi.reset);
 
+		}
+
+	}
+
+	private static void sshd(final ValSelector root_yml)
+			throws IOException {
+
+		ValSelector yml = root_yml.get(_0.current().getMethodName()).of();
+
+		Integer port = yml.get("port").val();
+		if (null != port) {
+			Sshd sshd = new Sshd(port);
+			closeables.add(sshd);
+		}
+
+	}
+
+	protected static void idx(ValSelector root_yml)
+			throws IOException, SQLException {
+
+		idx = new Idx();
+		closeables.add(idx);
+
+		ValSelector yml = root_yml.get(_0.current().getMethodName()).of();
+
+		Collection<Map<String, Object>> hosts = yml.get("target").val();
+
+		List<String> exts = yml.get("exts").val();
+		FileExtFilter exts_filter = _0.empty(exts) ? null : new FileExtFilter(exts);
+
+		// ip毎に集約
+		Map<String, List<Map<String, Object>>> ip_hosts = new HashMap<>();
+		for (Map<String, Object> host_map : hosts) {
+
+			String host = (String)host_map.get("host");
+			if (null == host) {
+				host = ip.getHostAddress();
+			}
+
+			String ip = null;
+			try {
+				ip = InetAddress.getByName(host).getHostAddress();
+			} catch (UnknownHostException e) {
+				log.trace("{}", e.toString());
+				continue;
+			}
+
+			if (!ip_hosts.containsKey(ip)) {
+				ip_hosts.put(ip, new LinkedList<>());
+			}
+
+			ip_hosts.get(ip).add(host_map);
+
+		}
+
+		// ip毎にスレッド化
+		for (Entry<String, List<Map<String, Object>>> entry : ip_hosts.entrySet()) {
+			worker.schedule(() -> {
+
+				String swp = Thread.currentThread().getName();
+
+				String host = entry.getKey();
+				Thread.currentThread().setName(host);
+
+				for (Map<String, Object> target : entry.getValue()) {
+
+					String type = (String)target.get("type");
+					String path = (String)target.get("path");
+
+					// TODO: auths.isEmpty()
+					Collection<Map<String, Object>> auths = root_yml.get("auth").val();
+					for (Map<String, Object> auth : auths) {
+
+						// TODO: 事前にip変換
+						if (!host.equals(InetAddress.getByName((String)auth.get("host")).getHostAddress())) {
+							continue;
+						}
+
+						// TODO: unmatched
+						boolean unmatched = false;
+						unmatched |= "file".equals(type)  && !"cifs".equals(auth.get("type"));
+						unmatched |= "table".equals(type) && "cifs".equals(auth.get("type"));
+						if (unmatched) {
+							continue;
+						}
+
+						Map<String, Object> merged = new HashMap<>();
+						merged.putAll(target);
+						merged.putAll(auth);
+						merged.put("host", host);
+
+						log.debug("{}", merged);
+
+						if ("file".equals(type)) {
+							idx.idx_file(InetAddress.getByName(host), Path.of(path), exts_filter);
+
+						} else if ("table".equals(type)) {
+							idx.idx_table(new Jdbc(merged));
+
+						} else {
+							throw new UnsupportedOperationException(type);
+						}
+
+					}
+
+				}
+
+				Thread.currentThread().setName(swp);
+
+				return null;
+
+			}, 0, TimeUnit.MILLISECONDS);
 		}
 
 	}
