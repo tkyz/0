@@ -312,10 +312,10 @@ public final class Jdbc {
 			types.put(Types.SMALLINT,      "INTEGER");
 			types.put(Types.INTEGER,       "INTEGER");
 			types.put(Types.BIGINT,        "INTEGER");
-			types.put(Types.NUMERIC,       "INTEGER");
 			types.put(Types.FLOAT,         "REAL");
 			types.put(Types.DOUBLE,        "REAL");
 			types.put(Types.REAL,          "REAL");
+			types.put(Types.NUMERIC,       "REAL");
 			types.put(Types.DECIMAL,       "REAL");
 			types.put(Types.CHAR,          "TEXT");
 			types.put(Types.NCHAR,         "TEXT");
