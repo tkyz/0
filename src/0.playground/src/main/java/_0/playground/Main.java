@@ -3,8 +3,6 @@ package _0.playground;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.FlavorEvent;
-import java.awt.datatransfer.FlavorListener;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.BufferedReader;
 import java.io.Closeable;
@@ -12,15 +10,12 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.Collection;
@@ -34,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -58,11 +54,15 @@ public final class Main {
 
 	public static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(4, _0.availableProcessors >> 1));
 
-	private static Idx idx = null;
+	private static Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 
 	private static InetAddress ip = null;
 
+	private static Idx idx = null;
+
 	private static Set<Closeable> closeables = new HashSet<>();
+
+	private static boolean exit = false;
 
 	private Main() {
 	}
@@ -82,6 +82,7 @@ public final class Main {
 			debug(args);
 			sshd(root_yml);
 			idx(root_yml);
+			clip(root_yml);
 
 			cli();
 //			Thread.sleep(Long.MAX_VALUE);
@@ -245,20 +246,20 @@ public final class Main {
 	protected static void idx(final Map<String, Object> root_yml)
 			throws IOException, SQLException {
 
-		Map<String, Object>             curr_yml = _0.select(root_yml, _0.current().getMethodName());
-		Collection<Map<String, Object>> auth_yml = _0.select(root_yml, "auth");
+		Map<String, Object> curr_yml = _0.select(root_yml, _0.current().getMethodName());
 
 		idx = new Idx();
 		closeables.add(idx);
 
-		Collection<Map<String, Object>> hosts = _0.select(curr_yml, "target");
+		Collection<Map<String, Object>> auths   = _0.select(root_yml, "auth");
+		Collection<Map<String, Object>> targets = _0.select(curr_yml, "target");
 
 		List<String> exts = _0.select(curr_yml, "exts");
 		FileExtFilter exts_filter = _0.empty(exts) ? null : new FileExtFilter(exts);
 
 		// ip毎に集約
 		Map<String, List<Map<String, Object>>> ip_hosts = new HashMap<>();
-		for (Map<String, Object> host_map : hosts) {
+		for (Map<String, Object> host_map : targets) {
 
 			String host = (String)host_map.get("host");
 			if (null == host) {
@@ -296,7 +297,7 @@ public final class Main {
 					String path = (String)target.get("path");
 
 					// TODO: auths.isEmpty()
-					for (Map<String, Object> auth : auth_yml) {
+					for (Map<String, Object> auth : auths) {
 
 						// TODO: 事前にip変換
 						if (!host.equals(InetAddress.getByName((String)auth.get("host")).getHostAddress())) {
@@ -341,6 +342,71 @@ public final class Main {
 
 	}
 
+	private static final void clip(Map<String, Object> root_yml) {
+
+//		Map<String, Object> curr_yml = _0.select(root_yml, _0.current().getMethodName());
+
+		Set<DataFlavor> flavors = new HashSet<>();
+		flavors.add(DataFlavor.stringFlavor);
+//		flavors.add(DataFlavor.imageFlavor);
+//		flavors.add(DataFlavor.javaFileListFlavor);
+//		flavors.add(DataFlavor.selectionHtmlFlavor);
+//		flavors.add(DataFlavor.fragmentHtmlFlavor);
+//		flavors.add(DataFlavor.allHtmlFlavor);
+//		flavors.addAll(List.of(transferable.getTransferDataFlavors()));
+
+		Callable<Void> callable = () -> {
+
+			Thread.currentThread().setName("clipboard");
+
+			Object prev = null;
+			while (!exit) {
+
+				for (DataFlavor flavor : flavors) {
+
+					Object data = null;
+					try {
+						data = clipboard.getContents(null).getTransferData(flavor);
+					} catch (UnsupportedFlavorException e) {
+						continue;
+					}
+
+					if (data.equals(prev)) {
+						break;
+					}
+					prev = data;
+
+					// TODO: event
+					Object data_ = data;
+					worker.submit(() -> {
+						log.debug("{} {}", flavor, data_);
+					});
+
+				}
+
+				// 100ms間隔
+				Thread.sleep(100);
+
+			}
+
+			return null;
+
+		};
+
+		Runnable exhandle = () -> {
+			try {
+				callable.call();
+			} catch (RuntimeException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new IllegalStateException(e);
+			}
+		};
+
+		new Thread(exhandle).start();
+
+	}
+
 	private static void cli()
 			throws IOException {
 
@@ -349,7 +415,8 @@ public final class Main {
 
 				String line = in.readLine();
 
-				if ("exit".equals(line)) {
+				exit = "exit".equals(line);
+				if (exit) {
 					break;
 				}
 
@@ -357,63 +424,6 @@ public final class Main {
 
 			}
 		}
-
-	}
-
-	// TODO: 拾えないことが多い
-	private static final void clip() {
-
-		Toolkit.getDefaultToolkit().getSystemClipboard().addFlavorListener(new FlavorListener() {
-
-			@Override
-			public void flavorsChanged(FlavorEvent event) {
-
-				Clipboard clipboard = (Clipboard)event.getSource();
-
-				try {
-
-					Set<DataFlavor> flavors = new HashSet<>();
-					flavors.add(DataFlavor.stringFlavor);
-					flavors.add(DataFlavor.imageFlavor);
-					flavors.add(DataFlavor.javaFileListFlavor);
-					flavors.add(DataFlavor.selectionHtmlFlavor);
-					flavors.add(DataFlavor.fragmentHtmlFlavor);
-					flavors.add(DataFlavor.allHtmlFlavor);
-					flavors.addAll(List.of(clipboard.getAvailableDataFlavors()));
-
-					for (DataFlavor flavor : flavors) {
-
-						if (!clipboard.isDataFlavorAvailable(flavor)) {
-							continue;
-						}
-
-						Object data = clipboard.getData(flavor);
-
-						boolean ignore = false;
-						ignore |= data instanceof InputStream;
-						ignore |= data instanceof Reader;
-						ignore |= data instanceof ByteBuffer;
-						ignore |= data instanceof CharBuffer;
-						ignore |= data instanceof byte[];
-						ignore |= data instanceof char[];
-						if (ignore) {
-							continue;
-						}
-
-						System.out.println(data);
-
-					}
-
-				} catch (UnsupportedFlavorException e) {
-					log.trace("", e);
-
-				} catch (IOException e) {
-					log.trace("", e);
-				}
-
-			}
-
-		});
 
 	}
 
