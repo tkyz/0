@@ -47,9 +47,9 @@ import org.yaml.snakeyaml.Yaml;
 import _0.Ansi;
 import _0.FileExtFilter;
 import _0.Jdbc;
-import _0.ValSelector;
 import _0._0;
 import _0.debug.StopWatch;
+import _0.playground.idx.Idx;
 import _0.playground.sshd.Sshd;
 
 public final class Main {
@@ -77,7 +77,7 @@ public final class Main {
 
 			ip = _0.ip();
 
-			ValSelector root_yml = ValSelector.of(map("playground.yml")).get("playground").of();
+			Map<String, Object> root_yml = _0.select(map("playground.yml"), "playground");
 
 			debug(args);
 			sshd(root_yml);
@@ -229,12 +229,12 @@ public final class Main {
 
 	}
 
-	private static void sshd(final ValSelector root_yml)
+	private static void sshd(final Map<String, Object> root_yml)
 			throws IOException {
 
-		ValSelector yml = root_yml.get(_0.current().getMethodName()).of();
+		Map<String, Object> curr_yml = _0.select(root_yml, _0.current().getMethodName());
 
-		Integer port = yml.get("port").val();
+		Integer port = _0.select(curr_yml, "port");
 		if (null != port) {
 			Sshd sshd = new Sshd(port);
 			closeables.add(sshd);
@@ -242,17 +242,18 @@ public final class Main {
 
 	}
 
-	protected static void idx(ValSelector root_yml)
+	protected static void idx(final Map<String, Object> root_yml)
 			throws IOException, SQLException {
+
+		Map<String, Object>             curr_yml = _0.select(root_yml, _0.current().getMethodName());
+		Collection<Map<String, Object>> auth_yml = _0.select(root_yml, "auth");
 
 		idx = new Idx();
 		closeables.add(idx);
 
-		ValSelector yml = root_yml.get(_0.current().getMethodName()).of();
+		Collection<Map<String, Object>> hosts = _0.select(curr_yml, "target");
 
-		Collection<Map<String, Object>> hosts = yml.get("target").val();
-
-		List<String> exts = yml.get("exts").val();
+		List<String> exts = _0.select(curr_yml, "exts");
 		FileExtFilter exts_filter = _0.empty(exts) ? null : new FileExtFilter(exts);
 
 		// ip毎に集約
@@ -295,8 +296,7 @@ public final class Main {
 					String path = (String)target.get("path");
 
 					// TODO: auths.isEmpty()
-					Collection<Map<String, Object>> auths = root_yml.get("auth").val();
-					for (Map<String, Object> auth : auths) {
+					for (Map<String, Object> auth : auth_yml) {
 
 						// TODO: 事前にip変換
 						if (!host.equals(InetAddress.getByName((String)auth.get("host")).getHostAddress())) {

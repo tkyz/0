@@ -413,6 +413,41 @@ public final class _0 {
 		return size(size, true);
 	}
 
+	public static final <T> T select(final List<?> list, final Object... keys) {
+		return select((Object)list, keys);
+	}
+
+	public static final <T> T select(final Map<?, ?> map, final Object... keys) {
+		return select((Object)map, keys);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static final <T> T select(final Object obj, final Object... keys) {
+
+		Object select = obj;
+
+		for (Object key : keys) {
+
+			if (null == select) {
+				break;
+			}
+
+			if (select instanceof Map) {
+				select = ((Map<?, ?>)select).get(key);
+
+			} else if (select instanceof List) {
+				select = ((List<?>)select).get(((Integer)key).intValue());
+
+			} else {
+				throw new IllegalArgumentException(String.valueOf(key));
+			}
+
+		}
+
+		return (T)select;
+
+	}
+
 	public static final String size(final long size, final boolean iec) {
 
 		double d = iec ? 1024.0d : 1000.0d;

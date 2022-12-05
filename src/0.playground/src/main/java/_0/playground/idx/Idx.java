@@ -1,4 +1,4 @@
-package _0.playground;
+package _0.playground.idx;
 
 import java.io.Closeable;
 import java.io.FileFilter;
@@ -45,7 +45,6 @@ import com.microsoft.sqlserver.jdbc.SQLServerException;
 
 import _0.FileExtFilter;
 import _0.Jdbc;
-import _0.ValSelector;
 import _0._0;
 import _0.debug.StopWatch;
 import _0.playground.xfunc.XFuncPlugin;
@@ -345,17 +344,7 @@ public final class Idx implements Closeable {
 
 	}
 
-	/**
-	 * <pre>
-	 * ファイルをインデックス化します。
-	 * </pre>
-	 *
-	 * @param host
-	 * @param path
-	 * @throws IOException
-	 */
-	public void idx_file(final InetAddress host, final Path path)
-			throws IOException {
+	private static FileFilter filter() {
 
 		Set<String> exts = new HashSet<>();
 
@@ -449,8 +438,22 @@ public final class Idx implements Closeable {
 			exts.add("img");
 		}
 
-		idx_file(host, path, new FileExtFilter(exts));
+		return new FileExtFilter(exts);
 
+	}
+
+	/**
+	 * <pre>
+	 * ファイルをインデックス化します。
+	 * </pre>
+	 *
+	 * @param host
+	 * @param path
+	 * @throws IOException
+	 */
+	public void idx_file(final InetAddress host, final Path path)
+			throws IOException {
+		idx_file(host, path, null);
 	}
 
 	/**
@@ -470,6 +473,8 @@ public final class Idx implements Closeable {
 
 		Path uncpath = _0.uncpath(host, path);
 
+		FileFilter filter_ = null == filter ? filter() : filter;
+
 		Files.walkFileTree(uncpath, new FileVisitor<Path>() {
 
 			@Override
@@ -482,7 +487,7 @@ public final class Idx implements Closeable {
 			public FileVisitResult visitFile(final Path uncpath, final BasicFileAttributes attrs)
 					throws IOException {
 
-				if (filter.accept(uncpath.toFile())) {
+				if (filter_.accept(uncpath.toFile())) {
 
 					String key      = uncpath.toString().replace('\\', '/');
 					String hostpath = _0.hostpath(uncpath);
@@ -784,12 +789,9 @@ public final class Idx implements Closeable {
 		Map<String, Object> rec = get(key);
 
 		if (null != rec) {
-
-			set("load", key);
-
 			for (TableLoader loader : loaders) {
 
-				if (loader.is_load(rec)) {
+				if (!loader.is_load(rec)) {
 					continue;
 				}
 
@@ -800,7 +802,6 @@ public final class Idx implements Closeable {
 				log.debug("load time={} {}", sw.stop(), key);
 
 			}
-
 		}
 
 	}
@@ -826,8 +827,8 @@ public final class Idx implements Closeable {
 				@Override
 				public boolean is_load(final Map<String, Object> rec) {
 
-					String type = ValSelector.val(rec, "type");
-					String path = ValSelector.val(rec, "val", "path");
+					String type = _0.select(rec, "type");
+					String path = _0.select(rec, "val", "path");
 
 					boolean is_load = true;
 					is_load &= "table".equals(type);
@@ -841,10 +842,9 @@ public final class Idx implements Closeable {
 				public void load(final Map<String, Object> rec)
 						throws IOException, SQLException {
 
-					ValSelector val = ValSelector.of(rec);
-					String val_host  = val.get("host").val();
-					String val_path  = val.get("path").val();
-					String val_table = val.get("table").val();
+					String val_host  = _0.select(rec, "val", "host");
+					String val_path  = _0.select(rec, "val", "path");
+					String val_table = _0.select(rec, "val", "table");
 
 					Path uncpath = _0.uncpath(InetAddress.getByName(val_host), Path.of(val_path));
 
@@ -868,8 +868,8 @@ public final class Idx implements Closeable {
 				@Override
 				public boolean is_load(final Map<String, Object> rec) {
 
-					String type = ValSelector.val(rec, "type");
-					String uri  = ValSelector.val(rec, "val", "uri");
+					String type = _0.select(rec, "type");
+					String uri  = _0.select(rec, "val", "uri");
 
 					boolean is_load = true;
 					is_load &= "table".equals(type);
@@ -883,22 +883,22 @@ public final class Idx implements Closeable {
 				public void load(final Map<String, Object> rec)
 						throws IOException, SQLException {
 
-					Map<String, Object> val = ValSelector.val(rec, "val");
+					Map<String, Object> val = _0.select(rec, "val");
 
 					try (Connection in_con = new Jdbc(val).connect()) {
 
-						String key = ValSelector.val(rec, "key");
+						String key = _0.select(rec, "key");
 
 						String in_table  = null;
 						{
 
-							String catalog = ValSelector.val(val, "catalog");
-							String schema  = ValSelector.val(val, "schema");
-							String table   = ValSelector.val(val, "table");
+							String catalog = _0.select(val, "catalog");
+							String schema  = _0.select(val, "schema");
+							String table   = _0.select(val, "table");
 
-							in_table = Arrays.asList(catalog, schema, table).stream()
+							in_table = Jdbc.esc(in_con, Arrays.asList(catalog, schema, table).stream()
 									.filter(Objects::nonNull)
-									.collect(Collectors.joining("."));
+									.collect(Collectors.joining("/")));
 
 						}
 
@@ -947,7 +947,7 @@ public final class Idx implements Closeable {
 
 		}
 
-		log.debug("output time={} {} -> {}", table, file, sw.stop());
+		log.debug("output time={} {}", sw.stop(), table);
 
 	}
 
