@@ -43,6 +43,7 @@ import org.yaml.snakeyaml.Yaml;
 import _0.Ansi;
 import _0.FileExtFilter;
 import _0.Jdbc;
+import _0.ThreadFactory;
 import _0._0;
 import _0.debug.StopWatch;
 import _0.playground.idx.Idx;
@@ -52,7 +53,7 @@ public final class Main {
 
 	private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-	public static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(4, _0.availableProcessors >> 1));
+	public static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(4, _0.availableProcessors >> 1), new ThreadFactory("worker/"));
 
 	private static Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 
@@ -82,7 +83,7 @@ public final class Main {
 			debug(args);
 			sshd(root_yml);
 			idx(root_yml);
-			clip(root_yml);
+			clip();
 
 			cli();
 //			Thread.sleep(Long.MAX_VALUE);
@@ -243,7 +244,7 @@ public final class Main {
 
 	}
 
-	protected static void idx(final Map<String, Object> root_yml)
+	private static void idx(final Map<String, Object> root_yml)
 			throws IOException, SQLException {
 
 		Map<String, Object> curr_yml = _0.select(root_yml, _0.current().getMethodName());
@@ -289,7 +290,7 @@ public final class Main {
 				String swp = Thread.currentThread().getName();
 
 				String host = entry.getKey();
-				Thread.currentThread().setName(host);
+				Thread.currentThread().setName(swp + "/" + host);
 
 				for (Map<String, Object> target : entry.getValue()) {
 
@@ -342,9 +343,7 @@ public final class Main {
 
 	}
 
-	private static final void clip(Map<String, Object> root_yml) {
-
-//		Map<String, Object> curr_yml = _0.select(root_yml, _0.current().getMethodName());
+	private static final void clip() {
 
 		Set<DataFlavor> flavors = new HashSet<>();
 		flavors.add(DataFlavor.stringFlavor);
@@ -408,21 +407,71 @@ public final class Main {
 	}
 
 	private static void cli()
-			throws IOException {
+			throws IOException, SQLException {
 
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
 			while (true) {
 
-				String line = in.readLine();
+				String line = _0.trim(in.readLine());
 
 				exit = "exit".equals(line);
 				if (exit) {
 					break;
 				}
+				if ("".equals(line)) {
+					continue;
+				}
 
-				System.out.println(line);
+				// TODO: 汎用化
+
+				if ("??".equals(line)) {
+					stacktrace(true);
+					continue;
+				}
+				if ("?".equals(line)) {
+					stacktrace(false);
+					continue;
+				}
+				if (line.startsWith("load ")) {
+					String idx_key = line.substring("load ".length());
+					idx.load(idx_key);
+					continue;
+				}
+
+				log.info(line);
 
 			}
+		}
+
+	}
+
+	private static void stacktrace(boolean all) {
+
+		Map<Thread, StackTraceElement[]> map = Thread.getAllStackTraces();
+
+		List<Thread> keys = new LinkedList<>(map.keySet());
+		Collections.sort(keys, (o1, o2) -> (int)(o1.getId() - o2.getId()));
+
+		log.info("threads:");
+		for (Thread thread : keys) {
+
+			log.info("  - id: {}", thread.getId());
+			log.info("    name: {}", thread.getName());
+			log.info("    stacks:");
+
+			StackTraceElement[] stacks = map.get(thread);
+			for (int i = stacks.length - 1; 0 <= i; i--) {
+
+				String s = stacks[i].toString();
+
+				if (!all && !s.startsWith("app//")) {
+					continue;
+				}
+
+				log.info("      - {}", s);
+
+			}
+
 		}
 
 	}
