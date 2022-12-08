@@ -16,6 +16,7 @@ import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.Collection;
@@ -53,7 +54,7 @@ public final class Main {
 
 	private static final Logger log = LoggerFactory.getLogger(Main.class);
 
-	public static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(4, _0.availableProcessors >> 1), new ThreadFactory("worker/"));
+	private static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(4, _0.availableProcessors >> 1), new ThreadFactory("worker/"));
 
 	private static Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 
@@ -68,7 +69,7 @@ public final class Main {
 	private Main() {
 	}
 
-	public static final void main(final String... args)
+	public static void main(final String... args)
 			throws Throwable {
 
 		StopWatch sw = new StopWatch();
@@ -83,7 +84,7 @@ public final class Main {
 			debug(args);
 			sshd(root_yml);
 			idx(root_yml);
-			clip();
+			clipboard();
 
 			cli();
 //			Thread.sleep(Long.MAX_VALUE);
@@ -285,12 +286,10 @@ public final class Main {
 
 		// ip毎にスレッド化
 		for (Entry<String, List<Map<String, Object>>> entry : ip_hosts.entrySet()) {
-			worker.schedule(() -> {
 
-				String swp = Thread.currentThread().getName();
+			String host = entry.getKey();
 
-				String host = entry.getKey();
-				Thread.currentThread().setName(swp + "/" + host);
+			submit(host, () -> {
 
 				for (Map<String, Object> target : entry.getValue()) {
 
@@ -334,16 +333,70 @@ public final class Main {
 
 				}
 
-				Thread.currentThread().setName(swp);
-
 				return null;
 
-			}, 0, TimeUnit.MILLISECONDS);
+			});
+
+		}
+
+		// queries
+		{
+
+			Map<String, Object> queries_yml = _0.select(curr_yml, "queries");
+			Path dir   = Path.of((String)_0.select(queries_yml, "dir"));
+			int  delay = _0.select(queries_yml, "delay");
+
+			Callable<Void> impl = new Callable<>() {
+
+				@Override
+				public Void call()
+						throws Exception {
+
+					List<Path> files = Files.list(dir)
+							.filter(new FileExtFilter("sql"))
+							.sorted((o1, o2) -> o1.compareTo(o2))
+							.toList();
+
+					for (Path file : files) {
+
+						log.debug("file: {}", file);
+
+						String[] queries = new String(Files.readAllBytes(file)).split(";");
+						for (String query : queries) {
+
+							query = _0.trim(query);
+							if ("".equals(query)) {
+								continue;
+							}
+
+							// TODO: クエリ内の文字列に--を含む場合
+							query = query.replaceAll("--[^\\r\\n]*[^\\r\\n]", "");
+
+							log.debug("  query: {}", query.replaceAll(_0.regex_spaces, " ").replace(" ,", ", "));
+
+							idx.execute(query);
+
+						}
+
+					}
+
+					// TODO: cancel
+					if (-1 < delay) {
+						submit("queries", this, delay);
+					}
+
+					return null;
+
+				}
+
+			};
+			submit("queries", impl, 0);
+
 		}
 
 	}
 
-	private static final void clip() {
+	private static void clipboard() {
 
 		Set<DataFlavor> flavors = new HashSet<>();
 		flavors.add(DataFlavor.stringFlavor);
@@ -354,9 +407,7 @@ public final class Main {
 //		flavors.add(DataFlavor.allHtmlFlavor);
 //		flavors.addAll(List.of(transferable.getTransferDataFlavors()));
 
-		Callable<Void> callable = () -> {
-
-			Thread.currentThread().setName("clipboard");
+		submit("clipboard", () -> {
 
 			Object prev = null;
 			while (!exit) {
@@ -366,6 +417,8 @@ public final class Main {
 					Object data = null;
 					try {
 						data = clipboard.getContents(null).getTransferData(flavor);
+					} catch (IOException e) {
+						throw new IllegalStateException(e);
 					} catch (UnsupportedFlavorException e) {
 						continue;
 					}
@@ -375,34 +428,30 @@ public final class Main {
 					}
 					prev = data;
 
-					// TODO: event
 					Object data_ = data;
-					worker.submit(() -> {
+					submit("clipboard/" + data_.hashCode(), () -> {
+
+						// TODO: event
+						idx.set("", data_.toString());
+
 						log.debug("{} {}", flavor, data_);
+
+						return null;
+
 					});
 
 				}
 
 				// 100ms間隔
-				Thread.sleep(100);
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					break;
+				}
 
 			}
 
-			return null;
-
-		};
-
-		Runnable exhandle = () -> {
-			try {
-				callable.call();
-			} catch (RuntimeException e) {
-				throw e;
-			} catch (Exception e) {
-				throw new IllegalStateException(e);
-			}
-		};
-
-		new Thread(exhandle).start();
+		});
 
 	}
 
@@ -457,7 +506,7 @@ public final class Main {
 
 			log.info("  - id: {}", thread.getId());
 			log.info("    name: {}", thread.getName());
-			log.info("    stacks:");
+			log.info("    stacktrace:");
 
 			StackTraceElement[] stacks = map.get(thread);
 			for (int i = stacks.length - 1; 0 <= i; i--) {
@@ -476,8 +525,37 @@ public final class Main {
 
 	}
 
+	private static void submit(final String name, final Runnable impl) {
+		new Thread(impl, name).start();
+	}
+
+	private static void submit(final String name, final Callable<Void> impl) {
+		submit(name, impl, 0);
+	}
+
+	private static void submit(final String name, final Callable<Void> impl, final long millis) {
+		submit(name, impl, millis, TimeUnit.MILLISECONDS);
+	}
+
+	private static void submit(final String name, final Callable<Void> impl, final long delay, final TimeUnit unit) {
+
+		worker.schedule(() -> {
+
+			String origin = Thread.currentThread().getName();
+			Thread.currentThread().setName(origin + "/" + name);
+
+			Object ret = impl.call();
+
+			Thread.currentThread().setName(origin);
+
+			return ret;
+
+		}, delay, unit);
+
+	}
+
 	@SuppressWarnings("unchecked")
-	public static Map<String, Object> map(String file)
+	public static Map<String, Object> map(final String file)
 			throws IOException {
 
 		Map<String, Object> map = null;

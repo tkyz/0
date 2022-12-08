@@ -9,8 +9,9 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
-public final class FileExtFilter implements Function<Path, Boolean>, FileFilter, FilenameFilter {
+public final class FileExtFilter implements Function<Path, Boolean>, Predicate<Path>, FileFilter, FilenameFilter {
 
 	private Set<String> exts = null;
 
@@ -24,7 +25,12 @@ public final class FileExtFilter implements Function<Path, Boolean>, FileFilter,
 
 	@Override
 	public Boolean apply(final Path path) {
-		return Boolean.valueOf(accept(path.toFile()));
+		return Boolean.valueOf(test(path));
+	}
+
+	@Override
+	public boolean test(final Path path) {
+		return accept(path.toFile());
 	}
 
 	@Override

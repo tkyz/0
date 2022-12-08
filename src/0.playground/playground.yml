@@ -14,3 +14,6 @@ playground:
 #     - {host: 0.0.0.0, type: file,  path: /}
 #     - {host: 0.0.0.0, type: file,  path: C:/}
     exts:
+    queries:
+      dir: ./queries
+      delay: 3600000
