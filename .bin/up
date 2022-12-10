@@ -10,13 +10,13 @@ if true; then
 
   readonly kind_yml="$(yq ".\"0\".kind" "${HOME}/0.yml")"
 
-  readonly kindest_image="$(echo "${kind_yml}" | yq -r .kindest.image)"
-
-  readonly openpgp4fpr="$(openpgp4fpr)"
+  readonly kind_node="$(  echo "${kind_yml}" | yq -r .node)"
   readonly external_ip="$(echo "${kind_yml}" | yq -r .envsubst.external_ip)"
   readonly gateway_ip="$( echo "${kind_yml}" | yq -r .envsubst.gateway_ip)"
   readonly resolve_ip="$( echo "${kind_yml}" | yq -r .envsubst.resolve_ip)"
   readonly webui_tld="$(  echo "${kind_yml}" | yq -r .envsubst.webui_tld)"
+
+  readonly openpgp4fpr="$(openpgp4fpr)"
 
 # readonly kindname="${openpgp4fpr,,}.kind"
   readonly kindname='0.kind'
@@ -41,11 +41,9 @@ function envsubst() {
 # kind
 if true; then
 
-# docker pull "${kindest_image}" || true
-
   kind delete cluster --name "${kindname}"
 
-  envsubst "${srcdir}/0.kind/kind.yml" | kind create cluster --name "${kindname}" --image "${kindest_image}" --config -
+  envsubst "${srcdir}/0.kind/kind.yml" | kind create cluster --name "${kindname}" --image "${kind_node}" --config -
 
 fi
 
