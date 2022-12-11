@@ -12,7 +12,6 @@ if true; then
 
   readonly kind_node="$(  echo "${kind_yml}" | yq -r .node)"
   readonly external_ip="$(echo "${kind_yml}" | yq -r .envsubst.external_ip)"
-  readonly gateway_ip="$( echo "${kind_yml}" | yq -r .envsubst.gateway_ip)"
   readonly resolve_ip="$( echo "${kind_yml}" | yq -r .envsubst.resolve_ip)"
   readonly webui_tld="$(  echo "${kind_yml}" | yq -r .envsubst.webui_tld)"
 
@@ -32,7 +31,6 @@ function envsubst() {
     -e "s#\\$\{srcdir\}#${srcdir}#" \
     -e "s#\\$\{datdir\}#${datdir}#" \
     -e "s/\\$\{external_ip\}/${external_ip}/" \
-    -e "s/\\$\{gateway_ip\}/${gateway_ip}/" \
     -e "s/\\$\{resolve_ip\}/${resolve_ip}/" \
     -e "s/\\$\{webui_tld\}/${webui_tld}/" \
     "${1}"

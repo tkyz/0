@@ -48,7 +48,6 @@
 
     envsubst:
       external_ip: 0.0.0.0
-      gateway_ip:  0.0.0.0
       resolve_ip:  1.1.1.1
       webui_tld:   tld
 
