@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -145,7 +146,7 @@ public final class _0 {
 	 * @return true: メインスレッドの場合、false:それ以外の場合
 	 */
 	public static final boolean main() {
-		return 1 == Thread.currentThread().getId();
+		return 1 == Thread.currentThread().threadId();
 	}
 
 	/**
@@ -269,6 +270,9 @@ public final class _0 {
 
 		} else if (obj instanceof Map) {
 			empty = ((Map<?, ?>)obj).isEmpty();
+
+		} else if (obj instanceof Iterator) {
+			empty = !((Iterator<?>)obj).hasNext();
 
 		} else {
 			throw new UnsupportedOperationException(obj.getClass().getName());

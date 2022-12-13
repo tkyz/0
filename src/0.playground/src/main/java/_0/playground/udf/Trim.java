@@ -1,10 +1,10 @@
-package _0.playground.xfunc;
+package _0.playground.udf;
 
 import java.sql.SQLException;
 
 import _0._0;
 
-public final class Normalize extends XFuncPlugin {
+public final class Trim extends XFuncPlugin {
 
 	@Override
 	protected void impl()
@@ -13,7 +13,7 @@ public final class Normalize extends XFuncPlugin {
 		String val = value_text(0);
 
 		if (val != null) {
-			val = _0.normalize(val);
+			val = _0.trim(val);
 		}
 
 		result(val);

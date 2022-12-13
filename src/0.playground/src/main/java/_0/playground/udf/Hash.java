@@ -1,4 +1,4 @@
-package _0.playground.xfunc;
+package _0.playground.udf;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

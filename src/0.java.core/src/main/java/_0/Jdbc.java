@@ -406,27 +406,14 @@ public final class Jdbc {
 			throws SQLException {
 
 		String esc = val;
-		if (null != esc) {
+		if (null == esc) {
+			// pass
 
-			boolean is_esc = false;
-			is_esc |= -1 < esc.indexOf('.');
-			is_esc |= -1 < esc.indexOf('/');
-			is_esc |= -1 < esc.indexOf('-');
-			is_esc |= -1 < esc.indexOf(' '); is_esc |= -1 < esc.indexOf('　');
-			is_esc |= -1 < esc.indexOf('('); is_esc |= -1 < esc.indexOf('（');
-			is_esc |= -1 < esc.indexOf(')'); is_esc |= -1 < esc.indexOf('）');
-			is_esc |= esc.matches("^[0-9].*$");
+		} else if (mysql(con) || mariadb(con)) {
+			esc = "`" + esc + "`";
 
-			if (!is_esc) {
-				// pass
-
-			} else if (mysql(con) || mariadb(con)) {
-				esc = "`" + esc + "`";
-
-			} else {
-				esc = "[" + esc + "]";
-			}
-
+		} else {
+			esc = "[" + esc + "]";
 		}
 
 		return esc;

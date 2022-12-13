@@ -1,4 +1,4 @@
-package _0.playground.xfunc;
+package _0.playground.udf;
 
 import java.sql.SQLException;
 
