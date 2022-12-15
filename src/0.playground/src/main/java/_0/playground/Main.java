@@ -1,12 +1,7 @@
 package _0.playground;
 
-import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.BufferedReader;
 import java.io.Closeable;
-import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,7 +11,6 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
-import java.net.UnknownHostException;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
@@ -34,6 +28,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -73,15 +68,9 @@ public final class Main {
 
 	private static ScheduledExecutorService worker = Executors.newScheduledThreadPool(Math.max(4, _0.availableProcessors >> 1), new ThreadFactory("worker/"));
 
-	private static Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-
-	private static InetAddress ip = null;
-
 	private static Kvs kvs = null;
 
 	private static Set<Closeable> closeables = new HashSet<>();
-
-	private static boolean exit = false;
 
 	private Main() {
 	}
@@ -94,18 +83,15 @@ public final class Main {
 
 			log.trace("start");
 
-			ip  = _0.ip();
-			kvs = new Kvs();
-
 			Map<String, Object> root_yml = _0.select(map("playground.yml"), "playground");
 
 			debug(args);
+			kvs(root_yml);
+			clipboard();
 			sshd(root_yml);
 			idx(root_yml);
-			clipboard();
 
 			cli();
-//			Thread.sleep(Long.MAX_VALUE);
 
 			log.trace("end time={}", sw.stop());
 
@@ -253,6 +239,40 @@ public final class Main {
 
 	}
 
+	private static void kvs(final Map<String, Object> root_yml)
+			throws IOException, SQLException {
+
+		kvs = new Kvs();
+
+		// 定義データ投入
+		Map<String, Object> kvs_yml = _0.select(root_yml, "kvs");
+		for (String table : kvs_yml.keySet()) {
+
+			List<?> recs = _0.select(kvs_yml, table);
+			for (Object rec : recs) {
+
+				String              key = null;
+				Map<String, Object> val = null;
+
+				if (rec instanceof Map) {
+					key = _0.select(rec, "key");
+					val = _0.select(rec, "val");
+
+				} else if (rec instanceof CharSequence) {
+					key = (String)rec;
+
+				} else {
+					throw new UnsupportedOperationException();
+				}
+
+				kvs.set(table, key, val);
+
+			}
+
+		}
+
+	}
+
 	private static void sshd(final Map<String, Object> root_yml)
 			throws IOException {
 
@@ -269,115 +289,63 @@ public final class Main {
 	private static void idx(final Map<String, Object> root_yml)
 			throws IOException, SQLException {
 
-		Map<String, Object> curr_yml = _0.select(root_yml, _0.current().getMethodName());
+		Collection<Map<String, Object>> curr_yml = _0.select(root_yml, _0.current().getMethodName());
 
-		Collection<Map<String, Object>> auths   = _0.select(root_yml, "auth");
-		Collection<Map<String, Object>> targets = _0.select(curr_yml, "target");
+		// TODO: 1ホスト:1スレッド
 
-		List<String> exts = _0.select(curr_yml, "exts");
-		FileExtFilter exts_filter = _0.empty(exts) ? new FileExtFilter() : new FileExtFilter(exts);
-
-		// localhost
-		{
-
-			// auth
-			idx_table_rdb(kvs.jdbc);
-			idx_table_rdb(new Jdbc("mariadb").host("mariadb.0").username("root").password("mariadb"));
-			idx_table_rdb(new Jdbc("postgres").host("pgsql.0").username("postgres").password("pgsql"));
-
-			List<Path> paths = new LinkedList<>();
+		submit(_0.ip().getHostAddress(), () -> {
 
 			boolean homeonly = true;
+
+			List<Path> paths = new LinkedList<>();
 			if (homeonly) {
 				paths.add(_0.userhome);
-
 			} else if (_0.windows) {
 				int max = 'Z' - 'A';
 				for (int i = 0; i <= max; i++) {
 					paths.add(Path.of((char)('A' + i) + ":/"));
 				}
-
 			} else {
 				paths.add(Path.of("/"));
 			}
 
-			while (!paths.isEmpty()) {
-				idx_file(ip, paths.remove(0), exts_filter);
+			while (!_0.empty(paths)) {
+				idx_file(paths.remove(0));
 			}
 
-		}
+			idx_table_rdb(kvs.jdbc);
 
-		// ip毎に集約
-		Map<String, List<Map<String, Object>>> ip_hosts = new HashMap<>();
-		for (Map<String, Object> host_map : targets) {
+			_0.flush(kvs);
 
-			String ip = null;
-			try {
+			return null;
 
-				String host = _0.select(host_map, "host");
+		});
 
-				ip = InetAddress.getByName(host).getHostAddress();
+		for (Map<String, Object> target : curr_yml) {
 
-			} catch (UnknownHostException e) {
-				log.trace("{}", e.toString());
-				continue;
-			}
+			String type = _0.select(target, "type");
+			String host = _0.select(target, "host");
+			String path = _0.select(target, "path");
 
-			if (!ip_hosts.containsKey(ip)) {
-				ip_hosts.put(ip, new LinkedList<>());
-			}
+			submit(host + "/" + type, () -> {
 
-			ip_hosts.get(ip).add(host_map);
+				if ("file".equals(type)) {
+					idx_file(Path.of(path));
 
-		}
+				} else {
+					for (String key : kvs.keys("auth")) {
 
-		// ip毎にスレッド化
-		for (Entry<String, List<Map<String, Object>>> entry : ip_hosts.entrySet()) {
+						Map<String, Object> auth_ = _0.select(kvs.get("auth", key), "val");
 
-			String host = entry.getKey();
-
-			submit(host, () -> {
-
-				for (Map<String, Object> target : entry.getValue()) {
-
-					String type = (String)target.get("type");
-					String path = (String)target.get("path");
-
-					// TODO: auths.isEmpty()
-					for (Map<String, Object> auth : auths) {
-
-						// TODO: 事前にip変換
-						if (!host.equals(InetAddress.getByName((String)auth.get("host")).getHostAddress())) {
+						String host_ = _0.select(auth_, "host");
+						if (!host_.equals(host)) {
 							continue;
 						}
 
-						// TODO: unmatched
-						boolean unmatched = false;
-						unmatched |= "file".equals(type)  && !"cifs".equals(auth.get("type"));
-						unmatched |= "table".equals(type) && "cifs".equals(auth.get("type"));
-						if (unmatched) {
-							continue;
-						}
-
-						Map<String, Object> merged = new HashMap<>();
-						merged.putAll(target);
-						merged.putAll(auth);
-						merged.put("host", host);
-
-						log.debug("{}", merged);
-
-						if ("file".equals(type)) {
-							idx_file(InetAddress.getByName(host), Path.of(path), exts_filter);
-
-						} else if ("table".equals(type)) {
-							idx_table_rdb(new Jdbc(merged));
-
-						} else {
-							throw new UnsupportedOperationException(type);
-						}
+						idx_table_rdb(new Jdbc(auth_));
+						break;
 
 					}
-
 				}
 
 				return null;
@@ -445,60 +413,27 @@ public final class Main {
 
 	private static void clipboard() {
 
-		Set<DataFlavor> flavors = new HashSet<>();
-		flavors.add(DataFlavor.stringFlavor);
-//		flavors.add(DataFlavor.imageFlavor);
-//		flavors.add(DataFlavor.javaFileListFlavor);
-//		flavors.add(DataFlavor.selectionHtmlFlavor);
-//		flavors.add(DataFlavor.fragmentHtmlFlavor);
-//		flavors.add(DataFlavor.allHtmlFlavor);
-//		flavors.addAll(List.of(transferable.getTransferDataFlavors()));
+		_0.clipboard(val -> worker.submit(() -> {
 
-		submit("clipboard", () -> {
+			String[] items = val.toString().split("[\\r\\n]+");
+			for (String item : items) {
 
-			Object prev = null;
-			while (!exit) {
-
-				for (DataFlavor flavor : flavors) {
-
-					Object data = null;
-					try {
-						data = clipboard.getContents(null).getTransferData(flavor);
-					} catch (IOException e) {
-						throw new IllegalStateException(e);
-					} catch (UnsupportedFlavorException e) {
-						continue;
-					}
-
-					if (data.equals(prev)) {
-						break;
-					}
-					prev = data;
-
-					// TODO: event
-					Object data_ = data;
-					submit("clipboard/" + data_.hashCode(), () -> {
-
-						kvs.set("clipboard", data_.toString());
-
-						log.debug("{} {}", flavor, data_);
-
-						return null;
-
-					});
-
+				item = _0.trim(item);
+				if ("".equals(item)) {
+					continue;
 				}
 
-				// 100ms間隔
 				try {
-					Thread.sleep(100);
-				} catch (InterruptedException e) {
-					break;
+					kvs.set("clipboard", item.toString());
+				} catch (IOException e) {
+					log.trace("", e);
+				} catch (SQLException e) {
+					log.trace("", e);
 				}
 
 			}
 
-		});
+		}));
 
 	}
 
@@ -506,16 +441,16 @@ public final class Main {
 			throws IOException, SQLException {
 
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
-			while (true) {
+			while (!_0.exit()) {
 
 				String line = _0.trim(in.readLine());
-
-				exit = "exit".equals(line);
-				if (exit) {
-					break;
-				}
 				if ("".equals(line)) {
 					continue;
+				}
+
+				_0.exit = "exit".equals(line);
+				if (_0.exit()) {
+					break;
 				}
 
 				// TODO: 汎用化
@@ -526,6 +461,11 @@ public final class Main {
 				}
 				if ("?".equals(line)) {
 					stacktrace(false);
+					continue;
+				}
+
+				if ("flush".equals(line)) {
+					_0.flush(kvs);
 					continue;
 				}
 
@@ -551,23 +491,15 @@ public final class Main {
 	 * ファイルをインデックス化します。
 	 * </pre>
 	 *
-	 * @param host
-	 * @param path
-	 * @param filter
+	 * @param start
 	 * @throws IOException
 	 */
-	private static void idx_file(final InetAddress host, final Path path, final FileFilter filter)
+	private static void idx_file(final Path start)
 			throws IOException {
 
-		boolean local = false;
-		local |= ip == host;
-		local |= host.isLoopbackAddress();
+		FileExtFilter filter = new FileExtFilter();
 
-		InetAddress host_ = local ? ip : host;
-
-		Path uncpath = local ? path : _0.uncpath(host, path);
-
-		Files.walkFileTree(uncpath, new FileVisitor<Path>() {
+		Files.walkFileTree(start.toAbsolutePath().normalize(), new FileVisitor<Path>() {
 
 			@Override
 			public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs)
@@ -576,25 +508,31 @@ public final class Main {
 			}
 
 			@Override
-			public FileVisitResult visitFile(final Path uncpath, final BasicFileAttributes attrs)
+			public FileVisitResult visitFile(final Path path, final BasicFileAttributes attrs)
 					throws IOException {
 
-				if (filter.accept(uncpath.toFile())) {
+				if (filter.apply(path)) {
 
-					String key      = uncpath.toString().replace('\\', '/');
-					String hostpath = _0.hostpath(uncpath);
+					String key = path.toString().replace('\\', '/');
+
+					if (key.startsWith("//")) {
+						// pass
+					} else if (key.startsWith("/")) {
+						key = "//" + _0.ip().getHostAddress() + key;
+					} else {
+						throw new UnsupportedOperationException(key);
+					}
 
 					try {
 
 						Map<String, Object> val = new HashMap<>();
-						val.put("host",   host_.getHostAddress());
-						val.put("path",   hostpath);
+						val.put("size",   attrs.size());
 						val.put("latest", _0.ymdhmss(_0.latest(attrs)));
 
 						kvs.set("file", key, val);
 
 					} catch (SQLException e) {
-						log.trace("{}", uncpath, e);
+						log.trace("{}", path, e);
 					}
 
 					String lower = key.toLowerCase();
@@ -602,13 +540,13 @@ public final class Main {
 
 						try {
 
-							idx_table_mdb(host_, Path.of(hostpath));
+							idx_table_mdb(path);
 
 						} catch (IOException e) {
-							log.trace("{}", uncpath, e);
+							log.trace("{}", path, e);
 
 						} catch (SQLException e) {
-							log.trace("{}", uncpath, e);
+							log.trace("{}", path, e);
 						}
 
 					}
@@ -663,6 +601,9 @@ public final class Main {
 	private static void idx_table_rdb(final Jdbc jdbc)
 			throws IOException, SQLException {
 
+		String host = (null == jdbc.host() ? _0.ip() : InetAddress.getByName(jdbc.host())).getHostAddress();
+		String file = null == jdbc.file() ? null : jdbc.file().toAbsolutePath().normalize().toString().replace('\\', '/');
+
 		try (Connection con = jdbc.connect()) {
 
 			List<String> catalogs = new ArrayList<>();
@@ -683,7 +624,6 @@ public final class Main {
 
 				List<String> schemas = new ArrayList<>();
 				try {
-//					schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("table_schem")).toList());
 					schemas.addAll(Jdbc.schemas(con, catalog).stream().map(e -> (String)e.get("TABLE_SCHEM")).toList());
 				} catch (SQLServerException e) {
 					log.trace("{}", e.toString());
@@ -724,14 +664,18 @@ public final class Main {
 
 						String tbl_key = null;
 						if (Jdbc.sqlite(con)) {
-							tbl_key = "//" + ip.getHostAddress() + "/" + jdbc.file().toAbsolutePath() + "/" + table_;
-//						} else if (ip) {
-//							tbl_key = "//" + InetAddress.getByName(jdbc.host()).getHostAddress() + "/" + String.join("/", Arrays.asList(catalog_, schema_, table_).stream().filter(Objects::nonNull).toList());
+							tbl_key = "//" + host + file + "/" + table_;
 						} else {
-							tbl_key = "//" + jdbc.host() + "/" + String.join("/", Arrays.asList(catalog_, schema_, table_).stream().filter(Objects::nonNull).toList());
+							tbl_key = "//" + host + "/" + String.join("/", Arrays.asList(catalog_, schema_, table_).stream().filter(Objects::nonNull).toList());
 						}
 
-						Map<String, Object> val = jdbc.attrs();
+						Map<String, Object> val = new HashMap<>();
+						if (null != host) {
+							val.put("host", host);
+						}
+						if (null != file) {
+							val.put("path", file);
+						}
 						if (null != catalog_) {
 							val.put("catalog", catalog_);
 						}
@@ -742,17 +686,26 @@ public final class Main {
 
 						kvs.set("table", tbl_key, val);
 
-//						List<Map<String, Object>> columnmaps = Jdbc.columns(con, catalog_, schema_, table_);
-//						for (Map<String, Object> columnmap : columnmaps) {
-//
-//							String column    = (String)columnmap.get("COLUMN_NAME");
-//							int    data_type = _0.cast(int.class, columnmap.get("DATA_TYPE"));
-//
-//							String col_key = tbl_key + "/" + column;
-//
-//							set("column", col_key, jdbc.attrs());
-//
-//						}
+						List<Map<String, Object>> columnmaps = Jdbc.columns(con, catalog_, schema_, table_);
+						for (Map<String, Object> columnmap : columnmaps) {
+
+							String column    = (String)columnmap.get("COLUMN_NAME");
+							Object data_type = columnmap.get("DATA_TYPE");
+
+							if (data_type instanceof CharSequence) {
+								data_type = Integer.valueOf(data_type.toString());
+							} else if (data_type instanceof String) {
+								data_type = _0.cast(Integer.class, data_type);
+							}
+
+							val = new HashMap<>();
+							val.put("type", data_type);
+
+							String col_key = tbl_key + "/" + column;
+
+							kvs.set("column", col_key, val);
+
+						}
 
 					}
 
@@ -764,19 +717,11 @@ public final class Main {
 
 	}
 
-	private static void idx_table_mdb(final InetAddress host, final Path path)
+	private static void idx_table_mdb(final Path path)
 			throws IOException, SQLException {
 
-		boolean local = false;
-		local |= ip == host;
-		local |= host.isLoopbackAddress();
-
-		InetAddress host_ = local ? ip : host;
-
-		Path uncpath = local ? path : _0.uncpath(host, path);
-
 		// TODO: InputStream
-		try (Database mdb = DatabaseBuilder.open(uncpath)) {
+		try (Database mdb = DatabaseBuilder.open(path)) {
 
 			Table sys_table = mdb.getSystemTable("MSysObjects");
 			for (com.healthmarketscience.jackcess.Row sys_row : sys_table) {
@@ -799,26 +744,25 @@ public final class Main {
 					continue;
 				}
 
-				String key = uncpath.toString().replace('\\', '/') + "/" + name;
+				String tbl_key = path.toString().replace('\\', '/') + "/" + name;
 
 				Map<String, Object> val = new HashMap<>();
-				val.put("host",  host_.getHostAddress());
-				val.put("path",  uncpath);
+				val.put("path",  path);
 				val.put("table", name);
 
-				kvs.set("table", key, val);
+				kvs.set("table", tbl_key, val);
 
-//				List<? extends Column> columns = table.getColumns();
-//				for (Column column : columns) {
-//
-//					String col_key = key_prefix + "/" + key(null, null, name, column.getName());
-//
-//					Map<String, Object> col_val = new HashMap<>();
-//					col_val.put("type", type(column.getType().getSQLType()));
-//
-//					Main.set("column", col_key);
-//
-//				}
+				List<? extends Column> columns = table.getColumns();
+				for (Column column : columns) {
+
+					String col_key = tbl_key + "/" + column.getName();
+
+					val = new HashMap<>();
+					val.put("type", column.getType().getSQLType());
+
+					kvs.set("column", col_key, val);
+
+				}
 
 			}
 
@@ -866,13 +810,13 @@ public final class Main {
 //			}
 
 		} catch (IllegalArgumentException e) {
-			log.trace("{} {} {}", host_.getHostAddress(), uncpath, e.toString());
+			log.trace("{} {}", path, e.toString());
 
 		} catch (IOException e) {
-			log.trace("{} {} {}", host_.getHostAddress(), uncpath, e.toString());
+			log.trace("{} {}", path, e.toString());
 
 		} catch (UnsupportedCodecException e) {
-			log.trace("{} {} {}", host_.getHostAddress(), uncpath, e.toString());
+			log.trace("{} {}", path, e.toString());
 		}
 
 	}
@@ -908,19 +852,28 @@ public final class Main {
 	private static void load_table_mdb(final Map<String, Object> rec)
 			throws IOException, SQLException {
 
-		String val_host  = _0.select(rec, "val", "host");
+		String key       = _0.select(rec, "key");
 		String val_path  = _0.select(rec, "val", "path");
 		String val_table = _0.select(rec, "val", "table");
 
-		Path uncpath = _0.uncpath(InetAddress.getByName(val_host), Path.of(val_path));
-
-		try (Database mdb = DatabaseBuilder.open(uncpath)) {
+		try (Database mdb = DatabaseBuilder.open(Path.of(val_path))) {
 
 			Table table = mdb.getTable(val_table);
 
 			List<? extends Column> columns = table.getColumns();
 
-			// TODO: create table
+			Map<String, Integer> columns_ = new LinkedHashMap<>();
+			for (int i = 0; i < columns.size(); i++) {
+
+				String name = columns.get(i).getName();
+				int    type = columns.get(i).getSQLType();
+
+				columns_.put(name, Integer.valueOf(type));
+
+			}
+
+			Jdbc.drop_table(  kvs.con, key);
+			Jdbc.create_table(kvs.con, key, columns_);
 			// TODO: transfer
 
 		}
@@ -930,24 +883,17 @@ public final class Main {
 	private static void load_table_rdb(final Map<String, Object> rec)
 			throws IOException, SQLException {
 
-		Map<String, Object> val = _0.select(rec, "val");
+		String              key         = _0.select(rec, "key");
+		Map<String, Object> val         = _0.select(rec, "val");
+		String              val_catalog = _0.select(val, "catalog");
+		String              val_schema  = _0.select(val, "schema");
+		String              val_table   = _0.select(val, "table");
 
 		try (Connection in_con = new Jdbc(val).connect()) {
 
-			String key = _0.select(rec, "key");
-
-			String in_table  = null;
-			{
-
-				String catalog = _0.select(val, "catalog");
-				String schema  = _0.select(val, "schema");
-				String table   = _0.select(val, "table");
-
-				in_table = Jdbc.esc(in_con, Arrays.asList(catalog, schema, table).stream()
+			String in_table = Jdbc.esc(in_con, Arrays.asList(val_catalog, val_schema, val_table).stream()
 						.filter(Objects::nonNull)
 						.collect(Collectors.joining("/")));
-
-			}
 
 			String out_table = Jdbc.esc(kvs.con, key);
 
@@ -967,29 +913,38 @@ public final class Main {
 		log.info("threads:");
 		for (Thread thread : keys) {
 
+			List<StackTraceElement> stacks = new LinkedList<>();
+			{
+
+				StackTraceElement[] items = map.get(thread);
+				for (StackTraceElement item : items) {
+
+					if (!all && !item.toString().startsWith("app//")) {
+						continue;
+					}
+
+					stacks.add(item);
+
+				}
+
+				Collections.reverse(stacks);
+
+			}
+
+			if (_0.empty(stacks)) {
+				continue;
+			}
+
 			log.info("  - id: {}", thread.threadId());
 			log.info("    name: {}", thread.getName());
 			log.info("    stacktrace:");
 
-			StackTraceElement[] stacks = map.get(thread);
-			for (int i = stacks.length - 1; 0 <= i; i--) {
-
-				String s = stacks[i].toString();
-
-				if (!all && !s.startsWith("app//")) {
-					continue;
-				}
-
-				log.info("      - {}", s);
-
+			for (StackTraceElement stack : stacks) {
+				log.info("      - {}", stack);
 			}
 
 		}
 
-	}
-
-	private static void submit(final String name, final Runnable impl) {
-		new Thread(impl, name).start();
 	}
 
 	private static void submit(final String name, final Callable<Void> impl) {
@@ -1004,12 +959,24 @@ public final class Main {
 
 		worker.schedule(() -> {
 
-			String origin = Thread.currentThread().getName();
-			Thread.currentThread().setName(origin + "/" + name);
+			String origin = null;
+			if (null != name) {
+				origin = Thread.currentThread().getName();
+				Thread.currentThread().setName(origin + "/" + name);
+			}
 
-			Object ret = impl.call();
+			Object ret = null;
+			try {
+				ret = impl.call();
+			} catch (RuntimeException e) {
+				log.trace("", e);
+			} catch (Exception e) {
+				log.trace("", e);
+			}
 
-			Thread.currentThread().setName(origin);
+			if (null != origin) {
+				Thread.currentThread().setName(origin);
+			}
 
 			return ret;
 

@@ -123,11 +123,15 @@ public final class FileExtFilter implements Function<Path, Boolean>, Predicate<P
 
 	@Override
 	public Boolean apply(final Path path) {
-		return Boolean.valueOf(test(path));
+		return Boolean.valueOf(accept(path));
 	}
 
 	@Override
 	public boolean test(final Path path) {
+		return accept(path.toFile());
+	}
+
+	public boolean accept(final Path path) {
 		return accept(path.toFile());
 	}
 

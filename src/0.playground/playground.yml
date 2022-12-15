@@ -3,17 +3,13 @@ playground:
   sshd:
     port: 0
 
-  auth:
-    - {host: mariadb.0, type: mariadb,  username: null, password: null}
-    - {host: pgsql.0,   type: postgres, username: null, password: null}
-    - {host: 0.0.0.0,   type: cifs,     username: null, password: null, vers: "3.1.1"}
+  kvs:
+    auth:
+#     - {key: null, val: {type: cifs,     host: 127.0.0.1, username: root,     password: null, vers: "3.1.1"}}
+      - {key: null, val: {type: mariadb,  host: mariadb.0, username: root,     password: null}}
+      - {key: null, val: {type: postgres, host: pgsql.0,   username: postgres, password: null}}
 
   idx:
-    target:
-      - {host: 0.0.0.0, type: table}
-#     - {host: 0.0.0.0, type: file,  path: /}
-#     - {host: 0.0.0.0, type: file,  path: C:/}
-    exts:
-    queries:
-      dir: ./queries
-      delay: 3600000
+#   - {type: file,     path: /}
+    - {type: mariadb,  host: mariadb.0}
+    - {type: postgres, host: pgsql.0}

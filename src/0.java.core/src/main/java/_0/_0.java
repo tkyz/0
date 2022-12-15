@@ -1,11 +1,14 @@
 package _0;
 
-import java.io.BufferedReader;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.Flushable;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
@@ -22,11 +25,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -133,11 +138,18 @@ public final class _0 {
 
 	});
 
-	private static InetAddress gw = null;
-
 	private static InetAddress ip = null;
 
+	private static Clipboard clipboard = null;
+
+	// TODO: private
+	public static boolean exit = false;
+
 	private _0() {
+	}
+
+	public static final boolean exit() {
+		return exit;
 	}
 
 	/**
@@ -417,16 +429,8 @@ public final class _0 {
 		return size(size, true);
 	}
 
-	public static final <T> T select(final List<?> list, final Object... keys) {
-		return select((Object)list, keys);
-	}
-
-	public static final <T> T select(final Map<?, ?> map, final Object... keys) {
-		return select((Object)map, keys);
-	}
-
 	@SuppressWarnings("unchecked")
-	private static final <T> T select(final Object obj, final Object... keys) {
+	public static final <T> T select(final Object obj, final Object... keys) {
 
 		Object select = obj;
 
@@ -578,79 +582,78 @@ public final class _0 {
 
 	}
 
-	public static final InetAddress gw()
-			throws IOException {
+	public static <T, R> void clipboard(Consumer<T> listener) {
 
-		if (null == gw) {
-			gw = gw_();
+		synchronized (_0.class) {
+			if (null == clipboard) {
+				clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+			}
 		}
 
-		return gw;
+		Set<DataFlavor> flavors = new HashSet<>();
+		flavors.add(DataFlavor.stringFlavor);
+//		flavors.add(DataFlavor.imageFlavor);
+//		flavors.add(DataFlavor.javaFileListFlavor);
+//		flavors.add(DataFlavor.selectionHtmlFlavor);
+//		flavors.add(DataFlavor.fragmentHtmlFlavor);
+//		flavors.add(DataFlavor.allHtmlFlavor);
+//		flavors.addAll(List.of(transferable.getTransferDataFlavors()));
 
-	}
+		new Thread("clipboard") {
 
-	private static synchronized final InetAddress gw_()
-			throws IOException {
+			@Override
+			public void run() {
 
-		if (null == gw) {
+				Object prev = null;
 
-			InetAddress gw_ = null;
+				while (exit()) {
 
-			String[] commands = null;
-			if (windows) {
+					for (DataFlavor flavor : flavors) {
 
-				// TODO: gw
-				throw new UnsupportedOperationException();
-
-			} else if (linux) {
-
-				commands = new String[] {"ip", "r"};
-
-				ProcessBuilder pb = new ProcessBuilder(commands);
-				pb.redirectErrorStream(true);
-
-				Process process = pb.start();
-
-				try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), encoding))) {
-
-					String line = null;
-					while (null != (line = reader.readLine())) {
-
-						line = line.replaceAll("^" + regex_spaces, "");
-						line = line.replaceAll(regex_spaces + "$", "");
-						line = line.toLowerCase();
-
-						String[] items = line.split(regex_spaces );
-
-						if (!"default".equals(items[0])) {
+						Object data = null;
+						try {
+							data = clipboard.getContents(null).getTransferData(flavor);
+						} catch (IOException e) {
+							throw new IllegalStateException(e);
+						} catch (UnsupportedFlavorException e) {
 							continue;
 						}
 
-						gw_ = InetAddress.getByName(items[2]);
+						if (data.equals(prev)) {
+							break;
+						}
+						prev = data;
+
+						@SuppressWarnings("unchecked")
+						T t = (T)data;
+
+						listener.accept(t);
+
+					}
+
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException e) {
 						break;
-
 					}
 
 				}
 
-				try {
-					int code = process.waitFor();
-					if (0 != code) {
-						log.trace("{} {}", code, String.join(" ", commands));
-					}
-				} catch (InterruptedException e) {
-					throw new IOException(e);
-				}
-
-			} else {
-				throw new UnsupportedOperationException();
 			}
 
-			gw = gw_;
+		}.start();
 
-		}
+	}
 
-		return gw;
+	public static final boolean lo(InetAddress addr)
+			throws IOException {
+
+		return Collections.list(NetworkInterface.getNetworkInterfaces()).stream()
+				.parallel()
+				.map(NetworkInterface::getInterfaceAddresses)
+				.flatMap(Collection::stream)
+				.map(InterfaceAddress::getAddress)
+				.anyMatch(e -> e.equals(addr));
 
 	}
 
@@ -658,43 +661,28 @@ public final class _0 {
 			throws IOException {
 
 		if (null == ip) {
-			ip = ip_();
-		}
 
-		return ip;
+			List<InetAddress> ips = Collections.list(NetworkInterface.getNetworkInterfaces()).stream()
+					.parallel()
+					.map(NetworkInterface::getInterfaceAddresses)
+					.flatMap(Collection::stream)
+					.map(InterfaceAddress::getAddress)
+					.filter(e -> !e.isLoopbackAddress())
+					.filter(e -> e instanceof Inet4Address)
+					.filter(e -> !e.getCanonicalHostName().equals(e.getHostAddress()))
+					.filter(e -> !e.getCanonicalHostName().endsWith(".local"))
+					.toList();
 
-	}
+			if (0 == ips.size()) {
+				ip = InetAddress.getLocalHost();
 
-	private static synchronized final InetAddress ip_()
-			throws IOException {
-
-		if (null == ip) {
-
-			InetAddress ip_ = null;
-
-			InetAddress gw = gw();
-			if (null == gw) {
-//				ip_ = InetAddress.getLocalHost();
-				throw new IllegalArgumentException();
+			} else if (1 == ips.size()) {
+				ip = ips.get(0);
 
 			} else {
-
-				List<InterfaceAddress> ifaddrs = new LinkedList<>();
-				Collections.list(NetworkInterface.getNetworkInterfaces()).stream()
-						.parallel()
-						.map(NetworkInterface::getInterfaceAddresses)
-						.forEach(ifaddrs::addAll);
-
-				ip_ = ifaddrs.stream()
-						.parallel()
-						.map(InterfaceAddress::getAddress)
-						.filter(e -> gw.getHostAddress().substring(0, 3).equals(e.getHostAddress().substring(0, 3))) // TODO: subnetmask
-						.findAny()
-						.get();
-
+				ips.stream().forEach(ip -> log.debug("{}", ip));
+				throw new UnsupportedOperationException();
 			}
-
-			ip = ip_;
 
 		}
 

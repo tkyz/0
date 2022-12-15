@@ -12,11 +12,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVFormat.Builder;
@@ -42,8 +44,6 @@ public final class Kvs implements Flushable, Closeable {
 
 	private static final Map<String, Map<String, Map<String, Object>>> cache = new HashMap<>();
 
-	private static final String default_table = "default";
-
 	// TODO: private
 	public Jdbc jdbc = null;
 
@@ -63,7 +63,7 @@ public final class Kvs implements Flushable, Closeable {
 	private void create_table(String name)
 			throws SQLException {
 
-//		Jdbc.execute(con, "DROP TABLE IF EXISTS " + Jdbc.esc(con, name));
+//		Jdbc.drop_table(con, name);
 
 		StringBuilder query = new StringBuilder();
 		query.append("CREATE TABLE IF NOT EXISTS " + Jdbc.esc(con, name) + " ( ");
@@ -77,22 +77,12 @@ public final class Kvs implements Flushable, Closeable {
 
 	}
 
-	public void set(final String key)
-			throws IOException, SQLException {
-		set(default_table, key, null);
-	}
-
-	public void set(final String key, final Map<String, Object> val)
-			throws IOException, SQLException {
-		set(default_table, key, null);
-	}
-
 	public void set(final String table, final String key)
 			throws IOException, SQLException {
 		set(table, key, null);
 	}
 
-	public void set(final String table, final String key, final Map<String, Object> val)
+	public synchronized void set(final String table, final String key, final Map<String, Object> val)
 			throws IOException, SQLException {
 
 		String now = _0.ymdhmss();
@@ -102,17 +92,14 @@ public final class Kvs implements Flushable, Closeable {
 		rec.put("upd_date", now);
 		rec.put("val",      val);
 
-		synchronized (cache) {
-
-		}
 		Map<String, Map<String, Object>> recs = _0.select(cache, table);
 		if (null == recs) {
 			recs = new HashMap<>();
 			cache.put(table, recs);
 		}
 
-		log.trace("kvs table={} rec={}", table, rec);
-		recs.put(key, rec);
+		String key_ = null != key ? key : _0.hex(_0.sha256(new JSONObject(val).toString().getBytes()));
+		recs.put(key_, rec);
 
 		int sum = cache.values().stream()
 				.parallel()
@@ -126,9 +113,28 @@ public final class Kvs implements Flushable, Closeable {
 
 	}
 
-	public Map<String, Object> get(final String key)
+	public synchronized Set<String> keys(final String table)
 			throws SQLException {
-		return get(default_table, key);
+
+		Set<String> keys = new HashSet<>();
+
+		StringBuilder query = new StringBuilder();
+		query.append("SELECT ");
+		query.append("    key ");
+		query.append("  FROM ");
+		query.append("    " + Jdbc.esc(con, table) + " ");
+
+		try (PreparedStatement stmt = con.prepareStatement(query.toString()); ResultSet rs = stmt.executeQuery()) {
+			while (rs.next()) {
+				keys.add(rs.getString("key"));
+			}
+		}
+
+		Map<String, Object> cache_ = _0.select(cache, table);
+		keys.addAll(cache_.keySet());
+
+		return keys;
+
 	}
 
 	public synchronized Map<String, Object> get(final String table, final String key)
@@ -160,12 +166,14 @@ public final class Kvs implements Flushable, Closeable {
 				try (ResultSet rs = stmt.executeQuery()) {
 
 					if (rs.next()) {
-						ret = Jdbc.map(rs);
-					}
 
-					String val = _0.select(ret, "val");
-					if (null != val) {
-						ret.put("val", new JSONObject(val).toMap());
+						ret = Jdbc.map(rs);
+
+						String val = _0.select(ret, "val");
+						if (null != val) {
+							ret.put("val", new JSONObject(val).toMap());
+						}
+
 					}
 
 					if (rs.next()) {
@@ -216,6 +224,7 @@ public final class Kvs implements Flushable, Closeable {
 
 		if (!recs.isEmpty()) {
 
+			// TODO: 何度も実行される
 			create_table(table);
 
 			StringBuilder query  = new StringBuilder();
@@ -241,11 +250,12 @@ public final class Kvs implements Flushable, Closeable {
 
 				String              ins_key  = entry.getKey();
 				Map<String, Object> ins_vals = entry.getValue();
+				Map<String, Object> val      = _0.select(ins_vals, "val");
 
-				params.add(ins_vals.get("ins_date"));
-				params.add(ins_vals.get("upd_date"));
+				params.add(_0.select(ins_vals, "ins_date"));
+				params.add(_0.select(ins_vals, "upd_date"));
 				params.add(ins_key);
-				params.add(ins_vals.get("val"));
+				params.add(null == val ? null : new JSONObject(val).toString());
 
 			}
 

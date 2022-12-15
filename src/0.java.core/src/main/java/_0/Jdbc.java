@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -41,10 +42,7 @@ public final class Jdbc {
 
 	public Jdbc(final Map<String, Object> attrs) {
 
-		String type = (String)attrs.get("type");
-		if (null != type) {
-			type(type);
-		}
+		type((String)attrs.get("type"));
 
 		this.attrs.putAll(attrs);
 
@@ -114,7 +112,7 @@ public final class Jdbc {
 //			uri    = "jdbc:ucanaccess://{file}";
 
 		} else {
-			throw new IllegalArgumentException(type);
+			throw new UnsupportedOperationException("type: " + type);
 		}
 
 		driver(driver);
@@ -188,7 +186,11 @@ public final class Jdbc {
 	}
 
 	public Path file() {
-		return Path.of((String)attrs.get(_0.methodName()));
+
+		String file = (String)attrs.get(_0.methodName());
+
+		return null == file ? null : Path.of(file);
+
 	}
 
 	public Jdbc username(final String username) {
@@ -302,40 +304,37 @@ public final class Jdbc {
 	public static String type(final Connection con, final int type)
 			throws SQLException {
 
-		Map<Integer, String> types = new HashMap<>();
-
-		if (sqlite(con)) {
-
-			types.put(Types.BIT,           "INTEGER");
-			types.put(Types.BOOLEAN,       "INTEGER");
-			types.put(Types.TINYINT,       "INTEGER");
-			types.put(Types.SMALLINT,      "INTEGER");
-			types.put(Types.INTEGER,       "INTEGER");
-			types.put(Types.BIGINT,        "INTEGER");
-			types.put(Types.FLOAT,         "REAL");
-			types.put(Types.DOUBLE,        "REAL");
-			types.put(Types.REAL,          "REAL");
-			types.put(Types.NUMERIC,       "REAL");
-			types.put(Types.DECIMAL,       "REAL");
-			types.put(Types.CHAR,          "TEXT");
-			types.put(Types.NCHAR,         "TEXT");
-			types.put(Types.VARCHAR,       "TEXT");
-			types.put(Types.NVARCHAR,      "TEXT");
-			types.put(Types.LONGVARCHAR,   "TEXT");
-			types.put(Types.LONGNVARCHAR,  "TEXT");
-			types.put(Types.TIMESTAMP,     "TEXT");
-			types.put(Types.DATE,          "TEXT");
-			types.put(Types.TIME,          "TEXT");
-			types.put(Types.BINARY,        "BLOB");
-			types.put(Types.VARBINARY,     "BLOB");
-			types.put(Types.LONGVARBINARY, "BLOB");
-			types.put(Types.DISTINCT,      "NULL");
-			types.put(Types.ARRAY,         "NULL");
-			types.put(Types.OTHER,         "NULL");
-
-		} else {
+		if (!sqlite(con)) {
 			throw new UnsupportedOperationException();
 		}
+
+		Map<Integer, String> types = new HashMap<>();
+		types.put(Types.BIT,           "INTEGER");
+		types.put(Types.BOOLEAN,       "INTEGER");
+		types.put(Types.TINYINT,       "INTEGER");
+		types.put(Types.SMALLINT,      "INTEGER");
+		types.put(Types.INTEGER,       "INTEGER");
+		types.put(Types.BIGINT,        "INTEGER");
+		types.put(Types.FLOAT,         "REAL");
+		types.put(Types.DOUBLE,        "REAL");
+		types.put(Types.REAL,          "REAL");
+		types.put(Types.NUMERIC,       "REAL");
+		types.put(Types.DECIMAL,       "REAL");
+		types.put(Types.CHAR,          "TEXT");
+		types.put(Types.NCHAR,         "TEXT");
+		types.put(Types.VARCHAR,       "TEXT");
+		types.put(Types.NVARCHAR,      "TEXT");
+		types.put(Types.LONGVARCHAR,   "TEXT");
+		types.put(Types.LONGNVARCHAR,  "TEXT");
+		types.put(Types.TIMESTAMP,     "TEXT");
+		types.put(Types.DATE,          "TEXT");
+		types.put(Types.TIME,          "TEXT");
+		types.put(Types.BINARY,        "BLOB");
+		types.put(Types.VARBINARY,     "BLOB");
+		types.put(Types.LONGVARBINARY, "BLOB");
+		types.put(Types.DISTINCT,      "NULL");
+		types.put(Types.ARRAY,         "NULL");
+		types.put(Types.OTHER,         "NULL");
 
 		Integer key = Integer.valueOf(type);
 		if (!types.containsKey(key)) {
@@ -604,32 +603,57 @@ public final class Jdbc {
 //
 //	}
 
-	private static void create_table(final ResultSetMetaData in_meta, final Connection out, final String out_table)
+	public static void drop_table(final Connection con, final String table)
 			throws SQLException {
 
-		if (sqlite(out)) {
-
-			execute(out, "DROP TABLE IF EXISTS " + out_table);
-
-			StringBuilder query = new StringBuilder();
-			query.append("CREATE TABLE IF NOT EXISTS " + out_table + " ( ");
-			for (int i = 1; i <= in_meta.getColumnCount(); i++) {
-
-				String name = in_meta.getColumnLabel(i);
-				int    type = in_meta.getColumnType(i);
-
-				query.append(1 == i ? "" : ",");
-				query.append(esc(out, name));
-				query.append(" ");
-				query.append(type(out, type));
-
-			}
-			query.append(")");
-			execute(out, query.toString());
-
-		} else {
-//			throw new UnsupportedOperationException();
+		if (!sqlite(con)) {
+			throw new UnsupportedOperationException();
 		}
+
+		execute(con, "DROP TABLE IF EXISTS " + Jdbc.esc(con, table));
+
+	}
+
+	public static void create_table(final Connection con, final String table, Map<String, Integer> columns)
+			throws SQLException {
+
+		if (!sqlite(con)) {
+			throw new UnsupportedOperationException();
+		}
+
+		StringBuilder query = new StringBuilder();
+		query.append("CREATE TABLE IF NOT EXISTS " + Jdbc.esc(con, table) + " ( ");
+		for (Iterator<Entry<String, Integer>> ite = columns.entrySet().iterator(); ite.hasNext();) {
+
+			Entry<String, Integer> entry = ite.next();
+			String name = entry.getKey();
+			int    type = entry.getValue().intValue();
+
+			query.append(esc(con, name));
+			query.append(" ");
+			query.append(type(con, type));
+			query.append(ite.hasNext() ? "," : "");
+
+		}
+		query.append(")");
+		execute(con, query.toString());
+
+	}
+
+	public static void create_table(final Connection con, final String table, final ResultSetMetaData columns)
+			throws SQLException {
+
+		Map<String, Integer> columns_ = new LinkedHashMap<>();
+		for (int i = 1; i <= columns.getColumnCount(); i++) {
+
+			String name = columns.getColumnLabel(i);
+			int    type = columns.getColumnType(i);
+
+			columns_.put(name, Integer.valueOf(type));
+
+		}
+
+		create_table(con, table, columns_);
 
 	}
 
@@ -651,7 +675,8 @@ public final class Jdbc {
 
 			try (ResultSet in_rs = in_stmt.executeQuery()) {
 
-				create_table(in_rs.getMetaData(), out, out_table);
+				drop_table(out, out_table);
+				create_table(out, out_table, in_rs.getMetaData());
 
 				StringBuilder out_values     = null;
 				StringBuilder out_query_base = null;
