@@ -333,19 +333,12 @@ public final class Main {
 					idx_file(Path.of(path));
 
 				} else {
-					for (String key : kvs.keys("auth")) {
 
-						Map<String, Object> auth_ = _0.select(kvs.get("auth", key), "val");
-
-						String host_ = _0.select(auth_, "host");
-						if (!host_.equals(host)) {
-							continue;
-						}
-
-						idx_table_rdb(new Jdbc(auth_));
-						break;
-
+					Map<String, Object> auth = auth(host, type);
+					if (null != auth) {
+						idx_table_rdb(new Jdbc(auth));
 					}
+
 				}
 
 				return null;
@@ -602,7 +595,7 @@ public final class Main {
 			throws IOException, SQLException {
 
 		String host = (null == jdbc.host() ? _0.ip() : InetAddress.getByName(jdbc.host())).getHostAddress();
-		String file = null == jdbc.file() ? null : jdbc.file().toAbsolutePath().normalize().toString().replace('\\', '/');
+		String path = null == jdbc.path() ? null : jdbc.path().toAbsolutePath().normalize().toString().replace('\\', '/');
 
 		try (Connection con = jdbc.connect()) {
 
@@ -664,17 +657,18 @@ public final class Main {
 
 						String tbl_key = null;
 						if (Jdbc.sqlite(con)) {
-							tbl_key = "//" + host + file + "/" + table_;
+							tbl_key = "//" + host + path + "/" + table_;
 						} else {
 							tbl_key = "//" + host + "/" + String.join("/", Arrays.asList(catalog_, schema_, table_).stream().filter(Objects::nonNull).toList());
 						}
 
 						Map<String, Object> val = new HashMap<>();
+						val.put("type", jdbc.type());
 						if (null != host) {
 							val.put("host", host);
 						}
-						if (null != file) {
-							val.put("path", file);
+						if (null != path) {
+							val.put("path", path);
 						}
 						if (null != catalog_) {
 							val.put("catalog", catalog_);
@@ -829,18 +823,14 @@ public final class Main {
 		if (null != rec) {
 
 			String path = _0.select(rec, "val", "path");
-			String uri  = _0.select(rec, "val", "uri");
 
 			StopWatch sw = new StopWatch();
 
 			if (null != path && (path.endsWith(".mdb") || path.endsWith(".accdb"))) {
 				load_table_mdb(rec);
 
-			} else if (null != uri) {
-				load_table_rdb(rec);
-
 			} else {
-				throw new IllegalArgumentException(key);
+				load_table_rdb(rec);
 			}
 
 			log.debug("load time={} {}", sw.stop(), key);
@@ -885,15 +875,23 @@ public final class Main {
 
 		String              key         = _0.select(rec, "key");
 		Map<String, Object> val         = _0.select(rec, "val");
+		String              val_type    = _0.select(val, "type");
+		String              val_host    = _0.select(val, "host");
 		String              val_catalog = _0.select(val, "catalog");
 		String              val_schema  = _0.select(val, "schema");
 		String              val_table   = _0.select(val, "table");
 
-		try (Connection in_con = new Jdbc(val).connect()) {
+		Map<String, Object> auth = auth(val_host, val_type);
 
-			String in_table = Jdbc.esc(in_con, Arrays.asList(val_catalog, val_schema, val_table).stream()
-						.filter(Objects::nonNull)
-						.collect(Collectors.joining("/")));
+		try (Connection in_con = new Jdbc(auth).connect()) {
+
+			val_catalog = Jdbc.esc(in_con, val_catalog);
+			val_schema  = Jdbc.esc(in_con, val_schema);
+			val_table   = Jdbc.esc(in_con, val_table);
+
+			String in_table = Arrays.asList(val_catalog, val_schema, val_table).stream()
+					.filter(Objects::nonNull)
+					.collect(Collectors.joining("."));
 
 			String out_table = Jdbc.esc(kvs.con, key);
 
@@ -995,6 +993,34 @@ public final class Main {
 		}
 
 		return map;
+
+	}
+
+	private static Map<String, Object> auth(String host, String type)
+			throws SQLException {
+
+		Map<String, Object> auth = new HashMap<>();
+
+		for (String key : kvs.keys("auth")) {
+
+			Map<String, Object> val = _0.select(kvs.get("auth", key), "val");
+
+			String host_ = _0.select(val, "host");
+			String type_ = _0.select(val, "type");
+
+			if (!host_.equals(host)) {
+				continue;
+			}
+			if (!type_.equals(type)) {
+				continue;
+			}
+
+			auth = val;
+			break;
+
+		}
+
+		return auth;
 
 	}
 

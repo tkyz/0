@@ -606,7 +606,7 @@ public final class _0 {
 
 				Object prev = null;
 
-				while (exit()) {
+				while (!exit()) {
 
 					for (DataFlavor flavor : flavors) {
 

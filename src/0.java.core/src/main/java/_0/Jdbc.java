@@ -13,14 +13,12 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 
@@ -41,86 +39,25 @@ public final class Jdbc {
 	}
 
 	public Jdbc(final Map<String, Object> attrs) {
+		attrs(attrs);
+	}
 
-		type((String)attrs.get("type"));
+	private Jdbc type(final String type) {
+		attrs.put(_0.methodName(), type);
+		return this;
+	}
 
+	public String type() {
+		return (String)attrs.get(_0.methodName());
+	}
+
+	private Jdbc attrs(final Map<String, Object> attrs) {
 		this.attrs.putAll(attrs);
-
+		return this;
 	}
 
 	public Map<String, Object> attrs() {
 		return new HashMap<>(attrs);
-	}
-
-	private Jdbc type(final String type) {
-
-		String driver = null;
-		String uri    = null;
-		int    port   = -1;
-
-		if ("sqlserver".equals(type)) {
-			driver = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-//			uri    = "jdbc:sqlserver://{host}[:{port}]";
-//			uri    = "jdbc:sqlserver://{host}[:{port}][;databaseName={database}]";
-			uri    = "jdbc:sqlserver://{host}[:{port}];encrypt=true;trustServerCertificate=true";
-			port   = 1433;
-
-		} else if ("oracle".equals(type)) {
-			driver = "oracle.jdbc.OracleDriver";
-			uri    = "jdbc:oracle:thin://{host}[:{port}]/{database}";
-			port   = 1521;
-
-		} else if ("cache".equals(type)) {
-			driver = "com.intersys.jdbc.CacheDriver";
-			uri    = "jdbc:Cache://{host}[:{port}]/{database}";
-			port   = 1972;
-
-		} else if ("mysql".equals(type)) {
-			driver = "com.mysql.cj.jdbc.Driver";
-			uri    = "jdbc:mysql://{host}[:{port}]/[{database}]";
-			port   = 3306;
-
-		} else if ("mariadb".equals(type)) {
-			driver = "org.mariadb.jdbc.Driver";
-			uri    = "jdbc:mariadb://{host}[:{port}]/[{database}]";
-			port   = 3306;
-
-		} else if ("postgres".equals(type)) {
-			driver = "org.postgresql.Driver";
-			uri    = "jdbc:postgresql://{host}[:{port}]/[{database}]";
-			port   = 5432;
-
-		} else if ("hive".equals(type)) {
-			driver = "org.apache.hive.jdbc.HiveDriver";
-			uri    = "jdbc:hive2://{host}[:{port}][/{database}]";
-			port   = 10000;
-
-		} else if ("sqlite".equals(type)) {
-			driver = "org.sqlite.JDBC";
-			uri    = "jdbc:sqlite:{file}";
-
-		} else if ("derby".equals(type)) {
-			driver = "org.apache.derby.jdbc.EmbeddedDriver";
-			uri    = "jdbc:derby:{file}";
-
-//			driver = "org.apache.derby.jdbc.ClientDriver";
-//			uri    = "jdbc:derby://{host}[:{port}]/{file}";
-//			port   = 1527;
-
-//		} else if ("access".equals(type)) {
-//			driver = "net.ucanaccess.jdbc.UcanaccessDriver";
-//			uri    = "jdbc:ucanaccess://{file}";
-
-		} else {
-			throw new UnsupportedOperationException("type: " + type);
-		}
-
-		driver(driver);
-		uri(uri);
-		port(port);
-
-		return this;
-
 	}
 
 	public Jdbc driver(final String driver) {
@@ -155,12 +92,16 @@ public final class Jdbc {
 	}
 
 	public Jdbc port(final int port) {
-		attrs.put(_0.methodName(), port);
+		attrs.put(_0.methodName(), Integer.valueOf(port));
 		return this;
 	}
 
 	public int port() {
-		return ((Integer)attrs.get(_0.methodName())).intValue();
+
+		Integer port = (Integer)attrs.get(_0.methodName());
+
+		return null == port ? -1 : port.intValue();
+
 	}
 
 	public Jdbc database(final String database) {
@@ -172,24 +113,24 @@ public final class Jdbc {
 		return (String)attrs.get(_0.methodName());
 	}
 
-	public Jdbc file(final String file) {
-		attrs.put(_0.methodName(), file);
+	public Jdbc path(final String path) {
+		attrs.put(_0.methodName(), path);
 		return this;
 	}
 
-	public Jdbc file(final Path file) {
-		return file(file.toString());
+	public Jdbc path(final Path path) {
+		return path(path.toString());
 	}
 
-	public Jdbc file(final File file) {
-		return file(file.toPath());
+	public Jdbc path(final File path) {
+		return path(path.toPath());
 	}
 
-	public Path file() {
+	public Path path() {
 
-		String file = (String)attrs.get(_0.methodName());
+		String path = (String)attrs.get(_0.methodName());
 
-		return null == file ? null : Path.of(file);
+		return null == path ? null : Path.of(path);
 
 	}
 
@@ -211,32 +152,104 @@ public final class Jdbc {
 		return (String)attrs.get(_0.methodName());
 	}
 
-	public Jdbc readonly() {
-		attrs.put(_0.methodName(), Boolean.TRUE);
-		return this;
-	}
+//	public Jdbc readonly() {
+//		attrs.put(_0.methodName(), Boolean.TRUE);
+//		return this;
+//	}
 
 	public synchronized Connection connect()
 			throws SQLException {
 
-		String  uri      = (String)attrs.get("uri");
-		String  driver   = (String)attrs.get("driver");
-		String  username = (String)attrs.get("username");
-		String  password = (String)attrs.get("password");
-		Boolean readonly = (Boolean)attrs.get("readonly");
+		String  type     = type();
+		String  driver   = driver();
+		String  uri      = uri();
+		int     port     = port();
+		String  username = username();
+		String  password = password();
+//		Boolean readonly = (Boolean)attrs.get("readonly");
+
+		{
+
+			String def_driver = null;
+			String def_uri    = null;
+			int    def_port   = -1;
+
+			if ("sqlserver".equals(type)) {
+				def_driver = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+//				def_uri    = "jdbc:sqlserver://{host}[:{port}]";
+//				def_uri    = "jdbc:sqlserver://{host}[:{port}][;databaseName={database}]";
+				def_uri    = "jdbc:sqlserver://{host}[:{port}];encrypt=true;trustServerCertificate=true";
+				def_port   = 1433;
+
+			} else if ("oracle".equals(type)) {
+				def_driver = "oracle.jdbc.OracleDriver";
+				def_uri    = "jdbc:oracle:thin://{host}[:{port}]/{database}";
+				def_port   = 1521;
+
+			} else if ("cache".equals(type)) {
+				def_driver = "com.intersys.jdbc.CacheDriver";
+				def_uri    = "jdbc:Cache://{host}[:{port}]/{database}";
+				def_port   = 1972;
+
+			} else if ("mysql".equals(type)) {
+				def_driver = "com.mysql.cj.jdbc.Driver";
+				def_uri    = "jdbc:mysql://{host}[:{port}]/[{database}]";
+				def_port   = 3306;
+
+			} else if ("mariadb".equals(type)) {
+				def_driver = "org.mariadb.jdbc.Driver";
+				def_uri    = "jdbc:mariadb://{host}[:{port}]/[{database}]";
+				def_port   = 3306;
+
+			} else if ("postgres".equals(type)) {
+				def_driver = "org.postgresql.Driver";
+				def_uri    = "jdbc:postgresql://{host}[:{port}]/[{database}]";
+				def_port   = 5432;
+
+			} else if ("hive".equals(type)) {
+				def_driver = "org.apache.hive.jdbc.HiveDriver";
+				def_uri    = "jdbc:hive2://{host}[:{port}][/{database}]";
+				def_port   = 10000;
+
+			} else if ("sqlite".equals(type)) {
+				def_driver = "org.sqlite.JDBC";
+				def_uri    = "jdbc:sqlite:{path}";
+
+			} else if ("derby".equals(type)) {
+				def_driver = "org.apache.derby.jdbc.EmbeddedDriver";
+				def_uri    = "jdbc:derby:{path}";
+
+//				def_driver = "org.apache.derby.jdbc.ClientDriver";
+//				def_uri    = "jdbc:derby://{host}[:{port}]/{path}";
+//				def_port   = 1527;
+
+//			} else if ("access".equals(type)) {
+//				def_driver = "net.ucanaccess.jdbc.UcanaccessDriver";
+//				def_uri    = "jdbc:ucanaccess://{path}";
+
+			} else {
+				throw new UnsupportedOperationException("type: " + type);
+			}
+
+			driver = _0.nvl(driver, def_driver);
+			uri    = _0.nvl(uri,    def_uri);
+			port   = -1 == port ? def_port : port;
+
+		}
 
 		// uri置換
 		{
 
-			Set<String> keys = new HashSet<>();
-			keys.add("host");
-			keys.add("port");
-			keys.add("database");
-			keys.add("file");
+			Map<String, Object> uri_bind = new HashMap<>();
+			uri_bind.putAll(attrs());
+			uri_bind.put("port",     port);
+			uri_bind.put("database", database());
+			uri_bind.put("path",     path());
 
-			for (String key : keys) {
+			for (Entry<String, Object> entry : uri_bind.entrySet()) {
 
-				Object val = attrs.get(key);
+				String key = entry.getKey();
+				Object val = entry.getValue();
 				if (null == val) {
 					val = "";
 				}
@@ -260,9 +273,9 @@ public final class Jdbc {
 			con = DriverManager.getConnection(uri, username, password);
 		}
 
-		if (null != readonly) {
-			con.setReadOnly(readonly.booleanValue());
-		}
+//		if (null != readonly) {
+//			con.setReadOnly(readonly.booleanValue());
+//		}
 //		con.setAutoCommit(false);
 
 		if (log.isDebugEnabled()) {
@@ -450,7 +463,7 @@ public final class Jdbc {
 			meta |= "pg_catalog".equals(schema);
 		}
 
-		return meta;
+		return false;
 
 	}
 
@@ -610,7 +623,7 @@ public final class Jdbc {
 			throw new UnsupportedOperationException();
 		}
 
-		execute(con, "DROP TABLE IF EXISTS " + Jdbc.esc(con, table));
+		execute(con, "DROP TABLE IF EXISTS " + table);
 
 	}
 
@@ -622,7 +635,7 @@ public final class Jdbc {
 		}
 
 		StringBuilder query = new StringBuilder();
-		query.append("CREATE TABLE IF NOT EXISTS " + Jdbc.esc(con, table) + " ( ");
+		query.append("CREATE TABLE IF NOT EXISTS " + table + " ( ");
 		for (Iterator<Entry<String, Integer>> ite = columns.entrySet().iterator(); ite.hasNext();) {
 
 			Entry<String, Integer> entry = ite.next();

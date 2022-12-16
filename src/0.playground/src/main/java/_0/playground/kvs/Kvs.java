@@ -53,7 +53,7 @@ public final class Kvs implements Flushable, Closeable {
 	public Kvs()
 			throws SQLException {
 
-		this.jdbc = new Jdbc("sqlite").file(dbfile);
+		this.jdbc = new Jdbc("sqlite").path(dbfile);
 		this.con  = jdbc.connect();
 
 		XFuncPlugin.load(con);
@@ -131,7 +131,9 @@ public final class Kvs implements Flushable, Closeable {
 		}
 
 		Map<String, Object> cache_ = _0.select(cache, table);
-		keys.addAll(cache_.keySet());
+		if (null != cache_) {
+			keys.addAll(cache_.keySet());
+		}
 
 		return keys;
 
