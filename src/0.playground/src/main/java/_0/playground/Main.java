@@ -101,6 +101,8 @@ public final class Main {
 
 		} finally {
 
+			_0.exit = true;
+
 			worker.shutdown();
 
 			closeables.stream()
@@ -285,7 +287,6 @@ public final class Main {
 
 	}
 
-	// TODO: Inconsistent stackmap frames at branch target 149
 	private static void idx(final Map<String, Object> root_yml)
 			throws IOException, SQLException {
 
@@ -431,50 +432,58 @@ public final class Main {
 	}
 
 	private static void cli()
-			throws IOException, SQLException {
+			throws IOException {
 
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
+
 			while (!_0.exit()) {
 
-				String line = _0.trim(in.readLine());
-				if ("".equals(line)) {
-					continue;
+				try {
+
+					String line = _0.trim(in.readLine());
+					if ("".equals(line)) {
+						continue;
+					}
+					if ("exit".equals(line)) {
+						break;
+					}
+
+					// TODO: 汎用化
+
+					if ("??".equals(line)) {
+						stacktrace(true);
+						continue;
+					}
+					if ("?".equals(line)) {
+						stacktrace(false);
+						continue;
+					}
+					if ("flush".equals(line)) {
+						_0.flush(kvs);
+						continue;
+					}
+
+					if (line.startsWith("load ")) {
+
+						String idx_key = line.substring("load ".length()).trim();
+
+						load_table(idx_key);
+
+						continue;
+
+					}
+
+					log.info(line);
+
+				} catch (IOException e) {
+					log.trace("", e);
+
+				} catch (SQLException e) {
+					log.trace("", e);
 				}
-
-				_0.exit = "exit".equals(line);
-				if (_0.exit()) {
-					break;
-				}
-
-				// TODO: 汎用化
-
-				if ("??".equals(line)) {
-					stacktrace(true);
-					continue;
-				}
-				if ("?".equals(line)) {
-					stacktrace(false);
-					continue;
-				}
-
-				if ("flush".equals(line)) {
-					_0.flush(kvs);
-					continue;
-				}
-
-				if (line.startsWith("load ")) {
-
-					String idx_key = line.substring("load ".length());
-
-					load_table(idx_key);
-
-					continue;
-
-				}
-
-				log.info(line);
 
 			}
+
 		}
 
 	}
@@ -820,22 +829,22 @@ public final class Main {
 
 		Map<String, Object> rec = kvs.get("table", key);
 
-		if (null != rec) {
-
-			String path = _0.select(rec, "val", "path");
-
-			StopWatch sw = new StopWatch();
-
-			if (null != path && (path.endsWith(".mdb") || path.endsWith(".accdb"))) {
-				load_table_mdb(rec);
-
-			} else {
-				load_table_rdb(rec);
-			}
-
-			log.debug("load time={} {}", sw.stop(), key);
-
+		if (null == rec) {
+			throw new IOException(key);
 		}
+
+		String path = _0.select(rec, "val", "path");
+
+		StopWatch sw = new StopWatch();
+
+		if (null != path && (path.endsWith(".mdb") || path.endsWith(".accdb"))) {
+			load_table_mdb(rec);
+
+		} else {
+			load_table_rdb(rec);
+		}
+
+		log.debug("load time={} {}", sw.stop(), key);
 
 	}
 
@@ -996,7 +1005,7 @@ public final class Main {
 
 	}
 
-	private static Map<String, Object> auth(String host, String type)
+	private static Map<String, Object> auth(final String host, final String type)
 			throws SQLException {
 
 		Map<String, Object> auth = new HashMap<>();

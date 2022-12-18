@@ -270,7 +270,7 @@ public final class _0 {
 
 	}
 
-	public static boolean empty(Object obj) {
+	public static boolean empty(final Object obj) {
 
 		boolean empty = false;
 
@@ -645,18 +645,6 @@ public final class _0 {
 
 	}
 
-	public static final boolean lo(InetAddress addr)
-			throws IOException {
-
-		return Collections.list(NetworkInterface.getNetworkInterfaces()).stream()
-				.parallel()
-				.map(NetworkInterface::getInterfaceAddresses)
-				.flatMap(Collection::stream)
-				.map(InterfaceAddress::getAddress)
-				.anyMatch(e -> e.equals(addr));
-
-	}
-
 	public static final InetAddress ip()
 			throws IOException {
 
@@ -664,13 +652,13 @@ public final class _0 {
 
 			List<InetAddress> ips = Collections.list(NetworkInterface.getNetworkInterfaces()).stream()
 					.parallel()
+					.filter(e -> e.getName().matches("^(en|sl|wl|ww)p[0-9]+s[0-9a-f]+$"))
 					.map(NetworkInterface::getInterfaceAddresses)
 					.flatMap(Collection::stream)
 					.map(InterfaceAddress::getAddress)
-					.filter(e -> !e.isLoopbackAddress())
 					.filter(e -> e instanceof Inet4Address)
+					.filter(e -> !e.isLoopbackAddress())
 					.filter(e -> !e.getCanonicalHostName().equals(e.getHostAddress()))
-					.filter(e -> !e.getCanonicalHostName().endsWith(".local"))
 					.toList();
 
 			if (0 == ips.size()) {
@@ -680,7 +668,7 @@ public final class _0 {
 				ip = ips.get(0);
 
 			} else {
-				ips.stream().forEach(ip -> log.debug("{}", ip));
+				ips.stream().forEach(ip -> log.debug("{} {}", ip, ip.getCanonicalHostName()));
 				throw new UnsupportedOperationException();
 			}
 
@@ -694,23 +682,24 @@ public final class _0 {
 			throws IOException {
 
 		boolean ping = false;
-
-		String[] commands = null;
-		if (windows) {
-			commands = new String[] {"ping", "-n", "1", "-w", "1000", addr.getHostAddress()};
-		} else if (linux) {
-			commands = new String[] {"ping", "-c", "1", "-W",    "1", addr.getHostAddress()};
-		} else {
-			throw new UnsupportedOperationException();
-		}
-
-		ProcessBuilder pb = new ProcessBuilder(commands);
-		pb.redirectErrorStream(true);
-
-		Process process = pb.start();
-
 		try {
+
+			String[] commands = null;
+			if (windows) {
+				commands = new String[] {"ping", "-n", "1", "-w", "1000", addr.getHostAddress()};
+			} else if (linux) {
+				commands = new String[] {"ping", "-c", "1", "-W",    "1", addr.getHostAddress()};
+			} else {
+				throw new UnsupportedOperationException();
+			}
+
+			ProcessBuilder pb = new ProcessBuilder(commands);
+			pb.redirectErrorStream(true);
+
+			Process process = pb.start();
+
 			ping = 0 == process.waitFor();
+
 		} catch (InterruptedException e) {
 			log.trace("", e);
 		}

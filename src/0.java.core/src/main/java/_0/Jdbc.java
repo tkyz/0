@@ -463,7 +463,7 @@ public final class Jdbc {
 			meta |= "pg_catalog".equals(schema);
 		}
 
-		return false;
+		return meta;
 
 	}
 
