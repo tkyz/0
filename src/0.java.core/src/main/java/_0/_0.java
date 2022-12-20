@@ -145,6 +145,14 @@ public final class _0 {
 	// TODO: private
 	public static boolean exit = false;
 
+	static {
+
+		Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
+			log.trace("", e);
+		});
+
+	}
+
 	private _0() {
 	}
 
@@ -580,6 +588,13 @@ public final class _0 {
 
 		return s.toString();
 
+	}
+
+	public static void shutdown(final String name, final Runnable impl) {
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			log.trace("shotdown hook. {}", name);
+			impl.run();
+		}));
 	}
 
 	public static <T, R> void clipboard(Consumer<T> listener) {

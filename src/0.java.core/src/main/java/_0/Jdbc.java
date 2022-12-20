@@ -114,12 +114,12 @@ public final class Jdbc {
 	}
 
 	public Jdbc path(final String path) {
-		attrs.put(_0.methodName(), path);
+		attrs.put(_0.methodName(), path.replace('\\', '/'));
 		return this;
 	}
 
 	public Jdbc path(final Path path) {
-		return path(path.toString());
+		return path(path.toAbsolutePath().normalize().toString());
 	}
 
 	public Jdbc path(final File path) {

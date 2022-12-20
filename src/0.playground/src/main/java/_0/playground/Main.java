@@ -1,7 +1,6 @@
 package _0.playground;
 
 import java.io.BufferedReader;
-import java.io.Closeable;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -70,18 +69,16 @@ public final class Main {
 
 	private static Kvs kvs = null;
 
-	private static Set<Closeable> closeables = new HashSet<>();
-
 	private Main() {
 	}
 
 	public static void main(final String... args)
 			throws Throwable {
 
+		log.trace("start");
+
 		StopWatch sw = new StopWatch();
 		try {
-
-			log.trace("start");
 
 			Map<String, Object> root_yml = _0.select(map("playground.yml"), "playground");
 
@@ -93,27 +90,10 @@ public final class Main {
 
 			cli();
 
-			log.trace("end time={}", sw.stop());
-
-		} catch (Throwable e) {
-			log.trace("err time={}", sw.stop(), e);
-			throw e;
-
 		} finally {
-
 			_0.exit = true;
-
 			worker.shutdown();
-
-			closeables.stream()
-					.parallel()
-					.forEach(_0::close);
-
-			if (null != kvs) {
-				kvs.vacuum();
-				_0.close(kvs);
-			}
-
+			log.trace("end time={}", sw.stop());
 		}
 
 	}
@@ -244,13 +224,19 @@ public final class Main {
 	private static void kvs(final Map<String, Object> root_yml)
 			throws IOException, SQLException {
 
+		String method_name = _0.current().getMethodName();
+
 		kvs = new Kvs();
 
 		// 定義データ投入
-		Map<String, Object> kvs_yml = _0.select(root_yml, "kvs");
+		Map<String, Object> kvs_yml = _0.select(root_yml, method_name);
 		for (String table : kvs_yml.keySet()) {
 
 			List<?> recs = _0.select(kvs_yml, table);
+			if (_0.empty(recs)) {
+				continue;
+			}
+
 			for (Object rec : recs) {
 
 				String              key = null;
@@ -273,17 +259,37 @@ public final class Main {
 
 		}
 
+		_0.shutdown(method_name, () -> {
+
+			try {
+				kvs.vacuum();
+			} catch (IOException e) {
+				log.trace("", e);
+			} catch (SQLException e) {
+				log.trace("", e);
+			}
+
+			_0.close(kvs);
+
+		});
+
 	}
 
 	private static void sshd(final Map<String, Object> root_yml)
 			throws IOException {
 
-		Map<String, Object> curr_yml = _0.select(root_yml, _0.current().getMethodName());
+		String method_name = _0.current().getMethodName();
+
+		Map<String, Object> curr_yml = _0.select(root_yml, method_name);
 
 		Integer port = _0.select(curr_yml, "port");
 		int port_ = null == port ? 0 : Math.max(0, port.intValue());
 
-		closeables.add(new Sshd(port_));
+		Sshd sshd = new Sshd(port_);
+
+		_0.shutdown(method_name, () -> {
+			_0.close(sshd);
+		});
 
 	}
 
@@ -296,25 +302,29 @@ public final class Main {
 
 		submit(_0.ip().getHostAddress(), () -> {
 
-			boolean homeonly = true;
-
 			List<Path> paths = new LinkedList<>();
-			if (homeonly) {
-				paths.add(_0.userhome);
-			} else if (_0.windows) {
-				int max = 'Z' - 'A';
-				for (int i = 0; i <= max; i++) {
-					paths.add(Path.of((char)('A' + i) + ":/"));
+			{
+
+				boolean homeonly = true;
+
+				if (homeonly) {
+					paths.add(_0.userhome);
+				} else if (_0.windows) {
+					int max = 'Z' - 'A';
+					for (int i = 0; i <= max; i++) {
+						paths.add(Path.of((char)('A' + i) + ":/"));
+					}
+				} else {
+					paths.add(Path.of("/"));
 				}
-			} else {
-				paths.add(Path.of("/"));
+
 			}
 
 			while (!_0.empty(paths)) {
 				idx_file(paths.remove(0));
 			}
-
 			idx_table_rdb(kvs.jdbc);
+			idx_host();
 
 			_0.flush(kvs);
 
@@ -322,30 +332,32 @@ public final class Main {
 
 		});
 
-		for (Map<String, Object> target : curr_yml) {
+		if (!_0.empty(curr_yml)) {
+			for (Map<String, Object> target : curr_yml) {
 
-			String type = _0.select(target, "type");
-			String host = _0.select(target, "host");
-			String path = _0.select(target, "path");
+				String type = _0.select(target, "type");
+				String host = _0.select(target, "host");
+				String path = _0.select(target, "path");
 
-			submit(host + "/" + type, () -> {
+				submit(host + "/" + type, () -> {
 
-				if ("file".equals(type)) {
-					idx_file(Path.of(path));
+					if ("file".equals(type)) {
+						idx_file(Path.of(path));
 
-				} else {
+					} else {
 
-					Map<String, Object> auth = auth(host, type);
-					if (null != auth) {
-						idx_table_rdb(new Jdbc(auth));
+						Map<String, Object> auth = auth(host, type);
+						if (null != auth) {
+							idx_table_rdb(new Jdbc(auth));
+						}
+
 					}
 
-				}
+					return null;
 
-				return null;
+				});
 
-			});
-
+			}
 		}
 
 //		// queries
@@ -432,7 +444,7 @@ public final class Main {
 	}
 
 	private static void cli()
-			throws IOException {
+			throws Exception {
 
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
 
@@ -446,6 +458,9 @@ public final class Main {
 					}
 					if ("exit".equals(line)) {
 						break;
+					}
+					if ("!".equals(line)) {
+						throw new Exception("cli");
 					}
 
 					// TODO: 汎用化
@@ -588,6 +603,30 @@ public final class Main {
 			}
 
 		});
+
+	}
+
+	private static void idx_host()
+			throws IOException {
+
+		List<InterfaceAddress> ifaddrs = Collections.list(NetworkInterface.getNetworkInterfaces()).stream()
+				.parallel()
+				.filter(e -> e.getName().matches("^(en|sl|wl|ww)p[0-9]+s[0-9a-f]+$"))
+				.map(NetworkInterface::getInterfaceAddresses)
+				.flatMap(Collection::stream)
+				.filter(e -> e.getAddress() instanceof Inet4Address)
+				.filter(e -> !e.getAddress().isLoopbackAddress())
+				.filter(e -> !e.getAddress().getCanonicalHostName().equals(e.getAddress().getHostAddress()))
+				.toList();
+
+		for (InterfaceAddress ifaddr : ifaddrs) {
+
+			InetAddress addr = ifaddr.getAddress();
+			int len = ifaddr.getNetworkPrefixLength();
+
+			log.debug("{} {}", addr, len);
+
+		}
 
 	}
 
