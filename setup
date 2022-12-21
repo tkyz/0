@@ -247,7 +247,7 @@ function _tmp() {
 unset -f _git-remote-set
 
 #----------------------------------------------------------------
-# 0.yml
+# ${HOME}/0.yml/0/deps
 
 # dependencies
 function _tmp() {
@@ -267,16 +267,30 @@ function _tmp() {
   fi
 }; _tmp; unset -f _tmp
 
+# deps
 function _tmp() {
 
   local -r ymlfile="${HOME}/0.yml"
 
   if type yq &> /dev/null && [[ -f "${ymlfile}" ]]; then
-
-    deps_yml="$(yq -r '."0".deps' "${ymlfile}")"
-
-    # TODO: deps
-
+    readonly deps_yml="$(yq -r '."0".deps' "${ymlfile}")"
   fi
 
 }; _tmp; unset -f _tmp
+
+# apt
+function _tmp() {
+  if type yq &> /dev/null && [[ -n "${deps_yml}" ]]; then
+
+    local apt_pkgs=()
+    apt_pkgs+=($(echo "${deps_yml}" | yq -r '.apt[]'))
+
+    apt  install --fix-missing -y "${apt_pkgs[@]}"
+
+  fi
+}; _tmp; unset -f _tmp
+
+# TODO: pip
+# TODO: npm
+# TODO: container
+# TODO: opt

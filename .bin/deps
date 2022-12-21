@@ -40,26 +40,6 @@ fi
 
 if true; then
 
-  apt_pkgs+=('util-linux')
-  apt_pkgs+=('procps')
-  apt_pkgs+=('unar')
-  apt_pkgs+=('zip')
-  apt_pkgs+=('vim')
-  apt_pkgs+=('nkf')
-  apt_pkgs+=('htop')
-  apt_pkgs+=('tree')
-  apt_pkgs+=('tig')
-
-  apt_pkgs+=('tmux')
-  apt_pkgs+=('bash-completion')
-  apt_pkgs+=('zsh')
-  apt_pkgs+=('tcsh')
-  apt_pkgs+=('fish')
-
-  apt_pkgs+=('locales')
-  apt_pkgs+=('locales-all')
-  apt_pkgs+=('task-japanese')
-
   apt_pkgs+=('openssh-client')
   apt_pkgs+=('tcpdump')
   apt_pkgs+=('nmap')
@@ -70,7 +50,6 @@ if true; then
   apt_pkgs+=('sshfs')
   apt_pkgs+=('rsync')
   apt_pkgs+=('wget')
-  apt_pkgs+=('gocryptfs')
 
 fi
 

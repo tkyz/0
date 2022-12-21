@@ -38,6 +38,20 @@
       - fish
       # 0.enc
       - gocryptfs
+      # util
+      - util-linux
+      - procps
+      - unar
+      - zip
+      - vim
+      - nkf
+      - htop
+      - tree
+      - tig
+      # locale
+      - locales
+      - locales-all
+      - task-japanese
 
     container:
       - debian:latest
