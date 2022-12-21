@@ -10,6 +10,6 @@ set -o pipefail
 openpgp4fpr="$(gpg --list-secret-keys --with-colons 2> /dev/null | grep ^fpr | head -n 1 | cut -d ':' -f 10)"
 test -n "${openpgp4fpr}"
 
-test "${openpgp4fpr}" == "$(gpg --decrypt "${HOME}/src/0.gpg/${openpgp4fpr}.fpr" 2> /dev/null)"
+test "${openpgp4fpr}" == "$(gpg --decrypt "${HOME}/src/0.gpg/${openpgp4fpr}/fpr" 2> /dev/null)"
 
 echo "${openpgp4fpr}"

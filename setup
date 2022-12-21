@@ -6,163 +6,178 @@ set -o pipefail
 
 umask 0022
 
+# user defined
 if true; then
 
-  readonly unix_epoch='1970-01-01 00:00:00 +0000'
-  readonly fqdn="${USER:-root}@$(hostname -f)"
+# readonly is_git_origin=
 
   readonly github_user='tkyz'
   readonly github_mail="36824716+${github_user}@users.noreply.github.com"
 
 fi
 
-#----------------------------------------------------------------
-# dependencies
-if [[ 0 == "$(id -u)" ]]; then
-
-  arr=()
-  arr+=('gnupg2')
-  arr+=('openssl')
-  arr+=('uuid-runtime')
-  arr+=('bash')
-  arr+=('curl')
-  arr+=('git')
-
-  apt update
-  apt upgrade -y
-  apt install -y "${arr[@]}"
-
-  unset arr
-
-fi
-
-#----------------------------------------------------------------
-# openpgp4fpr
-
-if ! openpgp4fpr &> /dev/null; then
-
-  readonly gpg_dummy_uid="$(cat /dev/urandom | tr -d -c '[:alnum:]' | head -c 63 || true)"
-# readonly gpg_dummy_uid="$(uuidgen)"
-
-  # 後で変更させる
-  readonly passphrase=''
-# readonly passphrase="${gpg_dummy_uid}"
-# readonly passphrase="$(cat /dev/urandom | tr -d -c '[:alnum:]' | head -c 63 || true)"
-
-  # 事前準備が必要な状況がある
-  mkdir -p "${HOME}/.gnupg/private-keys-v1.d"
-  chmod -R go-rwx "${HOME}/.gnupg"
-
-  gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-generate-key "${gpg_dummy_uid}" rsa4096 sign,cert 0
-
-  openpgp4fpr="$(gpg --list-secret-keys --with-colons ="${gpg_dummy_uid}" | grep ^fpr | cut -d ':' -f 10)"
-
-  gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    ="${gpg_dummy_uid}" "${openpgp4fpr}"
-  gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    ="${gpg_dummy_uid}" "${USER:-root} <${fqdn}>"
-  gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-revoke-uid ="${openpgp4fpr}"   "${gpg_dummy_uid}"
-
-  gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 sign 0
-# gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 cert 0
-  gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 encr 0
-  gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 auth 0
-
-  # TODO: cross-certify
-
-  colddir="${HOME}/.gnupg_cold_${openpgp4fpr}_${fqdn}"
-  fprdir="${HOME}/src/0.gpg/${openpgp4fpr}"
-  mkdir -p "${colddir}" "${fprdir}"
-
-  printf "cold. \e[2m%s\e[0m\n" "${colddir}"
-
-  gpg --passphrase "${passphrase}" --armor --export-secret-keys ="${openpgp4fpr}"                                                               > "${colddir}/mst"
-  gpg --passphrase "${passphrase}" --armor --export             ="${openpgp4fpr}"                                                               > "${colddir}/pub" # mstから発行可能
-  echo -n "${openpgp4fpr}" | gpg --recipient ="${openpgp4fpr}" --encrypt --armor                                                                > "${colddir}/fpr"
-  sed -z 's/.*:-----BEGIN PGP PUBLIC KEY BLOCK-----/-----BEGIN PGP PUBLIC KEY BLOCK-----/' "${HOME}/.gnupg/openpgp-revocs.d/${openpgp4fpr}.rev" > "${colddir}/rev"
-
-  # masterkeyを削除
-  rm "${HOME}/.gnupg/private-keys-v1.d/$(gpg --list-secret-keys --with-colons ="${openpgp4fpr}" | grep ^grp | head -n 1 | cut -d ':' -f 10).key"
-
-  cp "${colddir}/pub" "${fprdir}/pub"
-  cp "${colddir}/fpr" "${fprdir}/fpr"
-
-fi
-
-readonly openpgp4fpr="${openpgp4fpr:-$(openpgp4fpr)}"
-readonly signingkey="$(gpg --list-secret-keys --with-colons ="${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr | cut -d ':' -f 10)"
-
-#----------------------------------------------------------------
-# gitconfig
-
-# /etc/gitconfig
-if [[ 0 == "$(id -u)" ]]; then
-  git config --system init.defaultBranch main
-  git config --system core.ignorecase    false
-  git config --system core.quotepath     false
-  git config --system core.autocrlf      false
-  git config --system core.safecrlf      true
-  git config --system core.filemode      true
-  git config --system gpg.program        "$(type -p gpg)"
-  git config --system commit.gpgsign     true
-  git config --system color.ui           auto
-  git config --system color.diff         auto
-  git config --system color.status       auto
-  git config --system color.branch       auto
-  git config --system merge.ff           false
-  git config --system pull.ff            only
-  git config --system pull.rebase        true
-  git config --system diff.sjis.textconv 'iconv -f sjis'
-  git config --system alias.graph        'log --all --graph --pretty=format:"<%H> %ad [%an] %cd [%cn] %G? %Cgreen%d%Creset %s" --date=short --date-order'
-fi
-
-# ${HOME}/.gitconfig
+# system defined
 if true; then
-  git config --global user.name          "${openpgp4fpr}"
-  git config --global user.email         'unknown'
-  git config --global user.signingkey    "${signingkey}!"
+
+  readonly unix_epoch='1970-01-01 00:00:00 +0000'
+  readonly timestamp="$(date "+%Y%m%d_%H%M%S_%N")"
+
 fi
 
-#----------------------------------------------------------------
-# git clone
+# dependencies
+function _tmp() {
+  if [[ 0 == "$(id -u)" ]]; then
 
-repos_dir="${HOME}/.0/${openpgp4fpr}/git"
+    local arr=()
+    arr+=('gnupg2')
+    arr+=('openssl')
+    arr+=('uuid-runtime')
+    arr+=('bash')
+    arr+=('curl')
+    arr+=('git')
+
+    apt update
+    apt upgrade -y
+    apt install -y "${arr[@]}"
+
+  fi
+}; _tmp; unset -f _tmp
+
+# openpgp4fpr
+function _tmp() {
+
+  if ! openpgp4fpr &> /dev/null; then
+
+    local -r fqdn="${USER:-root}@$(hostname -f)"
+    local -r rand63="$(cat /dev/urandom | tr -d -c '[:alnum:]' | head -c 63 || true)"
+    local -r passphrase='' # 後で変更させる
+
+    # 事前準備が必要な状況がある
+    mkdir -p "${HOME}/.gnupg/private-keys-v1.d"
+    chmod -R go-rwx "${HOME}/.gnupg"
+
+    if true; then
+
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-generate-key "${rand63}" rsa4096 sign,cert 0
+
+      openpgp4fpr="$(gpg --list-secret-keys --with-colons ="${rand63}" | grep ^fpr | cut -d ':' -f 10)"
+
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    ="${rand63}"      "${openpgp4fpr}"
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    ="${rand63}"      "${USER:-root} <${fqdn}>"
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-revoke-uid ="${openpgp4fpr}" "${rand63}"
+
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 sign 0
+#     gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 cert 0
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 encr 0
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 auth 0
+
+      # TODO: cross-certify
+
+    fi
+
+    if true; then
+
+      local -r colddir="${HOME}/.gnupg_cold_${openpgp4fpr}_${fqdn}"
+      mkdir -p "${colddir}"
+
+      gpg --passphrase "${passphrase}" --armor --export-secret-keys ="${openpgp4fpr}"                                                               > "${colddir}/mst"
+      gpg --passphrase "${passphrase}" --armor --export             ="${openpgp4fpr}"                                                               > "${colddir}/pub" # mstから再発行可能
+      echo -n "${openpgp4fpr}" | gpg --recipient ="${openpgp4fpr}" --encrypt --armor                                                                > "${colddir}/fpr" # mstから再発行可能
+      sed -z 's/.*:-----BEGIN PGP PUBLIC KEY BLOCK-----/-----BEGIN PGP PUBLIC KEY BLOCK-----/' "${HOME}/.gnupg/openpgp-revocs.d/${openpgp4fpr}.rev" > "${colddir}/rev"
+
+      printf "cold. \e[2m%s\e[0m\n" "${colddir}"
+
+      # masterkeyを削除
+      rm "${HOME}/.gnupg/private-keys-v1.d/$(gpg --list-secret-keys --with-colons ="${openpgp4fpr}" | grep ^grp | head -n 1 | cut -d ':' -f 10).key"
+
+    fi
+
+    if true; then
+
+      local -r fprdir="${HOME}/src/0.gpg/${openpgp4fpr}"
+      mkdir -p "${fprdir}"
+
+      cp "${colddir}/pub" "${fprdir}/pub"
+      cp "${colddir}/fpr" "${fprdir}/fpr"
+
+    fi
+
+  fi
+
+  readonly openpgp4fpr="${openpgp4fpr:-$(openpgp4fpr)}"
+  readonly signingkey="$(gpg --list-secret-keys --with-colons ="${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr | cut -d ':' -f 10)"
+
+}; _tmp; unset -f _tmp
+
+# gitconfig
+function _tmp() {
+
+  # system: /etc/gitconfig
+  if [[ 0 == "$(id -u)" ]]; then
+    git config --system init.defaultBranch main
+    git config --system core.ignorecase    false
+    git config --system core.quotepath     false
+    git config --system core.autocrlf      false
+    git config --system core.safecrlf      true
+    git config --system core.filemode      true
+    git config --system gpg.program        "$(type -p gpg)"
+    git config --system commit.gpgsign     true
+    git config --system color.ui           auto
+    git config --system color.diff         auto
+    git config --system color.status       auto
+    git config --system color.branch       auto
+    git config --system merge.ff           false
+    git config --system pull.ff            only
+    git config --system pull.rebase        true
+    git config --system diff.sjis.textconv 'iconv -f sjis'
+    git config --system alias.graph        'log --all --graph --pretty=format:"<%H> %ad [%an] %cd [%cn] %G? %Cgreen%d%Creset %s" --date=short --date-order'
+  fi
+
+  # global: ${HOME}/.gitconfig
+  if true; then
+    git config --global user.name          "${openpgp4fpr}"
+    git config --global user.email         'unknown'
+    git config --global user.signingkey    "${signingkey}!"
+  fi
+
+}; _tmp; unset -f _tmp
 
 function _git-remote-set() {
   git remote add "${@}" 2> /dev/null || git remote set-url "${@}"
 }
 
-function _git-clone() {
+# git clone
+function _tmp() {
 
-  local -r clone_dir="${1}"
-  local -r repo_name="${2}"
-
-  local -r bare_dir="${repos_dir}/${repo_name}"
-
-  mkdir -p "${clone_dir}" "${repos_dir}"
-  pushd "${clone_dir}"
+  # clone
+  local tmpdir="$(mktemp -d)"
+  pushd "${tmpdir}"
 
     # TODO: --object-format=sha256
     git init
-    git init --bare "${bare_dir}"
 
-#   _git-remote-set upstream "https://git.0/${repo_name}"
-    _git-remote-set upstream "git://git.0/${repo_name}"
-#   _git-remote-set upstream "ssh://git.0/${repo_name}"
-    _git-remote-set origin   "${bare_dir}"
-    _git-remote-set github   "https://github.com/${github_user}/${repo_name}"
-    _git-remote-set github   "ssh://git@github.com/${github_user}/${repo_name}"
+    if [[ -v is_git_origin ]]; then
+
+      local -r git_repos_dir="${HOME}/var/0.git"
+
+      _git-remote-set origin "${git_repos_dir}/0.git"
+
+      git init --bare "$(git remote get-url origin)"
+
+    fi
+
+#   _git-remote-set upstream 'https://git.0/0.git'
+    _git-remote-set upstream 'git://git.0/0.git'
+#   _git-remote-set upstream 'ssh://git.0/0.git'
+
+#   _git-remote-set github   "https://github.com/${github_user}/0.git"
+    _git-remote-set github   "ssh://git@github.com/${github_user}/0.git"
 
     git fetch --all --prune || true
 
-    local -r curr_branch="$(git branch --show-current)"
-    if [[ -n "${curr_branch}" ]]; then
-      git branch --move "${curr_branch}_$(date "+%Y%m%d_%H%M%S_%N")"
-    fi
-
-    # main branch
-    if   git rev-parse upstream/main &> /dev/null; then git checkout -b main upstream/main
-    elif git rev-parse origin/main   &> /dev/null; then git checkout -b main origin/main
+    if   git rev-parse origin/main   &> /dev/null; then git checkout -b main origin/main
+    elif git rev-parse upstream/main &> /dev/null; then git checkout -b main upstream/main
     elif git rev-parse github/main   &> /dev/null; then git checkout -b main github/main
-    else
 
       git checkout --orphan main
 
@@ -177,40 +192,52 @@ function _git-clone() {
 
     fi
 
-    git branch --set-upstream-to=upstream/main main || \
     git branch --set-upstream-to=origin/main   main || \
+    git branch --set-upstream-to=upstream/main main || \
     git branch --set-upstream-to=github/main   main
 
     for remote in $(git remote); do
       git remote set-head "${remote}" main || true
     done
 
-    # TODO: The following untracked working tree files would be overwritten by merge:
-#   for remote in $(git remote); do
-#     git merge  --allow-unrelated-histories "${remote}/main" || true
-##    git rebase                             "${remote}/main" || true
-#   done
+    git config --local core.hooksPath '.git-hooks'
 
   popd
 
-}
+  # mv
+  if true; then
 
-_git-clone "${HOME}"                   '0.git'
-_git-clone "${HOME}/.0/${openpgp4fpr}" "${openpgp4fpr}.git"
+    local gitdir="${HOME}/.git"
+    local gitdir_hist="${gitdir}_${timestamp}"
 
-unset -f \
-  _git-remote-set \
-  _git-close
+    if [[ -d "${gitdir}" ]]; then
 
-if [[ 0 == "$(id -u)" ]]; then
-  ln -fsn "${HOME}/.git" '/.git'
-fi
+      local curr_branch="$(git -C "${gitdir}" branch --show-current)"
 
-# 0.git hooks
-pushd "${HOME}"
-  hooksdir="${HOME}/.git-hooks"
-  git config --local core.hooksPath "${hooksdir}"
-  ln -fs "${hooksdir}/pre-receive"  "$(git remote get-url origin)/hooks/pre-receive"
-  ln -fs "${hooksdir}/update"       "$(git remote get-url origin)/hooks/update"
-  ln -fs "${hooksdir}/post-receive" "$(git remote get-url origin)/hooks/post-receive"
-popd
+      mv "${gitdir}" "${gitdir_hist}"
+
+    fi
+
+    mv "${tmpdir}/.git" "${gitdir}"
+
+    # TODO: リポジトリ跨ぎのブランチコピー
+#   if [[ -d "${gitdir_hist}" ]]; then
+#     git branch --move "${gitdir_hist}/${curr_branch}" "${gitdir}/${curr_branch}_${timestamp}"
+#   fi
+
+  fi
+
+  # hooks
+  if [[ -v is_git_origin && -d "${HOME}/.git-hooks" ]]; then
+    ln -fs "${HOME}/.git-hooks/pre-receive"  "$(git -C "${gitdir}" remote get-url origin)/hooks/pre-receive"
+    ln -fs "${HOME}/.git-hooks/update"       "$(git -C "${gitdir}" remote get-url origin)/hooks/update"
+    ln -fs "${HOME}/.git-hooks/post-receive" "$(git -C "${gitdir}" remote get-url origin)/hooks/post-receive"
+  fi
+
+  if [[ 0 == "$(id -u)" ]]; then
+    ln -fsn "${HOME}/.git" '/.git'
+  fi
+
+}; _tmp; unset -f _tmp
+
+unset -f _git-remote-set
