@@ -14,6 +14,10 @@ if true; then
   readonly github_user='tkyz'
   readonly github_mail="36824716+${github_user}@users.noreply.github.com"
 
+  function openpgp4fpr() {
+    "${HOME}/.bin/openpgp4fpr"
+  }
+
 fi
 
 # system defined
@@ -28,24 +32,20 @@ fi
 function _tmp() {
   if [[ 0 == "$(id -u)" ]]; then
 
-    local arr=()
-    arr+=('gnupg2')
-    arr+=('openssl')
-    arr+=('uuid-runtime')
-    arr+=('bash')
-    arr+=('curl')
-    arr+=('git')
+    local apt_pkgs=()
+    apt_pkgs+=('gnupg2')
+    apt_pkgs+=('openssl')
+    apt_pkgs+=('uuid-runtime')
+    apt_pkgs+=('bash')
+    apt_pkgs+=('curl')
+    apt_pkgs+=('git')
 
     apt update
     apt upgrade -y
-    apt install -y "${arr[@]}"
+    apt install -y "${apt_pkgs[@]}"
 
   fi
 }; _tmp; unset -f _tmp
-
-function openpgp4fpr() {
-  "${HOME}/.bin/openpgp4fpr"
-}
 
 # openpgp4fpr
 function _tmp() {
@@ -245,3 +245,38 @@ function _tmp() {
 }; _tmp; unset -f _tmp
 
 unset -f _git-remote-set
+
+#----------------------------------------------------------------
+# 0.yml
+
+# dependencies
+function _tmp() {
+  if [[ 0 == "$(id -u)" ]]; then
+
+    local apt_pkgs=()
+    apt_pkgs+=('python3')
+    apt_pkgs+=('python3-pip')
+    apt_pkgs+=('jq')
+
+    local pip_pkgs=()
+    pip_pkgs+=('yq')
+
+    apt  install --fix-missing -y "${apt_pkgs[@]}"
+    pip3 install --upgrade        "${pip_pkgs[@]}"
+
+  fi
+}; _tmp; unset -f _tmp
+
+function _tmp() {
+
+  local -r ymlfile="${HOME}/0.yml"
+
+  if type yq &> /dev/null && [[ -f "${ymlfile}" ]]; then
+
+    deps_yml="$(yq -r '."0".deps' "${ymlfile}")"
+
+    # TODO: deps
+
+  fi
+
+}; _tmp; unset -f _tmp

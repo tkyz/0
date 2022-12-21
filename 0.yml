@@ -1,9 +1,43 @@
 0:
 
+  kind:
+
+    # https://hub.docker.com/r/kindest/node/tags
+    node: kindest/node:v1.26.0
+
+    envsubst:
+      external_ip: 0.0.0.0
+      resolve_ip:  1.1.1.1
+      webui_tld:   tld
+
+    manifests:
+      - {name: ingress,                    url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.5.1/deploy/static/provider/kind/deploy.yaml} # https://github.com/kubernetes/ingress-nginx/releases
+      - {name: metallb,                    url: https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml}                       # https://github.com/metallb/metallb/releases
+#     - {name: dashboard,                  url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml}                            # https://github.com/kubernetes/dashboard/releases
+#     - {name: argowf,    namespace: argo, url: https://raw.githubusercontent.com/argoproj/argo-workflows/v3.4.3/manifests/install.yaml}                              # https://github.com/argoproj/argo-workflows/releases
+
   deps:
 
-    # TODO: apt deps
     apt:
+      # setup
+#     - gnupg2
+#     - openssl
+#     - uuid-runtime
+#     - bash
+#     - curl
+#     - git
+#     - python3
+#     - python3-pip
+#     - jq
+##    - yq # pip
+      # interactive
+      - tmux
+      - bash-completion
+      - zsh
+      - tcsh
+      - fish
+      # 0.enc
+      - gocryptfs
 
     container:
       - debian:latest
@@ -40,19 +74,3 @@
       - {name: io.sourceforge.squirrel-sql, version: 4.5.1,   latest: true, type: zip, strip: 1, url: https://sourceforge.net/projects/squirrel-sql/files/1-stable/4.5.1-plainzip/squirrelsql-4.5.1-standard.zip}
       # TODO: subdir, name
 #     - {name: io.sourceforge.squirrel-sql, version: 4.5.1,                 type: raw,           url: http://sourceforge.net/p/squirrel-sql/git/ci/cf32722c6974108e5fdddff1c53d519205347617/tree/sql12/squirrelsql-translations/src/main/resources/squirrel-sql_ja_JP.jar?format=raw}
-
-  kind:
-
-    # https://hub.docker.com/r/kindest/node/tags
-    node: kindest/node:v1.26.0
-
-    envsubst:
-      external_ip: 0.0.0.0
-      resolve_ip:  1.1.1.1
-      webui_tld:   tld
-
-    manifests:
-      - {name: ingress,                    url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.5.1/deploy/static/provider/kind/deploy.yaml} # https://github.com/kubernetes/ingress-nginx/releases
-      - {name: metallb,                    url: https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml}                       # https://github.com/metallb/metallb/releases
-#     - {name: dashboard,                  url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml}                            # https://github.com/kubernetes/dashboard/releases
-#     - {name: argowf,    namespace: argo, url: https://raw.githubusercontent.com/argoproj/argo-workflows/v3.4.3/manifests/install.yaml}                              # https://github.com/argoproj/argo-workflows/releases

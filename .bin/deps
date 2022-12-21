@@ -44,14 +44,13 @@ if true; then
   apt_pkgs+=('procps')
   apt_pkgs+=('unar')
   apt_pkgs+=('zip')
-  apt_pkgs+=('jq')
-  apt_pkgs+=('tmux')
   apt_pkgs+=('vim')
   apt_pkgs+=('nkf')
   apt_pkgs+=('htop')
   apt_pkgs+=('tree')
   apt_pkgs+=('tig')
 
+  apt_pkgs+=('tmux')
   apt_pkgs+=('bash-completion')
   apt_pkgs+=('zsh')
   apt_pkgs+=('tcsh')
@@ -72,11 +71,6 @@ if true; then
   apt_pkgs+=('rsync')
   apt_pkgs+=('wget')
   apt_pkgs+=('gocryptfs')
-
-  apt_pkgs+=('python3')
-  apt_pkgs+=('python3-pip')
-
-  pip_pkgs+=('yq')
 
 fi
 
