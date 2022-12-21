@@ -14,6 +14,8 @@ if true; then
   readonly github_user='tkyz'
   readonly github_mail="36824716+${github_user}@users.noreply.github.com"
 
+  alias openpgp4fpr="${HOME}/.bin/openpgp4fpr"
+
 fi
 
 # system defined
