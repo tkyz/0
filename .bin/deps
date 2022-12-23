@@ -38,21 +38,6 @@ if true; then
 
 fi
 
-if true; then
-
-  apt_pkgs+=('openssh-client')
-  apt_pkgs+=('tcpdump')
-  apt_pkgs+=('nmap')
-  apt_pkgs+=('dnsutils')
-  apt_pkgs+=('netcat')
-  apt_pkgs+=('cifs-utils')
-  apt_pkgs+=('nfs-common')
-  apt_pkgs+=('sshfs')
-  apt_pkgs+=('rsync')
-  apt_pkgs+=('wget')
-
-fi
-
 if ! is_docker_build && ! is_wsl; then
 
   apt_pkgs+=('ufw')
@@ -101,11 +86,6 @@ if is_docker_build || is_wsl; then
 
   apt_pkgs+=('docker-ce-cli')
 
-  pip_pkgs+=('pyyaml')
-  pip_pkgs+=('kubernetes')
-  pip_pkgs+=('docker')
-  pip_pkgs+=('ansible')
-
   pip_pkgs+=('gspread')
   pip_pkgs+=('oauth2client')
   pip_pkgs+=('google-auth-oauthlib')
@@ -119,7 +99,6 @@ fi
 
 : <<'COMMENT'
   # TODO: dotnet
-  apt_pkgs+=('docker-ce')
   apt_pkgs+=('docker-compose-plugin')
   apt_pkgs+=('kubeadm')
   apt_pkgs+=('kubelet')
@@ -176,20 +155,6 @@ if type yq &> /dev/null; then
 
     popd
 
-  done
-
-fi
-
-#----------------------------------------------------------------
-# container
-
-if type docker &> /dev/null; then
-
-  container_yml="$(yq -r '."0".deps.container' "${HOME}/0.yml")"
-
-  cnt="$(echo "${container_yml}" | yq -r length)"
-  for ((i = 0; i < "${cnt}"; i++)); do
-    docker pull "$(echo "${container_yml}" | yq -r ".["${i}"]")"
   done
 
 fi

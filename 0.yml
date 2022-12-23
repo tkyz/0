@@ -1,22 +1,6 @@
 0:
 
-  kind:
-
-    # https://hub.docker.com/r/kindest/node/tags
-    node: kindest/node:v1.26.0
-
-    envsubst:
-      external_ip: 0.0.0.0
-      resolve_ip:  1.1.1.1
-      webui_tld:   tld
-
-    manifests:
-      - {name: ingress,                    url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.5.1/deploy/static/provider/kind/deploy.yaml} # https://github.com/kubernetes/ingress-nginx/releases
-      - {name: metallb,                    url: https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml}                       # https://github.com/metallb/metallb/releases
-#     - {name: dashboard,                  url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml}                            # https://github.com/kubernetes/dashboard/releases
-#     - {name: argowf,    namespace: argo, url: https://raw.githubusercontent.com/argoproj/argo-workflows/v3.4.3/manifests/install.yaml}                              # https://github.com/argoproj/argo-workflows/releases
-
-  deps:
+  setup:
 
     apt:
       # setup
@@ -29,7 +13,6 @@
 #     - python3
 #     - python3-pip
 #     - jq
-##    - yq # pip
       # interactive
       - tmux
       - bash-completion
@@ -52,6 +35,46 @@
       - locales
       - locales-all
       - task-japanese
+      # nw
+      - dnsutils
+      - netcat
+      - openssh-client
+      - nmap
+      - sshfs
+      - tcpdump
+      - cifs-utils
+      - nfs-common
+      - rsync
+      - wget
+
+    pip:
+      # setup
+#     - yq
+      # util
+      - pyyaml
+      - kubernetes
+      - docker
+#     - ansible
+
+    npm: []
+
+    opt:
+      - {name: io.k8s.sigs.kind,            version: 0.17.0,  latest: true, type: raw,           url: https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64}
+      - {name: net.java.jdk,                version: 11.0.2,                type: tgz, strip: 1, url: https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz}
+      - {name: net.java.jdk,                version: 13.0.2,                type: tgz, strip: 1, url: https://download.java.net/java/GA/jdk13.0.2/d4173c853231432d94f001e99d882ca7/8/GPL/openjdk-13.0.2_linux-x64_bin.tar.gz}
+      - {name: net.java.jdk,                version: 18.0.2,                type: tgz, strip: 1, url: https://download.java.net/java/GA/jdk18.0.2/f6ad4b4450fd4d298113270ec84f30ee/9/GPL/openjdk-18.0.2_linux-x64_bin.tar.gz}
+      - {name: net.java.jdk,                version: 19.0.1,  latest: true, type: tgz, strip: 1, url: https://download.java.net/java/GA/jdk19.0.1/afdd2e245b014143b62ccb916125e3ce/10/GPL/openjdk-19.0.1_linux-x64_bin.tar.gz}
+      - {name: org.apache.ant,              version: 1.10.12, latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/ant/binaries/apache-ant-1.10.12-bin.tar.gz}
+      - {name: org.apache.maven,            version: 3.8.6,   latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/maven/maven-3/3.8.6/binaries/apache-maven-3.8.6-bin.tar.gz}
+      - {name: org.apache.drill,            version: 1.20.2,  latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/drill/1.20.2/apache-drill-1.20.2.tar.gz}
+      - {name: org.apache.hadoop,           version: 3.3.4,   latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/hadoop/common/hadoop-3.3.4/hadoop-3.3.4.tar.gz}
+      - {name: org.apache.spark,            version: 3.3.1,   latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz}
+      - {name: org.apache.hive,             version: 3.1.3,   latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/hive/hive-3.1.3/apache-hive-3.1.3-bin.tar.gz}
+      - {name: org.eclipse,                                                 type: tgz, strip: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2022-12/R/eclipse-java-2022-12-R-linux-gtk-x86_64.tar.gz&mirror_id=1}
+      - {name: org.eclipse,                                                 type: zip, strip: 1, url: https://ftp.jaist.ac.jp/pub/mergedoc/pleiades/build/stable/pleiades.zip}
+      - {name: io.sourceforge.squirrel-sql, version: 4.5.1,   latest: true, type: zip, strip: 1, url: https://sourceforge.net/projects/squirrel-sql/files/1-stable/4.5.1-plainzip/squirrelsql-4.5.1-standard.zip}
+      # TODO: subdir, name
+#     - {name: io.sourceforge.squirrel-sql, version: 4.5.1,                 type: raw,           url: http://sourceforge.net/p/squirrel-sql/git/ci/cf32722c6974108e5fdddff1c53d519205347617/tree/sql12/squirrelsql-translations/src/main/resources/squirrel-sql_ja_JP.jar?format=raw}
 
     container:
       - debian:latest
@@ -71,20 +94,18 @@
       - openjdk:18.0.2.1
       - openjdk:latest
 
-    opt:
-      - {name: io.k8s.sigs.kind,            version: 0.17.0,  latest: true, type: raw,           url: https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64}
-      - {name: net.java.jdk,                version: 11.0.2,                type: tgz, strip: 1, url: https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz}
-      - {name: net.java.jdk,                version: 13.0.2,                type: tgz, strip: 1, url: https://download.java.net/java/GA/jdk13.0.2/d4173c853231432d94f001e99d882ca7/8/GPL/openjdk-13.0.2_linux-x64_bin.tar.gz}
-      - {name: net.java.jdk,                version: 18.0.2,                type: tgz, strip: 1, url: https://download.java.net/java/GA/jdk18.0.2/f6ad4b4450fd4d298113270ec84f30ee/9/GPL/openjdk-18.0.2_linux-x64_bin.tar.gz}
-      - {name: net.java.jdk,                version: 19.0.1,  latest: true, type: tgz, strip: 1, url: https://download.java.net/java/GA/jdk19.0.1/afdd2e245b014143b62ccb916125e3ce/10/GPL/openjdk-19.0.1_linux-x64_bin.tar.gz}
-      - {name: org.apache.ant,              version: 1.10.12, latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/ant/binaries/apache-ant-1.10.12-bin.tar.gz}
-      - {name: org.apache.maven,            version: 3.8.6,   latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/maven/maven-3/3.8.6/binaries/apache-maven-3.8.6-bin.tar.gz}
-      - {name: org.apache.drill,            version: 1.20.2,  latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/drill/1.20.2/apache-drill-1.20.2.tar.gz}
-      - {name: org.apache.hadoop,           version: 3.3.4,   latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/hadoop/common/hadoop-3.3.4/hadoop-3.3.4.tar.gz}
-      - {name: org.apache.spark,            version: 3.3.1,   latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/spark/spark-3.3.1/spark-3.3.1-bin-hadoop3.tgz}
-      - {name: org.apache.hive,             version: 3.1.3,   latest: true, type: tgz, strip: 1, url: https://dlcdn.apache.org/hive/hive-3.1.3/apache-hive-3.1.3-bin.tar.gz}
-      - {name: org.eclipse,                                                 type: tgz, strip: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2022-12/R/eclipse-java-2022-12-R-linux-gtk-x86_64.tar.gz&mirror_id=1}
-      - {name: org.eclipse,                                                 type: zip, strip: 1, url: https://ftp.jaist.ac.jp/pub/mergedoc/pleiades/build/stable/pleiades.zip}
-      - {name: io.sourceforge.squirrel-sql, version: 4.5.1,   latest: true, type: zip, strip: 1, url: https://sourceforge.net/projects/squirrel-sql/files/1-stable/4.5.1-plainzip/squirrelsql-4.5.1-standard.zip}
-      # TODO: subdir, name
-#     - {name: io.sourceforge.squirrel-sql, version: 4.5.1,                 type: raw,           url: http://sourceforge.net/p/squirrel-sql/git/ci/cf32722c6974108e5fdddff1c53d519205347617/tree/sql12/squirrelsql-translations/src/main/resources/squirrel-sql_ja_JP.jar?format=raw}
+  kind:
+
+    # https://hub.docker.com/r/kindest/node/tags
+    node: kindest/node:v1.26.0
+
+    envsubst:
+      external_ip: 0.0.0.0
+      resolve_ip:  1.1.1.1
+      webui_tld:   tld
+
+    manifests:
+      - {name: ingress,                    url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.5.1/deploy/static/provider/kind/deploy.yaml} # https://github.com/kubernetes/ingress-nginx/releases
+      - {name: metallb,                    url: https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml}                       # https://github.com/metallb/metallb/releases
+#     - {name: dashboard,                  url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml}                            # https://github.com/kubernetes/dashboard/releases
+#     - {name: argowf,    namespace: argo, url: https://raw.githubusercontent.com/argoproj/argo-workflows/v3.4.3/manifests/install.yaml}                              # https://github.com/argoproj/argo-workflows/releases
