@@ -174,8 +174,8 @@ function _tmp() {
     _git-remote-set upstream 'git://git.0/0.git'
 #   _git-remote-set upstream 'ssh://git.0/0.git'
 
-#   _git-remote-set github   "https://github.com/${github_user}/0.git"
-    _git-remote-set github   "ssh://git@github.com/${github_user}/0.git"
+    _git-remote-set github   "https://github.com/${github_user}/0.git"
+#   _git-remote-set github   "ssh://git@github.com/${github_user}/0.git"
 
     git fetch --all --prune || true
 
