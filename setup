@@ -55,7 +55,7 @@ function _tmp() {
   if ! openpgp4fpr &> /dev/null; then
 
     local -r fqdn="${USER:-root}@$(hostname -f)"
-    local -r rand63="$(cat /dev/urandom | tr -d -c '[:alnum:]' | head -c 63 || true)"
+    local -r gpg_dummy_id="$(cat /dev/urandom | tr -d -c '[:alnum:]' | head -c 63 || true)"
     local -r passphrase='' # 後で変更させる
 
     # 事前準備が必要な状況がある
@@ -64,13 +64,13 @@ function _tmp() {
 
     if true; then
 
-      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-generate-key "${rand63}" rsa4096 sign,cert 0
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-generate-key "${gpg_dummy_id}" rsa4096 sign,cert 0
 
-      openpgp4fpr="$(gpg --list-secret-keys --with-colons ="${rand63}" | grep ^fpr | cut -d ':' -f 10)"
+      openpgp4fpr="$(gpg --list-secret-keys --with-colons ="${gpg_dummy_id}" | grep ^fpr | cut -d ':' -f 10)"
 
-      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    ="${rand63}"      "${openpgp4fpr}"
-      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    ="${rand63}"      "${USER:-root} <${fqdn}>"
-      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-revoke-uid ="${openpgp4fpr}" "${rand63}"
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    ="${gpg_dummy_id}" "${openpgp4fpr}"
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-uid    ="${gpg_dummy_id}" "${USER:-root} <${fqdn}>"
+      gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-revoke-uid ="${openpgp4fpr}"  "${gpg_dummy_id}"
 
       gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 sign 0
 #     gpg --no-tty --pinentry-mode loopback --passphrase "${passphrase}" --quick-add-key "${openpgp4fpr}" rsa4096 cert 0
@@ -278,8 +278,9 @@ function _tmp() {
 
   apt  install --fix-missing -y $(echo "${deps_yml}" | yq -r '.apt[]' | tr '\n' ' ') || true
   pip3 install --upgrade        $(echo "${deps_yml}" | yq -r '.pip[]' | tr '\n' ' ') || true
-  npm  install -g               $(echo "${deps_yml}" | yq -r '.npm[]' | tr '\n' ' ') || true
+# npm  install -g               $(echo "${deps_yml}" | yq -r '.npm[]' | tr '\n' ' ') || true
 
+  # TODO: npm
   # TODO: opt
 
   if type docker &> /dev/null; then
