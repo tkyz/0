@@ -182,6 +182,7 @@ function _tmp() {
     if   git rev-parse origin/main   &> /dev/null; then git checkout -b main origin/main
     elif git rev-parse upstream/main &> /dev/null; then git checkout -b main upstream/main
     elif git rev-parse github/main   &> /dev/null; then git checkout -b main github/main
+    else
 
       git checkout --orphan main
 
@@ -192,7 +193,9 @@ function _tmp() {
           --message "${openpgp4fpr}" \
           --allow-empty
 
-      git push origin main
+      if [[ -v is_git_origin ]]; then
+        git push origin main
+      fi
 
     fi
 
