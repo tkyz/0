@@ -11,7 +11,7 @@ setlocal
   echo.
   echo 1. このwindow(a)とは別にwslのwindow(b)が起動します。
   echo 2. window(a)はこのままにして、window(b)に"Enter new UNIX username:"が表示されるまで待機してください。
-  echo 3. 2のメッセージが表示されたらwindow(b)で[ctrl+c]を押して中断してください。xボタンを押して閉じてもよいです。
+  echo 3. 2のメッセージが表示されたらwindow(b)で[ctrl+c]を押して中断するか、xボタンを押して閉じてください。
   echo 4. window(a)で何かキーを押してください。
   echo 待機中...
   pause > nul
@@ -26,7 +26,8 @@ setlocal
     apt update; ^
     apt upgrade -y; ^
     apt install -y curl; ^
-    ^( curl https://setup.0 ^|^| curl https://raw.githubusercontent.com/tkyz/0/main/setup ^) ^| bash
+    ^( curl https://setup.0 ^|^| curl https://raw.githubusercontent.com/tkyz/0/main/setup ^) ^| bash; ^
+    git -C / checkout .
   wsl --terminate %dist%
 
 endlocal
