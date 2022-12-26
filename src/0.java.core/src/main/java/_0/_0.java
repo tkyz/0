@@ -8,10 +8,13 @@ import java.io.Flushable;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.management.ManagementFactory;
+import java.net.ConnectException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
+import java.net.Socket;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.MessageDigest;
@@ -50,8 +53,12 @@ public final class _0 {
 
 	public static final String encoding = nvl(System.getProperty("native.encoding"), System.getProperty("file.encoding"));
 
+	public static final int pid = Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().replaceAll("@.*", ""));
+
 	/** 論理プロセッサ数 */
 	public static final int availableProcessors = Runtime.getRuntime().availableProcessors();
+
+	private static final Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 
 	private static final SimpleDateFormat fmt_ymdhms  = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	private static final SimpleDateFormat fmt_ymdhmss = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
@@ -60,9 +67,8 @@ public final class _0 {
 
 	public static final String regex_spaces = "[\\r\\n\\t\\s　 ]+";
 
+	@SuppressWarnings("serial")
 	public static final Map<String, String> char_conv = Collections.unmodifiableMap(new HashMap<>() {
-
-		private static final long serialVersionUID = 1L;
 
 		{
 			// 英字は半角
@@ -140,12 +146,12 @@ public final class _0 {
 
 	private static InetAddress ip = null;
 
-	private static Clipboard clipboard = null;
-
 	// TODO: private
 	public static boolean exit = false;
 
 	static {
+
+		shutdown("exit", () -> _0.exit = true);
 
 		Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
 			log.trace("", e);
@@ -421,18 +427,6 @@ public final class _0 {
 
 	}
 
-	public static final String hex(final byte[] bytes) {
-
-		StringBuilder hex = new StringBuilder();
-
-		for (byte b : bytes) {
-			hex.append(String.format("%02x", b & 0xff) );
-		}
-
-		return hex.toString();
-
-	}
-
 	public static final String size(final long size) {
 		return size(size, true);
 	}
@@ -579,15 +573,10 @@ public final class _0 {
 
 	}
 
-	public static String hex(final byte v) {
-
-		StringBuilder s = new StringBuilder();
-		for (int i = 0; i < 8; i++) {
-			s.append(0 < (v & (1 << (7 - i))) ? '1' : '0');
-		}
-
-		return s.toString();
-
+	public static void daemon(final Runnable impl) {
+		Thread thread = new Thread(impl);
+		thread.setDaemon(true);
+		thread.start();
 	}
 
 	public static void shutdown(final String name, final Runnable impl) {
@@ -597,13 +586,7 @@ public final class _0 {
 		}));
 	}
 
-	public static <T, R> void clipboard(Consumer<T> listener) {
-
-		synchronized (_0.class) {
-			if (null == clipboard) {
-				clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-			}
-		}
+	public static <T, R> void clipboard(final Consumer<T> listener) {
 
 		Set<DataFlavor> flavors = new HashSet<>();
 		flavors.add(DataFlavor.stringFlavor);
@@ -614,49 +597,44 @@ public final class _0 {
 //		flavors.add(DataFlavor.allHtmlFlavor);
 //		flavors.addAll(List.of(transferable.getTransferDataFlavors()));
 
-		new Thread("clipboard") {
+		daemon(() -> {
 
-			@Override
-			public void run() {
+			Object prev = null;
 
-				Object prev = null;
+			while (!exit()) {
 
-				while (!exit()) {
+				for (DataFlavor flavor : flavors) {
 
-					for (DataFlavor flavor : flavors) {
-
-						Object data = null;
-						try {
-							data = clipboard.getContents(null).getTransferData(flavor);
-						} catch (IOException e) {
-							throw new IllegalStateException(e);
-						} catch (UnsupportedFlavorException e) {
-							continue;
-						}
-
-						if (data.equals(prev)) {
-							break;
-						}
-						prev = data;
-
-						@SuppressWarnings("unchecked")
-						T t = (T)data;
-
-						listener.accept(t);
-
+					Object data = null;
+					try {
+						data = clipboard.getContents(null).getTransferData(flavor);
+					} catch (IOException e) {
+						throw new IllegalStateException(e);
+					} catch (UnsupportedFlavorException e) {
+						continue;
 					}
 
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException e) {
+					if (data.equals(prev)) {
 						break;
 					}
+					prev = data;
 
+					@SuppressWarnings("unchecked")
+					T t = (T)data;
+
+					listener.accept(t);
+
+				}
+
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					break;
 				}
 
 			}
 
-		}.start();
+		});
 
 	}
 
@@ -665,15 +643,14 @@ public final class _0 {
 
 		if (null == ip) {
 
-			List<InetAddress> ips = Collections.list(NetworkInterface.getNetworkInterfaces()).stream()
+			List<InetAddress> ips = NetworkInterface.networkInterfaces()
 					.parallel()
-					.filter(e -> e.getName().matches("^(en|sl|wl|ww)p[0-9]+s[0-9a-f]+$"))
+					.filter(new NetworkInterfaceFilter())
 					.map(NetworkInterface::getInterfaceAddresses)
 					.flatMap(Collection::stream)
 					.map(InterfaceAddress::getAddress)
 					.filter(e -> e instanceof Inet4Address)
 					.filter(e -> !e.isLoopbackAddress())
-					.filter(e -> !e.getCanonicalHostName().equals(e.getHostAddress()))
 					.toList();
 
 			if (0 == ips.size()) {
@@ -690,6 +667,64 @@ public final class _0 {
 		}
 
 		return ip;
+
+	}
+
+	public static int ip(InetAddress addr) {
+
+		if (!(addr instanceof Inet4Address)) {
+			throw new UnsupportedOperationException(addr.toString());
+		}
+
+		return ip(addr.getAddress());
+
+	}
+
+	public static int ip(byte[] bytes) {
+
+		int ip = 0;
+
+		for (int i = 0; i < bytes.length; i++) {
+			ip = ip | ((bytes[i] & 0xff) << ((bytes.length * 8) - ((i + 1) * 8)));
+		}
+
+		return ip;
+
+	}
+
+	public static boolean tcp(InetAddress addr, int port) {
+
+		int available = -1;
+
+		try (Socket sock = new Socket(addr, port)) {
+
+			available = sock.getInputStream().available();
+
+		} catch (ConnectException e) {
+//			log.trace("", e); // 接続を拒否されました
+
+		} catch (IOException e) {
+			log.trace("", e);
+		}
+
+		return -1 < available;
+
+	}
+
+	public static int subnetmask(InterfaceAddress ifaddr) {
+		return subnetmask(ifaddr.getNetworkPrefixLength());
+	}
+
+	public static int subnetmask(short networkPrefixLength) {
+
+		int subnetmask = 0;
+
+		for (int i = 0; i < 32; i++) {
+			subnetmask  = subnetmask << 1;
+			subnetmask |= (i < networkPrefixLength) ? 1 : 0;
+		}
+
+		return subnetmask;
 
 	}
 
@@ -714,6 +749,9 @@ public final class _0 {
 			Process process = pb.start();
 
 			ping = 0 == process.waitFor();
+
+		} catch (IOException e) {
+			log.trace("", e);
 
 		} catch (InterruptedException e) {
 			log.trace("", e);
@@ -891,6 +929,103 @@ public final class _0 {
 		}
 
 		return delay;
+
+	}
+
+	public static String bin(final byte v) {
+
+		StringBuilder s = new StringBuilder();
+		for (int i = 0; i < 8; i++) {
+			s.append(0 < (v & (1 << (7 - i))) ? '1' : '0');
+		}
+
+		return s.toString();
+
+	}
+
+	public static String bin(final byte[] v) {
+
+		StringBuilder s = new StringBuilder();
+		for (byte b : v) {
+			s.append(bin(b));
+		}
+
+		return s.toString();
+
+	}
+
+	public static String bin(final short v) {
+
+		StringBuilder s = new StringBuilder();
+		s.append(bin((byte)(0xff & (v >> 8))));
+		s.append(bin((byte)(0xff & (v >> 0))));
+
+		return s.toString();
+
+	}
+
+	public static String bin(final int v) {
+
+		StringBuilder s = new StringBuilder();
+		s.append(bin((short)(0xffff & (v >> 16))));
+		s.append(bin((short)(0xffff & (v >>  0))));
+
+		return s.toString();
+
+	}
+
+	public static String bin(final long v) {
+
+		StringBuilder s = new StringBuilder();
+		s.append(bin((int)(0xffffffff & (v >> 32))));
+		s.append(bin((int)(0xffffffff & (v >>  0))));
+
+		return s.toString();
+
+	}
+
+	public static String hex(final byte v) {
+		return String.format("%02x", v);
+	}
+
+	public static String hex(final byte[] v) {
+
+		StringBuilder s = new StringBuilder();
+		for (byte b : v) {
+			s.append(hex(b));
+		}
+
+		return s.toString();
+
+	}
+
+	public static String hex(final short v) {
+
+		StringBuilder s = new StringBuilder();
+		s.append(hex((byte)(0xff & (v >> 8))));
+		s.append(hex((byte)(0xff & (v >> 0))));
+
+		return s.toString();
+
+	}
+
+	public static String hex(final int v) {
+
+		StringBuilder s = new StringBuilder();
+		s.append(hex((short)(0xffff & (v >> 16))));
+		s.append(hex((short)(0xffff & (v >>  0))));
+
+		return s.toString();
+
+	}
+
+	public static String hex(final long v) {
+
+		StringBuilder s = new StringBuilder();
+		s.append(hex((int)(0xffffffff & (v >> 32))));
+		s.append(hex((int)(0xffffffff & (v >>  0))));
+
+		return s.toString();
 
 	}
 

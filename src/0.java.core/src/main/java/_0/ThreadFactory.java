@@ -12,7 +12,12 @@ public final class ThreadFactory implements java.util.concurrent.ThreadFactory {
 
 	@Override
 	public Thread newThread(Runnable runnable) {
-		return new Thread(runnable, prefix + cnt++);
+
+		Thread thread = new Thread(runnable, prefix + cnt++);
+		thread.setDaemon(true);
+
+		return thread;
+
 	}
 
 }

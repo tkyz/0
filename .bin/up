@@ -69,7 +69,6 @@ cat "${srcdir}/0.dns/config/dnsmasq/hosts" | sed -e 's/#.*//' -e '/^$/d' | awk -
   if [[ ! -f "${manifest}" ]]; then
     continue
   fi
-echo "${id}"
 
   # イメージ転送
   # TODO: ローカルキャッシュの共有ができないか
