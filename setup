@@ -405,7 +405,7 @@ EOS
       lshw usbutils \
       parted cryptsetup lvm2 \
       ufw rkhunter clamav \
-      openssh-client \
+      openssh-client openssh-server \
       cifs-utils \
       containerd.io podman kubectl \
       python3 python3-pip python3.11-venv \
@@ -444,6 +444,16 @@ EOS
       SUDO systemctl stop  clamav-freshclam
       SUDO freshclam
       SUDO systemctl start clamav-freshclam
+
+      # sshd
+      SUDO sed -i -r \
+        -e 's/#?PermitRootLogin .*/PermitRootLogin no/g' \
+        -e 's/#?PermitEmptyPasswords .*/PermitEmptyPasswords no/g' \
+        -e 's/#?PasswordAuthentication .*/PasswordAuthentication no/g' \
+        -e 's/#?PubkeyAuthentication .*/PubkeyAuthentication yes/g' \
+        -e 's/#?StrictModes .*/StrictModes yes/g' \
+        /etc/ssh/sshd_config
+      SUDO systemctl reload sshd
 
     set -e
 
