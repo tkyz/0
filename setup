@@ -402,7 +402,7 @@ EOS
     SUDO apt-get update
     SUDO apt-get install -y \
       bash-completion \
-      lshw usbutils \
+      lshw lsscsi usbutils \
       parted cryptsetup lvm2 \
       ufw rkhunter clamav \
       openssh-client openssh-server \
