@@ -32,9 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public final class _0 {
 
@@ -416,19 +414,61 @@ public final class _0 {
 
 	}
 
+	@SuppressWarnings("unchecked")
 	public static Map<String, Object> merge(final Map<String, Object> origin, final Map<String, Object> merge) {
+		return (Map<String, Object>)merge((Object)origin, (Object)merge);
+	}
 
-		Map<String, Object> map = new HashMap<>();
+	private static Object merge(final Object origin, final Object merge) {
 
-		// TODO: deep-merge
-		if (null != origin) {
-			map.putAll(origin);
+		Object ret = null;
+
+		if (null == origin) {
+			ret = merge;
+
+		} else if (null == merge) {
+			ret = origin;
+
+		} else if (origin instanceof Map && merge instanceof Map) {
+
+			Map<?, ?> map1 = (Map<?, ?>)origin;
+			Map<?, ?> map2 = (Map<?, ?>)merge;
+
+			Set<Object> keys = new HashSet<>();
+			keys.addAll(map1.keySet());
+			keys.addAll(map2.keySet());
+
+			Map<String, Object> map = new HashMap<>();
+			for (Object key : keys) {
+
+				Object v1  = map1.get(key);
+				Object v2  = map2.get(key);
+				Object val = merge(v1, v2);
+
+				map.put((String)key, val);
+
+			}
+			ret = map;
+
+		} else if (origin instanceof Collection && merge instanceof Collection) {
+
+			Collection<?> list1 = (Collection<?>)origin;
+			Collection<?> list2 = (Collection<?>)merge;
+
+			Set<Object> set = new HashSet<>();
+			set.addAll(list1);
+			set.addAll(list2);
+
+			ret = set;
+
+		} else if (origin.getClass() == merge.getClass()) {
+			ret = merge;
+
+		} else {
+			throw new UnsupportedOperationException(origin.getClass().getName() + ":" + merge.getClass().getName());
 		}
-		if (null != merge) {
-			map.putAll(merge);
-		}
 
-		return map;
+		return ret;
 
 	}
 
@@ -457,10 +497,6 @@ public final class _0 {
 
 		return (T)ret;
 
-	}
-
-	public static <T> Map<T, Long> count(List<T> list) {
-		return list.stream().collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 	}
 
 	public static Map<String, Long> count(final String str) {
