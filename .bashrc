@@ -97,7 +97,7 @@ fi
 if true; then
 
   alias ..='cd ..'
-  alias ls='ls --color=auto --show-control-chars --full-time '
+  alias ls='ls -1v --color=auto --show-control-chars --full-time '
   alias la='ls -a '
   alias ll='la -lF '
 

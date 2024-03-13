@@ -2,18 +2,13 @@ package _0.kvs;
 
 import java.io.Flushable;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.text.SimpleDateFormat;
 import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +27,6 @@ import _0.playground.debug.StopWatch;
 public final class Kvs implements Flushable, AutoCloseable {
 
 	private static final Logger log = LoggerFactory.getLogger(Kvs.class);
-
-	private static final SimpleDateFormat format_date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	private Connection con = null;
 
@@ -185,48 +178,6 @@ SELECT * FROM kvs
 
 	public void set(final String key, final Map<String, Object> val) {
 		set(key, json(val));
-	}
-
-	public void set(final Path file)
-			throws IOException {
-
-		if (!Files.exists(file)) {
-			return;
-		}
-		if (Files.isDirectory(file)) {
-			return;
-		}
-		if (Files.isSymbolicLink(file)) {
-			return;
-		}
-
-		set(file, Files.readAttributes(file, BasicFileAttributes.class));
-
-	}
-
-	public void set(final Path file, final BasicFileAttributes attrs) {
-
-		if (!Files.exists(file)) {
-			return;
-		}
-		if (Files.isDirectory(file)) {
-			return;
-		}
-		if (Files.isSymbolicLink(file)) {
-			return;
-		}
-
-		String              key = "file://" + ("/" + file.toAbsolutePath().normalize()).replace('\\', '/').replaceAll("/+", "/");
-		Map<String, Object> val = new HashMap<>();
-
-		long   size = attrs.size();
-		String date = date(_0.max(attrs.creationTime().toMillis(), attrs.lastModifiedTime().toMillis()));
-
-		_0.set(val, "meta/size", size);
-		_0.set(val, "meta/date", date);
-
-		set(key, val);
-
 	}
 
 	public void set(final String key, final String val) {
@@ -382,24 +333,6 @@ SELECT * FROM kvs
 				ret = new JSONObject(val).toMap();
 			} catch (JSONException e) {
 				log.warn("{}", val, e);
-			}
-		}
-
-		return ret;
-
-	}
-
-	public static String date(final long millis) {
-		return date(new Date(millis));
-	}
-
-	public static String date(final Date date) {
-
-		String ret = null;
-
-		if (null != date) {
-			synchronized (format_date) {
-				ret = format_date.format(date);
 			}
 		}
 

@@ -1,20 +1,12 @@
 package _0.playground;
 
 import java.awt.image.BufferedImage;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
-import java.net.UnknownHostException;
-import java.nio.charset.Charset;
-import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.FileStore;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
@@ -23,10 +15,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
@@ -36,7 +26,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -45,31 +34,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.function.Consumer;
 import java.util.function.Function;
 
+import javax.imageio.IIOException;
 import javax.imageio.ImageIO;
-import javax.net.ssl.SSLException;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hc.client5.http.ClientProtocolException;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
-import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.cookie.BasicCookieStore;
 import org.apache.hc.client5.http.cookie.CookieStore;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.protocol.HttpClientContext;
-import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.Header;
-import org.apache.hc.core5.http.HttpEntity;
-import org.apache.hc.core5.http.HttpResponse;
 import org.apache.hc.core5.http.protocol.HttpContext;
-import org.json.JSONObject;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,9 +54,22 @@ import _0.playground.debug.Debug;
 import _0.playground.debug.StopWatch;
 import _0.sshd.Sshd;
 
+/**
+ * /parent[]
+ * /res/code
+ * /res/type
+ * /meta/size
+ * /meta/date
+ * /blob/type
+ * /blob/hash
+ * /blob/width
+ * /blob/height
+ */
 public final class Main implements AutoCloseable {
 
 	private static final Logger log = LoggerFactory.getLogger(Main.class);
+
+	private static final SimpleDateFormat format_date = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	private static final SimpleDateFormat format_last_modified = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.ENGLISH);
 
@@ -96,7 +83,6 @@ public final class Main implements AutoCloseable {
 
 	private Set<String> token = new HashSet<>();
 
-	private FileStore   blobfs       = null;
 	private HttpContext http_context = null;
 
 	private ExecutorService worker_task = null;
@@ -154,7 +140,12 @@ public final class Main implements AutoCloseable {
 	private void init()
 			throws ReflectiveOperationException, IOException, SQLException {
 
-		blobfs   = Files.getFileStore(UserConfig.blob_dir);
+		FileStore blobfs = Files.getFileStore(UserConfig.blob_dir);
+		FileStore reffs  = Files.getFileStore(UserConfig.ref_dir);
+		if (!blobfs.equals(reffs)) {
+			throw new IllegalStateException();
+		}
+
 		http_context = HttpClientContext.create();
 
 		worker_task = Executors.newFixedThreadPool(8);
@@ -446,7 +437,7 @@ public final class Main implements AutoCloseable {
 		task(() -> _imp(seed_file));
 		task(() -> _walk(UserConfig.ref_dir));
 
-		for (Path i1 : Files.list(UserConfig.ref_uri_dir).toList()) {
+		for (Path i1 : Files.list(UserConfig.ref_dir.resolve("uri")).toList()) {
 			for (Path i2 : Files.list(i1).toList()) {
 
 				String scheme = i1.getFileName().toString();
@@ -509,9 +500,12 @@ public final class Main implements AutoCloseable {
 			public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs)
 					throws IOException {
 
-				Thread.currentThread().setName("task/walk" + Main.toString(dir));
+				Thread.currentThread().setName("task/walk" + Main.toString(dir) + "/");
 
-				if (!UserConfig.kvs_filter_path.test(dir)) {
+				if (exit) {
+					return FileVisitResult.TERMINATE;
+				}
+				if (UserConfig.walk_filter.test(dir)) {
 					return FileVisitResult.SKIP_SUBTREE;
 				}
 
@@ -525,7 +519,17 @@ public final class Main implements AutoCloseable {
 
 				Thread.currentThread().setName("task/walk" + Main.toString(file));
 
-				kvs.set(file, attrs);
+				if (exit) {
+					return FileVisitResult.TERMINATE;
+				}
+				if (UserConfig.walk_filter.test(file)) {
+					return FileVisitResult.CONTINUE;
+				}
+
+				String              key = "file://" + Main.toString(file);
+				Map<String, Object> val = val(file, null, true);
+
+				kvs.set(key, val);
 
 				return FileVisitResult.CONTINUE;
 
@@ -627,8 +631,6 @@ public final class Main implements AutoCloseable {
 
 		// TODO: key type handling
 		List<KvsEntryProc<?>> procs = new LinkedList<>();
-		procs.add(new KvsEntryProc_openpgp4fpr());
-		procs.add(new KvsEntryProc_blob());
 		procs.add(new KvsEntryProc_file());
 		procs.add(new KvsEntryProc_http());
 
@@ -637,8 +639,8 @@ public final class Main implements AutoCloseable {
 			@SuppressWarnings("unchecked")
 			KvsEntryProc<T> proc = (KvsEntryProc<T>)procs.remove(0);
 
-			T target = proc.type(key);
-			if (null == target) {
+			T obj = proc.type(key);
+			if (null == obj) {
 				continue;
 			}
 
@@ -646,7 +648,9 @@ public final class Main implements AutoCloseable {
 
 				Thread.currentThread().setName("task/kvs/proc/" + proc.getClass().getName().replaceAll(".*_", ""));
 
-				return proc._call(key, target, _0.nvl(Kvs.json(val), new HashMap<>()), cli);
+				Map<String, Object> val_ = Collections.unmodifiableMap(_0.nvl(Kvs.json(val), new HashMap<>()));
+
+				return proc._call(key, val_, obj, cli);
 
 			}));
 
@@ -678,60 +682,8 @@ public final class Main implements AutoCloseable {
 
 		public ExecutorService worker();
 
-		public Void _call(final String orgkey, final T key, final Map<String, Object> val, final boolean cli)
+		public Void _call(final String key, final Map<String, Object> prev_val, final T obj, final boolean cli)
 				throws Exception;
-
-	}
-
-	public class KvsEntryProc_openpgp4fpr implements KvsEntryProc<String> {
-
-		@Override
-		public String type(final String key) {
-			return key.startsWith("openpgp4fpr:") ? key : null;
-		}
-
-		@Override
-		public ExecutorService worker() {
-			return worker_file;
-		}
-
-		@Override
-		public Void _call(final String orgkey, final String key, final Map<String, Object> val, final boolean cli)
-				throws IOException {
-
-//			key.matches("^openpgp4fpr:[0-9a-fA-F]{40}$");
-
-			return null;
-
-		}
-
-	}
-
-	public class KvsEntryProc_blob implements KvsEntryProc<String> {
-
-		@Override
-		public String type(final String key) {
-			return key.startsWith("blob:") ? key : null;
-		}
-
-		@Override
-		public ExecutorService worker() {
-			return worker_file;
-		}
-
-		@Override
-		public Void _call(final String orgkey, final String key, final Map<String, Object> val, final boolean cli)
-				throws IOException {
-
-//			key.matches("^blob:[0-9a-fA-F]{8}$");
-//			key.matches("^blob:[0-9a-fA-F]{32}$");
-//			key.matches("^blob:[0-9a-fA-F]{40}$");
-//			key.matches("^blob:[0-9a-fA-F]{64}$");
-//			key.matches("^blob:[0-9a-fA-F]{128}$");
-
-			return null;
-
-		}
 
 	}
 
@@ -739,7 +691,7 @@ public final class Main implements AutoCloseable {
 
 		@Override
 		public Path type(final String key) {
-			return key.startsWith("file://") ? Path.of(key.substring("file://".length())) : null;
+			return key.startsWith("file:///") ? Path.of(key.substring("file://".length())) : null;
 		}
 
 		@Override
@@ -748,50 +700,24 @@ public final class Main implements AutoCloseable {
 		}
 
 		@Override
-		public Void _call(final String orgkey, final Path key, final Map<String, Object> val, final boolean cli)
+		public Void _call(final String key, final Map<String, Object> prev_val, final Path file, final boolean cli)
 				throws IOException {
 
-			Number prev_size   = _0.get(val, "meta/size");
-			String prev_ymdhms = _0.get(val, "meta/date");
-			String prev_hash   = _0.get(val, "meta/hash");
-
-			if (!UserConfig.kvs_filter_path.test(key) || Files.isDirectory(key)) {
-				kvs.del(orgkey);
-				debug(prev_hash, "- ", orgkey);
+			if (Files.isDirectory(file) || UserConfig.walk_filter.test(file)) {
+				kvs.del(key);
+				debug(_0.get(prev_val, "blob/hash"), " - ", key);
 				return null;
 			}
 
-			// hash計算
-			boolean upd  = false;
-			String  hash = null;
-			{
+			boolean is_in    = file.startsWith(UserConfig.ref_in_dir);
+			boolean is_reffs = file.startsWith(UserConfig.ref_dir);
 
-				BasicFileAttributes attrs = Files.readAttributes(key, BasicFileAttributes.class);
-				long   size   = attrs.size();
-				long   date   = _0.max(attrs.creationTime().toMillis(), attrs.lastModifiedTime().toMillis());
-				String ymdhms = Kvs.date(date);
+			Map<String, Object> val = val(file, prev_val, false);
+			String hash = _0.get(val, "blob/hash");
 
-				upd |= null == prev_hash;
-				upd |= 0 != _0.compare(prev_size,   size);
-				upd |= 0 != _0.compare(prev_ymdhms, ymdhms);
-				if (upd) {
-
-					hash = _0.hex(_0.sha256(key));
-
-					Map<String, Object> val_ = new HashMap<>();
-					_0.set(val_, "meta/size", size);
-					_0.set(val_, "meta/date", ymdhms);
-					_0.set(val_, "meta/hash", hash);
-
-					kvs.set(orgkey, val_);
-
-				} else {
-					hash = prev_hash;
-				}
-
+			if (!is_in && 0 != _0.compare(prev_val, val)) {
+				kvs.set(key, val);
 			}
-
-			boolean is_blobfs = is_blobfs(key);
 
 			Path blob_dir  = UserConfig.blob_dir.resolve(hash.substring(0, 2)).resolve(hash.substring(2, 4));
 			Path blob_file = blob_dir.resolve(hash);
@@ -800,11 +726,9 @@ public final class Main implements AutoCloseable {
 			if (!Files.exists(blob_file)) {
 
 				// copy
-				if (!is_blobfs) {
+				if (!is_reffs) {
 
-					String name_l = key.getFileName().toString().toLowerCase();
-
-					// TODO: 残ストレージ
+					String name_l = file.getFileName().toString().toLowerCase();
 
 					boolean copy = false;
 					for (String ext : UserConfig.copy_blob_exts) {
@@ -814,12 +738,11 @@ public final class Main implements AutoCloseable {
 					if (copy) {
 
 						Files.createDirectories(blob_dir);
-						Files.copy(key, blob_file, StandardCopyOption.COPY_ATTRIBUTES);
+						Files.copy(file, blob_file, StandardCopyOption.COPY_ATTRIBUTES);
+						debug(hash, "<- ", key);
 
-						debug(hash, "<-", orgkey);
-
-						Path copy_dir  = UserConfig.ref_dir.getParent().resolve("ref.copy");
-						Path copy_file = copy_dir.resolve(hash + "_" + key.getFileName().toString().replace(hash, ""));
+						Path copy_dir  = UserConfig.ref_dir.resolve("new");
+						Path copy_file = copy_dir.resolve(hash + "_" + file.getFileName().toString().replace(hash, ""));
 						Files.createDirectories(copy_dir);
 						Files.createLink(copy_file, blob_file);
 
@@ -827,37 +750,82 @@ public final class Main implements AutoCloseable {
 
 				// link
 				} else {
-
 					Files.createDirectories(blob_dir);
-					Files.createLink(blob_file, key);
+					Files.createLink(blob_file, file);
+					debug(hash, "<- ", key);
+				}
 
-					debug(hash, "<-", orgkey);
+			}
+
+			// ref
+			if (is_in) {
+				kvs.del(key);
+				Files.delete(file);
+
+			} else if (is_reffs && Files.exists(blob_file) && _0.ino(file) != _0.ino(blob_file)) {
+
+				long ms1 = Files.getLastModifiedTime(file).toMillis();
+				long ms2 = Files.getLastModifiedTime(blob_file).toMillis();
+				Files.setLastModifiedTime(blob_file, FileTime.fromMillis(Math.min(ms1, ms2)));
+
+				Files.delete(file);
+				Files.createLink(file, blob_file);
+				debug(hash, " ->", key);
+
+			}
+
+			Number width  = _0.get(val, "blob/width");
+			Number height = _0.get(val, "blob/height");
+			if (null != width && null != height) {
+
+				// width x height
+				if (256 <= width.longValue() && 256 <= height.longValue()) {
+
+					Path out_dir  = UserConfig.ref_type_dir.resolve("image/size/" + width + "x" + height);
+					Path out_file = out_dir.resolve(hash);
+
+					if (!Files.exists(out_file)) {
+						Files.createDirectories(out_dir);
+						Files.createLink(out_file, blob_file);
+						debug(hash, " ->", "file://" + Main.toString(out_file));
+					}
+
+				}
+
+				// pixel
+				if (256 <= width.longValue() && 256 <= height.longValue()) {
+
+					Path out_dir  = UserConfig.ref_type_dir.resolve("image/pixel/" + (width.longValue() * height.longValue()));
+					Path out_file = out_dir.resolve(hash);
+
+					if (!Files.exists(out_file)) {
+						Files.createDirectories(out_dir);
+						Files.createLink(out_file, blob_file);
+						debug(hash, " ->", "file://" + Main.toString(out_file));
+					}
+
+				}
+
+				// radius
+				if (256 <= width.longValue() && 256 <= height.longValue()) {
+
+					double radius = Math.sqrt(Math.pow(width.longValue() >> 1, 2) + Math.pow(height.longValue() >> 1, 2));
+
+					Path out_dir  = UserConfig.ref_type_dir.resolve("image/radius/" + (long)radius);
+					Path out_file = out_dir.resolve(hash);
+
+					if (!Files.exists(out_file)) {
+						Files.createDirectories(out_dir);
+						Files.createLink(out_file, blob_file);
+						debug(hash, " ->", "file://" + Main.toString(out_file));
+					}
 
 				}
 
 			}
 
-			// ref link
-			if (Files.exists(blob_file) && is_blobfs && key.startsWith(UserConfig.ref_dir) && _0.ino(key) != _0.ino(blob_file)) {
-
-				long ms1 = Files.getLastModifiedTime(key).toMillis();
-				long ms2 = Files.getLastModifiedTime(blob_file).toMillis();
-				Files.setLastModifiedTime(blob_file, FileTime.fromMillis(Math.min(ms1, ms2)));
-
-				Files.delete(key);
-				Files.createLink(key, blob_file);
-
-				debug(hash, "->", orgkey);
-
-			}
-
 			return null;
 
-		}
-
-		private boolean is_blobfs(final Path file)
-				throws IOException {
-			return blobfs.equals(Files.getFileStore(file));
 		}
 
 	}
@@ -898,298 +866,298 @@ public final class Main implements AutoCloseable {
 		}
 
 		@Override
-		public Void _call(final String orgkey, final URI key, final Map<String, Object> val, final boolean cli)
+		public Void _call(final String key, final Map<String, Object> val, final URI uri, final boolean cli)
 				throws IOException, NoSuchAlgorithmException, SQLException {
 
 			// TODO: debug
-			if (null == key.getHost()) {
-				log.warn("{}", key);
+			if (null == uri.getHost()) {
+				log.warn("{}", uri);
 				return null;
 			}
 
-			if (!cli) {
-
-				String prev_hash = _0.get(val, "data/hash");
-				if (null != prev_hash) {
-					return null;
-				}
-
-				boolean target = false;
-				target |= key.getHost().endsWith("." + UserConfig.tld);
-				target |= UserConfig.proc_filter_http.test(key);
-				if (!target) {
-					debug(null, " #", orgkey);
-					return null;
-				}
-
-			}
-
-			RequestConfig config = RequestConfig.custom()
-//					.setConnectTimeout(10 * 1000)
-//					.setConnectionRequestTimeout(60 * 1000)
-//					.setSocketTimeout(3 * 60 * 1000)
-					.build();
-
-			HttpUriRequestBase req = new HttpGet(key);
-			req.addHeader("User-Agent",      "Mozilla/5.0");
-			req.addHeader("Accept-Charaset", "UTF-8");
-			req.addHeader("Accept-Language", "ja, en;");
-			req.setConfig(config);
-
-			Path    tmp     = null;
-			String  hash    = null;
-			String  date    = null;
-			Number  size    = null;
-			Number  code    = null;
-			String  mime    = null;
-			Charset charset = null;
-
-			try (CloseableHttpClient client = HttpClientBuilder.create().build(); CloseableHttpResponse res = client.execute(req, http_context)) {
-
-				// TODO: redirect
-				code = res.getCode();
-
-				HttpEntity entity = res.getEntity();
-
-				ContentType content_type = ContentType.parse(entity.getContentType());
-				if (null != content_type) {
-					charset = content_type.getCharset();
-					mime    = content_type.getMimeType().toLowerCase();
-				}
-
-				Date last_modified = date(res);
-
-				tmp = Files.createTempFile(null, null);
-				try (InputStream in = entity.getContent(); OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp.toFile()))) {
-
-					MessageDigest md = MessageDigest.getInstance("SHA-256");
-
-					byte[] buffer = new byte[1 << 16];
-					int  read  = -1;
-					long size_ = 0;
-
-					while (-1 < (read = in.read(buffer))) {
-						md.update(buffer, 0, read);
-						out.write(buffer, 0, read);
-						size_ += read;
-					}
-
-					_0.flush(out);
-
-					size = size_;
-					hash = _0.hex(md.digest());
-
-				}
-				if (null != last_modified) {
-					date = Kvs.date(last_modified);
-					Files.setLastModifiedTime(tmp, FileTime.fromMillis(last_modified.getTime()));
-				}
-
-			} catch (UnknownHostException e) {
-				log.warn("{}", e.toString());
-
-			} catch (java.net.SocketTimeoutException e) {
-				log.warn("{}", e.toString());
-
-			} catch (SocketException e) {
-				log.warn("{}", e.toString());
-
-			} catch (SSLException e) {
-				log.warn("{}", e.toString());
-
-			} catch (ClientProtocolException e) {
-				log.warn("{}", e.toString());
-
-			} catch (UnsupportedCharsetException e) {
-				log.trace("{} {}", key, e.toString());
-			}
-
-			Number width  = null;
-			Number height = null;
-			if (null != tmp && Files.exists(tmp)) {
-
-				// text
-				if (mime.startsWith("text/")) {
-					try {
-
-						Charset charset_ = _0.nvl(charset, _0.utf8);
-
-						Document html = Jsoup.parse(tmp.toFile(), charset_.name());
-
-						Consumer<String> println = cli ? e -> System.out.println(e) : e -> {};
-
-						Map<String, Object> val_ = new HashMap<>();
-						_0.set(val_, "parent", List.of(orgkey));
-
-						links(key, html, charset_).stream()
-								.sorted((o1, o2) -> _0.compare(o1, o2))
-								.peek(println)
-								.forEach(e -> kvs.set(e, val_));
-
-						debug("text", "<-", orgkey);
-
-					} catch (IOException e) {
-					}
-				}
-
-				// blob
-				if (mime.startsWith("image/") || mime.startsWith("video/") || mime.endsWith("octet-stream") || "application/pdf".equals(mime) || "jpg".equals(mime)) {
-
-					try {
-						BufferedImage img = ImageIO.read(tmp.toFile());
-						if (null != img) {
-							width  = img.getWidth();
-							height = img.getHeight();
-						}
-					} catch (IOException e) {
-					}
-
-					Path blob_dir  = UserConfig.blob_dir.resolve(hash.substring(0, 2)).resolve(hash.substring(2, 4));
-					Path blob_file = blob_dir.resolve(hash);
-
-					if (!Files.exists(blob_file)) {
-
-						Files.createDirectories(blob_dir);
-						Files.move(tmp, blob_file);
-
-						debug(hash, "<-", orgkey);
-
-if ((null == width && null == height) || (256 <= width.longValue() && 256 <= height.longValue())) {
-
-	Path new_dir  = UserConfig.ref_dir.getParent().resolve("ref.new").resolve(width + "x" + height);
-	Path new_file = new_dir.resolve(hash);
-
-	Files.createDirectories(new_dir);
-	Files.createLink(new_file, blob_file);
-	proc &= Files.list(new_dir.getParent()).toList().size() < 32;
-
-}
-
-					}
-
-					Path uri_file = UserConfig.ref_uri_dir.resolve(key.getScheme()).resolve(_0.reverse(".", key.getHost())).resolve(key.getPath().replaceAll("^/", ""));
-					Path uri_dir  = uri_file.getParent();
-
-					if (!Files.exists(uri_file)) {
-
-						Files.createDirectories(uri_dir);
-						Files.createLink(uri_file, blob_file);
-
-						debug(hash, "->", "file://" + Main.toString(uri_file));
-
-					}
-
-				}
-
-				try {
-					Files.delete(tmp);
-				} catch (IOException e) {
-				}
-
-			}
-
-			// https?://.*
-			{
-
-				Map<String, Object> val_ = new HashMap<>();
-				_0.set(val_, "res/code",    code);
-				_0.set(val_, "res/mime",    mime);
-				_0.set(val_, "data/date",   date);
-				_0.set(val_, "data/size",   size);
-				_0.set(val_, "data/hash",   hash);
-
-				if (null != width && null != height) {
-					_0.set(val_, "data/width",  width);
-					_0.set(val_, "data/height", height);
-				}
-
-				_0.set(val_, "data/count",  JSONObject.NULL);
-				_0.set(val_, "data/wc",     JSONObject.NULL);
-				_0.set(val_, "wc",          JSONObject.NULL);
-				_0.set(val_, "attr",        JSONObject.NULL);
-				_0.set(val_, "attrs",       JSONObject.NULL);
-
-				kvs.set(orgkey, val_);
-
-			}
+//			if (!cli) {
+//
+//				String prev_hash = _0.get(val, "data/hash");
+//				if (null != prev_hash) {
+//					return null;
+//				}
+//
+//				boolean target = false;
+//				target |= key.getHost().endsWith("." + UserConfig.tld);
+//				target |= UserConfig.proc_filter_http.test(key);
+//				if (!target) {
+//					debug(null, " #", orgkey);
+//					return null;
+//				}
+//
+//			}
+//
+//			RequestConfig config = RequestConfig.custom()
+////					.setConnectTimeout(10 * 1000)
+////					.setConnectionRequestTimeout(60 * 1000)
+////					.setSocketTimeout(3 * 60 * 1000)
+//					.build();
+//
+//			HttpUriRequestBase req = new HttpGet(key);
+//			req.addHeader("User-Agent",      "Mozilla/5.0");
+//			req.addHeader("Accept-Charaset", "UTF-8");
+//			req.addHeader("Accept-Language", "ja, en;");
+//			req.setConfig(config);
+//
+//			Path    tmp     = null;
+//			String  hash    = null;
+//			String  date    = null;
+//			Number  size    = null;
+//			Number  code    = null;
+//			String  mime    = null;
+//			Charset charset = null;
+//
+//			try (CloseableHttpClient client = HttpClientBuilder.create().build(); CloseableHttpResponse res = client.execute(req, http_context)) {
+//
+//				// TODO: redirect
+//				code = res.getCode();
+//
+//				HttpEntity entity = res.getEntity();
+//
+//				ContentType content_type = ContentType.parse(entity.getContentType());
+//				if (null != content_type) {
+//					charset = content_type.getCharset();
+//					mime    = content_type.getMimeType().toLowerCase();
+//				}
+//
+//				Date last_modified = date(res);
+//
+//				tmp = Files.createTempFile(null, null);
+//				try (InputStream in = entity.getContent(); OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp.toFile()))) {
+//
+//					MessageDigest md = MessageDigest.getInstance("SHA-256");
+//
+//					byte[] buffer = new byte[1 << 16];
+//					int  read  = -1;
+//					long size_ = 0;
+//
+//					while (-1 < (read = in.read(buffer))) {
+//						md.update(buffer, 0, read);
+//						out.write(buffer, 0, read);
+//						size_ += read;
+//					}
+//
+//					_0.flush(out);
+//
+//					size = size_;
+//					hash = _0.hex(md.digest());
+//
+//				}
+//				if (null != last_modified) {
+//					date = Kvs.date(last_modified);
+//					Files.setLastModifiedTime(tmp, FileTime.fromMillis(last_modified.getTime()));
+//				}
+//
+//			} catch (UnknownHostException e) {
+//				log.warn("{}", e.toString());
+//
+//			} catch (java.net.SocketTimeoutException e) {
+//				log.warn("{}", e.toString());
+//
+//			} catch (SocketException e) {
+//				log.warn("{}", e.toString());
+//
+//			} catch (SSLException e) {
+//				log.warn("{}", e.toString());
+//
+//			} catch (ClientProtocolException e) {
+//				log.warn("{}", e.toString());
+//
+//			} catch (UnsupportedCharsetException e) {
+//				log.trace("{} {}", key, e.toString());
+//			}
+//
+//			Number width  = null;
+//			Number height = null;
+//			if (null != tmp && Files.exists(tmp)) {
+//
+//				// text
+//				if (mime.startsWith("text/")) {
+//					try {
+//
+//						Charset charset_ = _0.nvl(charset, _0.utf8);
+//
+//						Document html = Jsoup.parse(tmp.toFile(), charset_.name());
+//
+//						Consumer<String> println = cli ? e -> System.out.println(e) : e -> {};
+//
+//						Map<String, Object> val_ = new HashMap<>();
+//						_0.set(val_, "parent", List.of(orgkey));
+//
+//						links(key, html, charset_).stream()
+//								.sorted((o1, o2) -> _0.compare(o1, o2))
+//								.peek(println)
+//								.forEach(e -> kvs.set(e, val_));
+//
+//						debug("text", "<-", orgkey);
+//
+//					} catch (IOException e) {
+//					}
+//				}
+//
+//				// blob
+//				if (mime.startsWith("image/") || mime.startsWith("video/") || mime.endsWith("octet-stream") || "application/pdf".equals(mime) || "jpg".equals(mime)) {
+//
+//					try {
+//						BufferedImage img = ImageIO.read(tmp.toFile());
+//						if (null != img) {
+//							width  = img.getWidth();
+//							height = img.getHeight();
+//						}
+//					} catch (IOException e) {
+//					}
+//
+//					Path blob_dir  = UserConfig.blob_dir.resolve(hash.substring(0, 2)).resolve(hash.substring(2, 4));
+//					Path blob_file = blob_dir.resolve(hash);
+//
+//					if (!Files.exists(blob_file)) {
+//
+//						Files.createDirectories(blob_dir);
+//						Files.move(tmp, blob_file);
+//
+//						debug(hash, "<-", orgkey);
+//
+//if ((null == width && null == height) || (256 <= width.longValue() && 256 <= height.longValue())) {
+//
+//	Path new_dir  = UserConfig.ref_dir.getParent().resolve("ref.new").resolve(width + "x" + height);
+//	Path new_file = new_dir.resolve(hash);
+//
+//	Files.createDirectories(new_dir);
+//	Files.createLink(new_file, blob_file);
+////	proc &= Files.list(new_dir.getParent()).toList().size() < 32;
+//
+//}
+//
+//					}
+//
+//					Path uri_file = UserConfig.ref_uri_dir.resolve(key.getScheme()).resolve(_0.reverse(".", key.getHost())).resolve(key.getPath().replaceAll("^/", ""));
+//					Path uri_dir  = uri_file.getParent();
+//
+//					if (!Files.exists(uri_file)) {
+//
+//						Files.createDirectories(uri_dir);
+//						Files.createLink(uri_file, blob_file);
+//
+//						debug(hash, "->", "file://" + Main.toString(uri_file));
+//
+//					}
+//
+//				}
+//
+//				try {
+//					Files.delete(tmp);
+//				} catch (IOException e) {
+//				}
+//
+//			}
+//
+//			// https?://.*
+//			{
+//
+//				Map<String, Object> val_ = new HashMap<>();
+//				_0.set(val_, "res/code",    code);
+//				_0.set(val_, "res/mime",    mime);
+//				_0.set(val_, "data/date",   date);
+//				_0.set(val_, "data/size",   size);
+//				_0.set(val_, "data/hash",   hash);
+//
+//				if (null != width && null != height) {
+//					_0.set(val_, "data/width",  width);
+//					_0.set(val_, "data/height", height);
+//				}
+//
+//				_0.set(val_, "data/count",  JSONObject.NULL);
+//				_0.set(val_, "data/wc",     JSONObject.NULL);
+//				_0.set(val_, "wc",          JSONObject.NULL);
+//				_0.set(val_, "attr",        JSONObject.NULL);
+//				_0.set(val_, "attrs",       JSONObject.NULL);
+//
+//				kvs.set(orgkey, val_);
+//
+//			}
 
 			return null;
 
 		}
 
-		private static List<String> links(final URI base_url, final Document doc, final Charset charset) {
-
-			Set<String> links = new HashSet<>();
-			doc.select("a[href]"    ).stream().map(e -> e.attr("href"  )).forEach(links::add);
-			doc.select("link[href]" ).stream().map(e -> e.attr("href"  )).forEach(links::add);
-			doc.select("iframe[src]").stream().map(e -> e.attr("src"   )).forEach(links::add);
-			doc.select("img[src]"   ).stream().map(e -> e.attr("src"   )).forEach(links::add);
-//			doc.select("img[srcset]").stream().map(e -> e.attr("srcset")).flatMap(e -> Arrays.asList(e.split(_0.regex_spaces)).stream()).forEach(links::add);
-			doc.select("video[src]" ).stream().map(e -> e.attr("src"   )).forEach(links::add);
-			doc.select("script[src]").stream().map(e -> e.attr("src"   )).forEach(links::add);
-
-			return links.parallelStream()
-					.map(_0::trim)
-					.filter(e -> !e.startsWith("data:image/"))
-					.map(e -> e.replaceAll("[\\r\\n\\t]+", ""))
-					// TODO: uri resolve
-					.map(e -> e.replaceAll(" ",   "%20"))
-					.map(e -> e.replaceAll("　",  "%E3%80%80"))
-					.map(e -> e.replaceAll("\\|", "%7C"))
-					.map(e -> e.replaceAll("\\{", "%7B"))
-					.map(e -> e.replaceAll("\\}", "%7D"))
-					.map(e -> {
-						String ret = null;
-						try {
-							ret = (e.matches("^https?://.*$") ? new URI(e) : base_url.resolve(e)).normalize().toString();
-						} catch (URISyntaxException ex) {
-							log.warn("links {}", ex.getMessage());
-							ret = e;
-						} catch (IllegalArgumentException ex) {
-							log.warn("links {}", ex.getMessage());
-							ret = e;
-						}
-						return ret;
-					})
-					.map(e -> {
-						String ret = null;
-						try {
-							ret = URLDecoder.decode(e, (Charset)_0.nvl(charset, _0.utf8));
-						} catch (IllegalArgumentException ex) {
-							log.warn("links {}", ex.getMessage());
-							ret = e;
-						}
-						return ret;
-					})
-					.map(normalize_key.andThen(UserConfig.normalize_key))
-					.filter(Objects::nonNull)
-					.distinct()
-					.toList();
-
-		}
-
-		private static Date date(final HttpResponse res) {
-
-			Date ret = null;
-
-			Header header = res.getFirstHeader("last-modified");
-			if (null != header) {
-
-				String val = header.getValue();
-
-				try {
-					synchronized (format_last_modified) {
-						ret = format_last_modified.parse(val);
-					}
-				} catch (ParseException e) {
-					log.warn("{} {}", val, e.toString());
-				}
-
-			}
-
-			return ret;
-
-		}
+//		private static List<String> links(final URI base_url, final Document doc, final Charset charset) {
+//
+//			Set<String> links = new HashSet<>();
+//			doc.select("a[href]"    ).stream().map(e -> e.attr("href"  )).forEach(links::add);
+//			doc.select("link[href]" ).stream().map(e -> e.attr("href"  )).forEach(links::add);
+//			doc.select("iframe[src]").stream().map(e -> e.attr("src"   )).forEach(links::add);
+//			doc.select("img[src]"   ).stream().map(e -> e.attr("src"   )).forEach(links::add);
+////			doc.select("img[srcset]").stream().map(e -> e.attr("srcset")).flatMap(e -> Arrays.asList(e.split(_0.regex_spaces)).stream()).forEach(links::add);
+//			doc.select("video[src]" ).stream().map(e -> e.attr("src"   )).forEach(links::add);
+//			doc.select("script[src]").stream().map(e -> e.attr("src"   )).forEach(links::add);
+//
+//			return links.parallelStream()
+//					.map(_0::trim)
+//					.filter(e -> !e.startsWith("data:image/"))
+//					.map(e -> e.replaceAll("[\\r\\n\\t]+", ""))
+//					// TODO: uri resolve
+//					.map(e -> e.replaceAll(" ",   "%20"))
+//					.map(e -> e.replaceAll("　",  "%E3%80%80"))
+//					.map(e -> e.replaceAll("\\|", "%7C"))
+//					.map(e -> e.replaceAll("\\{", "%7B"))
+//					.map(e -> e.replaceAll("\\}", "%7D"))
+//					.map(e -> {
+//						String ret = null;
+//						try {
+//							ret = (e.matches("^https?://.*$") ? new URI(e) : base_url.resolve(e)).normalize().toString();
+//						} catch (URISyntaxException ex) {
+//							log.warn("links {}", ex.getMessage());
+//							ret = e;
+//						} catch (IllegalArgumentException ex) {
+//							log.warn("links {}", ex.getMessage());
+//							ret = e;
+//						}
+//						return ret;
+//					})
+//					.map(e -> {
+//						String ret = null;
+//						try {
+//							ret = URLDecoder.decode(e, (Charset)_0.nvl(charset, _0.utf8));
+//						} catch (IllegalArgumentException ex) {
+//							log.warn("links {}", ex.getMessage());
+//							ret = e;
+//						}
+//						return ret;
+//					})
+//					.map(normalize_key.andThen(UserConfig.normalize_key))
+//					.filter(Objects::nonNull)
+//					.distinct()
+//					.toList();
+//
+//		}
+//
+//		private static Date date(final HttpResponse res) {
+//
+//			Date ret = null;
+//
+//			Header header = res.getFirstHeader("last-modified");
+//			if (null != header) {
+//
+//				String val = header.getValue();
+//
+//				try {
+//					synchronized (format_last_modified) {
+//						ret = format_last_modified.parse(val);
+//					}
+//				} catch (ParseException e) {
+//					log.warn("{} {}", val, e.toString());
+//				}
+//
+//			}
+//
+//			return ret;
+//
+//		}
 
 	}
 
@@ -1221,8 +1189,76 @@ if ((null == width && null == height) || (256 <= width.longValue() && 256 <= hei
 				.replaceAll("/+", "/");
 	}
 
-	private static void debug(final String s64, final String sign2, final Object s) {
-		log.debug("{} {} {}", StringUtils.rightPad(_0.nvl(s64, ""), 64, ' '), sign2, s);
+	private static void debug(final String s64, final String sign3, final Object s) {
+		log.debug("{} {} {}", StringUtils.rightPad(_0.nvl(s64, ""), 64, ' '), sign3, s);
+	}
+
+	private static String date(final long millis) {
+		return date(new Date(millis));
+	}
+
+	private static String date(final Date date) {
+
+		String ret = null;
+
+		if (null != date) {
+			synchronized (format_date) {
+				ret = format_date.format(date);
+			}
+		}
+
+		return ret;
+
+	}
+
+	private static Map<String, Object> val(final Path file, final Map<String, Object> prev_val, final boolean metaonly)
+			throws IOException {
+
+		Map<String, Object> val = null == prev_val ? new HashMap<>() : new HashMap<>(prev_val);
+
+		Number prev_size = _0.get(prev_val, "meta/size");
+		String prev_date = _0.get(prev_val, "meta/date");
+		String prev_hash = _0.get(prev_val, "blob/hash");
+
+		BasicFileAttributes attrs = Files.readAttributes(file, BasicFileAttributes.class);
+		_0.set(val, "meta/size", attrs.size());
+		_0.set(val, "meta/date", date(_0.max(attrs.creationTime().toMillis(), attrs.lastModifiedTime().toMillis())));
+
+		if (metaonly) {
+			return val;
+		}
+
+		boolean upd = false;
+		upd |= null == prev_hash;
+		upd |= 0 != _0.compare(prev_size, _0.get(val, "meta/size"));
+		upd |= 0 != _0.compare(prev_date, _0.get(val, "meta/date"));
+
+		if (!upd) {
+			return val;
+		}
+
+		String  type   = null;
+		String  hash   = _0.hex(_0.sha256(file));
+		Integer width  = null;
+		Integer height = null;
+
+		try {
+			BufferedImage img = ImageIO.read(file.toFile());
+			if (null != img) {
+				width  = img.getWidth();
+				height = img.getHeight();
+			}
+		} catch (IIOException e) {
+			log.warn("{}", e.toString());
+		}
+
+		_0.set(val, "blob/type",   type);
+		_0.set(val, "blob/hash",   hash);
+		_0.set(val, "blob/width",  width);
+		_0.set(val, "blob/height", height);
+
+		return val;
+
 	}
 
 }

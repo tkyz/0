@@ -339,6 +339,7 @@ public final class _0 {
 			Number n1 = (Number)v1;
 			Number n2 = (Number)v2;
 
+			// TODO: 厳密な比較
 			Long l1 = n1.longValue();
 			Long l2 = n2.longValue();
 			compare = l1.compareTo(l2);
@@ -355,6 +356,27 @@ public final class _0 {
 			@SuppressWarnings("unchecked") T t2 = (T)v2;
 
 			compare = t1.compareTo(t2);
+
+		} else if (v1 instanceof Map && v2 instanceof Map) {
+
+			Map<?, ?> m1 = (Map<?, ?>)v1;
+			Map<?, ?> m2 = (Map<?, ?>)v2;
+
+			Set<Object> keys = new HashSet<>();
+			keys.addAll(m1.keySet());
+			keys.addAll(m2.keySet());
+
+			for (Object key : keys) {
+
+				Object o1 = m1.get(key);
+				Object o2 = m2.get(key);
+				compare = compare(o1, o2);
+
+				if (0 != compare) {
+					break;
+				}
+
+			}
 
 		} else {
 			throw new UnsupportedOperationException();
