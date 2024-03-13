@@ -843,10 +843,14 @@ public final class Main implements AutoCloseable {
 
 					String enc = key;
 					enc = enc.replaceAll(" ",   "%20");
-					enc = enc.replaceAll("　",  "%E3%80%80");
+					enc = enc.replaceAll("\"",  "%22");
+					enc = enc.replaceAll("\\+", "%2B");
+					enc = enc.replaceAll("\\[", "%5B");
+					enc = enc.replaceAll("\\]", "%5D");
 					enc = enc.replaceAll("\\|", "%7C");
 					enc = enc.replaceAll("\\{", "%7B");
 					enc = enc.replaceAll("\\}", "%7D");
+					enc = enc.replaceAll("　",  "%E3%80%80");
 
 					target = new URI(enc);
 
@@ -1106,6 +1110,7 @@ public final class Main implements AutoCloseable {
 //					.map(e -> e.replaceAll("\\|", "%7C"))
 //					.map(e -> e.replaceAll("\\{", "%7B"))
 //					.map(e -> e.replaceAll("\\}", "%7D"))
+//					.map(e -> e.replaceAll("\"",  "%22"))
 //					.map(e -> {
 //						String ret = null;
 //						try {
