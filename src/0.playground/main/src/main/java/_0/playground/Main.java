@@ -100,16 +100,21 @@ public final class Main implements AutoCloseable {
 
 		String rep = key;
 
-		if (rep.matches("^https?://.*$")) {
+		if (rep.matches("^https?://[\\s\\S]*$")) {
+
+			rep = rep.replaceAll("[\\r\\n][\\s\\S]*$", "");
 
 			try {
-				rep = new URI(rep).normalize().toString();
-				rep = rep.replaceAll("/[\\.]+/", "/");
+				URI uri = new URI(rep).normalize();
+				rep = null == uri.getHost() ? null : uri.toString();
 			} catch (URISyntaxException e) {
 			}
-			rep = rep.replaceAll("#[^/]*$", "");
-			rep = rep.replaceAll("\\?[0-9]+$", "");
-			rep = rep.replaceAll("[\\?&]+$", "");
+
+			if (null != rep) {
+				rep = rep.replaceAll("#[^/]*$", "");
+				rep = rep.replaceAll("\\?[0-9]+$", "");
+				rep = rep.replaceAll("[\\?&]+$", "");
+			}
 
 		}
 
@@ -844,9 +849,13 @@ public final class Main implements AutoCloseable {
 					String enc = key;
 					enc = enc.replaceAll(" ",   "%20");
 					enc = enc.replaceAll("\"",  "%22");
+					enc = enc.replaceAll("\\(", "%28");
+					enc = enc.replaceAll("\\)", "%29");
 					enc = enc.replaceAll("\\+", "%2B");
 					enc = enc.replaceAll("\\[", "%5B");
 					enc = enc.replaceAll("\\]", "%5D");
+					enc = enc.replaceAll("\\^", "%5E");
+//					enc = enc.replaceAll("\\-", "%5F");
 					enc = enc.replaceAll("\\|", "%7C");
 					enc = enc.replaceAll("\\{", "%7B");
 					enc = enc.replaceAll("\\}", "%7D");
