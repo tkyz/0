@@ -231,7 +231,7 @@ function setup_openpgp4fpr() {
 
   # gen
   openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
-  if [[ -z "${openpgp4fpr}" ]]; then
+  if [[ -z "${openpgp4fpr}" || '0000000000000000000000000000000000000000' == "${openpgp4fpr}" ]]; then
     {
 
       FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-generate-key "${gpg_uuid}" ed25519 sign,cert 0
@@ -409,14 +409,11 @@ EOS
       cifs-utils \
       containerd.io podman kubectl \
       python3 python3-pip python3.11-venv \
-      libarchive-tools rsync xsel tmux vim emacs htop \
+      libarchive-tools unar zip rsync xsel tmux vim emacs htop nkf cups jq \
+      nmap tcpdump \
       locales-all task-japanese \
-      jq
-
-#     cups \
-#     firmware-linux firmware-realtek firmware-iwlwifi \
-#     zsh tcsh fish \
-#     a2ps ghostscript qrencode pdftk \
+      firmware-linux firmware-realtek firmware-iwlwifi
+#     nvidia-kernel-dkms nvidia-driver nvidia-detect nvidia-smi nvidia-container-toolkit
 
     set +e
 
