@@ -981,4 +981,19 @@ public final class _0 {
 		}
 	}
 
+	public static String ext(final Path path) {
+
+		String ext = null;
+
+		String name = path.getFileName().toString();
+
+		int idx = name.lastIndexOf(".");
+		if (-1 < idx) {
+			ext = name.substring(idx + 1).toLowerCase();
+		}
+
+		return ext;
+
+	}
+
 }
