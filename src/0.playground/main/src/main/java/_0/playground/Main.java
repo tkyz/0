@@ -721,7 +721,7 @@ public final class Main implements AutoCloseable {
 
 	public static final class Global {
 
-		public static final Global instance = of();
+		private static Global instance = new Global();
 
 		public Path run_dir  = null;
 		public Path blob_dir = null;
@@ -738,8 +738,8 @@ public final class Main implements AutoCloseable {
 		private Global() {
 		}
 
-		private static final Global of() {
-			return new Global();
+		public static final Global of() {
+			return instance;
 		}
 
 	}

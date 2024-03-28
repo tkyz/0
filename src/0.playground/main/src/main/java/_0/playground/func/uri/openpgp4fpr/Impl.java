@@ -6,7 +6,7 @@ import _0.playground.func.Func;
 
 public class Impl extends Func<String> {
 
-	public Impl(String key, Map<String, Object> val) {
+	public Impl(final String key, final Map<String, Object> val) {
 		super(key, val);
 	}
 

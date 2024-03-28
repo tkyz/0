@@ -49,28 +49,18 @@ public class Impl extends Func<Path> {
 		}
 	};
 
-	public Impl(String key, Map<String, Object> val) {
+	public Impl(final String key, final Map<String, Object> val) {
 		super(key, val);
 	}
 
 	@Override
 	public Path cast() {
-		return cast(key());
+		String key = key();
+		return key.startsWith("blob://") ? cast(key.replaceAll(".*/", "")) : null;
 	}
 
-	public static Path cast(String key) {
-
-		Path path = null;
-		if (key.startsWith("blob:")) {
-
-			String hash = key.substring("blob:".length());
-
-			path = Global.instance.blob_dir.resolve(hash.substring(0, 2)).resolve(hash.substring(2, 4)).resolve(hash);
-
-		}
-
-		return path;
-
+	public static Path cast(final String hash) {
+		return Global.of().blob_dir.resolve(hash.substring(0, 2)).resolve(hash.substring(2, 4)).resolve(hash);
 	}
 
 	@Override

@@ -13,7 +13,7 @@ public abstract class Func<T> implements Callable<Void> {
 	private String              key = null;
 	private Map<String, Object> val = null;
 
-	public Func(String key, Map<String, Object> val) {
+	public Func(final String key, final Map<String, Object> val) {
 		this.key = key;
 		this.val = val;
 	}

@@ -51,7 +51,7 @@ public class Impl extends Func<URI> {
 
 	private static final Logger log = LoggerFactory.getLogger(Impl.class);
 
-	public Impl(String key, Map<String, Object> val) {
+	public Impl(final String key, final Map<String, Object> val) {
 		super(key, val);
 	}
 
@@ -125,7 +125,7 @@ public class Impl extends Func<URI> {
 		String  mime    = null;
 		Charset charset = null;
 
-		try (CloseableHttpClient client = HttpClientBuilder.create().build(); CloseableHttpResponse res = client.execute(req, Global.instance.main.http_context)) {
+		try (CloseableHttpClient client = HttpClientBuilder.create().build(); CloseableHttpResponse res = client.execute(req, Global.of().main.http_context)) {
 
 			// TODO: redirect
 			code = res.getCode();

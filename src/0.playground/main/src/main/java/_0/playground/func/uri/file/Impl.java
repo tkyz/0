@@ -9,6 +9,8 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
@@ -25,7 +27,7 @@ public class Impl extends Func<Path> {
 
 	private static final Logger log = LoggerFactory.getLogger(Func.class);
 
-	public Impl(String key, Map<String, Object> val) {
+	public Impl(final String key, final Map<String, Object> val) {
 		super(key, val);
 	}
 
@@ -39,12 +41,23 @@ public class Impl extends Func<Path> {
 	public Void call()
 			throws GeneralSecurityException, IOException {
 
+		String hash = file();
+
+		blob(hash);
+
+		return null;
+
+	}
+
+	private String file()
+			throws GeneralSecurityException, IOException {
+
 		String              key  = key();
 		Map<String, Object> val  = val();
 		Path                file = cast();
 
 		if (!UserConfig.walk_target.test(file) || Files.isDirectory(file)) {
-			Global.instance.kvs.del(key);
+			Global.of().kvs.del(key);
 			log("-", key, null, val);
 			return null;
 		}
@@ -95,11 +108,26 @@ public class Impl extends Func<Path> {
 		}
 
 		if (upd) {
-			Global.instance.kvs.set(key, val);
+			Global.of().kvs.set(key, val);
 			log("*", key, null, val);
 		}
 
-		return null;
+		return hash;
+
+	}
+
+	private void blob(final String hash) {
+
+		String key  = "blob://" + hash;
+		Path   file = cast();
+		Path   blob = Global.of().blob_dir.resolve(hash.substring(0, 2)).resolve(hash.substring(2, 4)).resolve(hash);
+
+		Map<String, Object> val  = new HashMap<>();
+		_0.set(val, "source:", List.of(key));
+
+		Global.of().kvs.set(key, val);
+
+//		boolean is_reffs = file.startsWith(Global.of().ref_dir);
 
 	}
 
