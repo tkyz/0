@@ -123,7 +123,7 @@ public class Impl extends Func<Path> {
 		Path   blob = Global.of().blob_dir.resolve(hash.substring(0, 2)).resolve(hash.substring(2, 4)).resolve(hash);
 
 		Map<String, Object> val  = new HashMap<>();
-		_0.set(val, "source:", List.of(key));
+		_0.set(val, "source:", List.of(key()));
 
 		Global.of().kvs.set(key, val);
 
