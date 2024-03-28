@@ -13,8 +13,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.Function;
@@ -56,11 +54,11 @@ public final class Kvs implements Flushable, AutoCloseable {
 			protected final void xFunc()
 					throws SQLException {
 
-				Map<String, Object> json1  = json(value_text(0));
-				Map<String, Object> json2  = json(value_text(1));
+				Map<String, Object> json1  = Entry.json(value_text(0));
+				Map<String, Object> json2  = Entry.json(value_text(1));
 				Map<String, Object> merged = _0.merge(json1, json2);
 
-				result(json(merged));
+				result(Entry.json(merged));
 
 			}
 
@@ -139,7 +137,7 @@ CREATE TABLE IF NOT EXISTS kvs (
 
 	}
 
-	public synchronized List<Entry> get_rand(int size)
+	public synchronized List<Entry> rand(int size)
 			throws SQLException {
 
 		List<Entry> entries = new LinkedList<>();
@@ -177,7 +175,7 @@ SELECT * FROM kvs
 	}
 
 	public void set(final String key, final Map<String, Object> val) {
-		set(key, json(val));
+		set(key, Entry.json(val));
 	}
 
 	public void set(final String key, final String val) {
@@ -296,48 +294,6 @@ SELECT * FROM kvs
 	@Override
 	public void close() {
 		_0.close(con);
-	}
-
-	public static String json(final Map<String, Object> val) {
-		return json(val, 0);
-	}
-
-	public static String json(final Map<String, Object> val, final int indent) {
-
-		String ret = null;
-
-		if (null != val) {
-			try {
-				// TODO: conv nest map
-				ret = new JSONObject(val).toString(indent);
-			} catch (JSONException e) {
-				log.warn("{}", val, e);
-			}
-		}
-
-		return ret;
-
-	}
-
-	public static Map<String, Object> json(final byte[] bytes) {
-		return json(new String(bytes));
-	}
-
-	public static Map<String, Object> json(final String val) {
-
-		Map<String, Object> ret = null;
-
-		if (null != val) {
-			try {
-				// TODO: conv nest map
-				ret = new JSONObject(val).toMap();
-			} catch (JSONException e) {
-				log.warn("{}", val, e);
-			}
-		}
-
-		return ret;
-
 	}
 
 }

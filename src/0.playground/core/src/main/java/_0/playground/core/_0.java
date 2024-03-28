@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -982,10 +983,14 @@ public final class _0 {
 	}
 
 	public static String ext(final Path path) {
+		return ext(path.getFileName().toString());
+	}
+
+	public static String ext(final String path) {
 
 		String ext = null;
 
-		String name = path.getFileName().toString();
+		String name = path;
 
 		int idx = name.lastIndexOf(".");
 		if (-1 < idx) {
@@ -994,6 +999,10 @@ public final class _0 {
 
 		return ext;
 
+	}
+
+	public static BigDecimal quantize(BigDecimal val) {
+		return 0 < val.abs().compareTo(BigDecimal.ONE) ? val.divide(BigDecimal.ONE) : val;
 	}
 
 }
