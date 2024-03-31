@@ -77,7 +77,7 @@ public final class Compute {
 
 		BigInteger n    = BigInteger.ZERO;
 		BigDecimal prev = null;
-		BigDecimal res  = new BigDecimal(0, scale);
+		BigDecimal res  = BigDecimal.ZERO;
 		while (true) {
 
 			if (0 < n.compareTo(BigInteger.ONE)) {
