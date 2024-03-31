@@ -118,16 +118,11 @@ public class Impl extends Func<Path> {
 
 	private void blob(final String hash) {
 
-		String key  = "blob://" + hash;
-		Path   file = cast();
-		Path   blob = Global.of().blob_dir.resolve(hash.substring(0, 2)).resolve(hash.substring(2, 4)).resolve(hash);
-
-		Map<String, Object> val  = new HashMap<>();
+		String              key = "blob://" + hash;
+		Map<String, Object> val = new HashMap<>();
 		_0.set(val, "source:", List.of(key()));
 
 		Global.of().kvs.set(key, val);
-
-//		boolean is_reffs = file.startsWith(Global.of().ref_dir);
 
 	}
 

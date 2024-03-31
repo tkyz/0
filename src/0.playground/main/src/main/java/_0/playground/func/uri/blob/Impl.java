@@ -1,14 +1,23 @@
 package _0.playground.func.uri.blob;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import _0.playground.Main.Global;
+import _0.playground.core._0;
 import _0.playground.func.Func;
 
 public class Impl extends Func<Path> {
+
+	private static final Logger log = LoggerFactory.getLogger(Func.class);
 
 	// TODO: native: file --brief --mime-type *
 	@SuppressWarnings("serial")
@@ -65,16 +74,16 @@ public class Impl extends Func<Path> {
 
 	@Override
 	public Void call()
-			throws IOException {
+			throws InterruptedException, IOException {
 
 		String              key  = key();
 		Map<String, Object> val  = val();
 		Path                file = cast();
 
-/*
-		// blob/ext
-		upd |= null == _0.get(val, "blob/ext");
-		if (upd) {
+		List<String> source = _0.get(val, "source");
+		String       mime   = _0.get(val, "meta/mime");
+
+		if (null == mime || !mime_map.containsValue(mime)) {
 
 			// TODO: native call
 			String ext = null;
@@ -98,9 +107,15 @@ public class Impl extends Func<Path> {
 				ext = null;
 			}
 
-			_0.set(val, "blob/ext", ext);
+			_0.set(val, "meta/mime", ext);
 
 		}
+
+/*
+		boolean is_reffs = file.startsWith(Global.of().ref_dir);
+
+		// blob/ext
+		upd |= null == _0.get(val, "blob/ext");
 
 if (!"txt".equals(_0.get(val, "blob/ext")) && 0 != _0.compare(_0.get(val, "blob/ext"), _0.get(val, "meta/ext"))) {
 	log("@", key, null, val);
