@@ -36,12 +36,17 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+readonly setup_yml="${HOME}/setup.yml"
+
 source /etc/os-release
 test 'debian' == "${ID_LIKE:-${ID}}"
 test 'bash'   == "${SHELL##*/}"
 
 export DEBIAN_FRONTEND=noninteractive
 readonly arch="$(dpkg --print-architecture)"
+
+readonly external_ip="$(ip a | grep dynamic | grep -v inet6 | awk -F ' ' '{print $2}' | sed 's|/.*||g')"
+test -n "${external_ip}"
 
 shopt -s expand_aliases
 
@@ -61,20 +66,22 @@ else
   alias FAKETIME=
 fi
 
+#----------------------------------------------------------------
+# is_xxx
+# TODO: ./bin/*
+
 function is_deb() {
 # test 'debian' == "${ID_LIKE}" ||
   test 'debian' == "${ID}" ||
   false
 } &> /dev/null
 
-# TODO: ./bin/*
 function is_sudoer() {
   test 0 == "$(id -u)" ||
   sudo -n -v ||
   false
 } &> /dev/null
 
-# TODO: ./bin/*
 function is_container() {
   test 'podman' == "${container:-}" ||
   test -f '/run/.containerenv' ||
@@ -84,16 +91,57 @@ function is_container() {
   false
 } &> /dev/null
 
-# TODO: ./bin/*
 function is_wsl() {
   test -v WSLENV
   type wslpath
 } &> /dev/null
 
 #----------------------------------------------------------------
-# setup
+# _*
 
-readonly yml_file="${HOME}/setup.yml"
+function clean() {
+
+  if is_sudoer; then
+    SUDO apt-get autoremove -y
+    SUDO apt-get clean
+  fi
+
+  if type podman &> /dev/null; then
+    podman system  prune --force
+    podman volume  prune --force
+    podman network prune --force
+  fi
+  if type docker &> /dev/null; then
+    docker system  prune --force
+    docker volume  prune --force
+    docker network prune --force
+  fi
+  if type pip3 &> /dev/null; then
+    pip3 cache purge
+  fi
+
+}
+
+function set_resolve() {
+
+  if ! is_sudoer; then
+    return
+  fi
+
+  SUDO sed -i -r "s/^(nameserver ).*$/\1 ${1}/g" /etc/resolv.conf
+
+}
+
+# envsubst
+function env_replace() {
+  sed \
+    -e "s|\${HOME}|${HOME}|g" \
+    -e "s|\${external_ip}|${external_ip}|g" \
+    -e "s|\${context}|${context}|g" \
+    -e "s|\${resolve}|${resolve}|g" \
+    -e "s|\${domain}|${domain}|g" \
+#   -e "s|\${cluster_name}|${openpgp4fpr,,}|g" \
+}
 
 function _pull() {
 
@@ -145,6 +193,70 @@ function _pull() {
   fi
 
 }
+
+function _build() {
+
+  local -r namespace="${1}"
+
+  local -r build_dir="${HOME}/src/${namespace}"
+  pushd "${build_dir}" &> /dev/null
+
+    build "${context}"
+
+    # TODO: ImagePullBackOff
+    local -r image="container.0/${namespace}:${context}"
+    if [[ -n "$(podman images --noheading "${image}")" ]] && ! podman exec "${cluster_name}-control-plane" crictl images | awk -F ' ' '{print $1":"$2}' | grep -q "${image}"; then
+
+      local -r tmpfile="$(mktemp)"
+
+      podman save --format oci-archive "${image}" --output "${tmpfile}"
+      kind load image-archive --name "${cluster_name}" "${tmpfile}" || true
+
+      rm "${tmpfile}"
+
+    fi
+
+  popd &> /dev/null
+
+}
+
+function _deploy() {
+
+  local -r arg1="${1}"
+
+  if [[ -f "${HOME}/src/${arg1}/deploy.yml" ]]; then
+    cat "${HOME}/src/${arg1}/deploy.yml" | env_replace | kubectl apply -f -
+  # TODO: "${HOME}/src/com.github/*
+# elif [[ "${arg1}" =~ ^https://raw\.githubusercontent\.com/.*$ ]]; then
+#   curl "${arg1}"                                     | kubectl apply -f -
+  fi
+
+  # TODO: ImagePullBackOff
+  if [[ '0.container' == "${arg1}" ]]; then
+
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    host: container.0
+    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+EOF
+
+    podman exec -i "${cluster_name}-control-plane" mkdir -p "/etc/containerd/certs.d/container.0"
+    podman exec -i "${cluster_name}-worker"        mkdir -p "/etc/containerd/certs.d/container.0"
+    echo '[host."http://container.0"]' | podman exec -i "${cluster_name}-control-plane" cp /dev/stdin "/etc/containerd/certs.d/container.0/hosts.toml"
+    echo '[host."http://container.0"]' | podman exec -i "${cluster_name}-worker"        cp /dev/stdin "/etc/containerd/certs.d/container.0/hosts.toml"
+
+  fi
+
+}
+
+#----------------------------------------------------------------
+# setup_*
 
 function setup_etc() {
 
@@ -224,7 +336,6 @@ function setup_openpgp4fpr() {
   local -r exp_dir="${HOME}/src/0.openpgp4fpr"
   mkdir -p "${exp_dir}"
 
-  local -r gpg_uuid="$(uuidgen)"
   local -r gpg_pass=''
   local -r gpw_pass="$(cat /dev/urandom | tr -d -c '[:alnum:]' | head -c 2048)"
   local -r gpg_conf="${GNUPGHOME:-${HOME}/.gnupg}/gpg.conf"
@@ -234,9 +345,11 @@ function setup_openpgp4fpr() {
   if [[ -z "${openpgp4fpr}" || '0000000000000000000000000000000000000000' == "${openpgp4fpr}" ]]; then
     {
 
-      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-generate-key "${gpg_uuid}" ed25519 sign,cert 0
+      local -r tmp_uuid="$(uuidgen)"
 
-      openpgp4fpr="$(gpg --with-colons --list-secret-keys "=${gpg_uuid}" 2> /dev/null | grep ^fpr | cut -d ':' -f 10)"
+      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-generate-key "${tmp_uuid}" ed25519 sign,cert 0
+
+      openpgp4fpr="$(gpg --with-colons --list-secret-keys "=${tmp_uuid}" 2> /dev/null | grep ^fpr | cut -d ':' -f 10)"
 
       FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-key    "0x${openpgp4fpr}" ed25519 sign 0
 #     FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-key    "0x${openpgp4fpr}" ed25519 cert 0
@@ -245,7 +358,7 @@ function setup_openpgp4fpr() {
 
       FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-uid    "0x${openpgp4fpr}" "${openpgp4fpr}"
 #     FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-add-uid    "0x${openpgp4fpr}" "${USER:-}@$(hostname -f)"
-      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-revoke-uid "0x${openpgp4fpr}" "${gpg_uuid}"
+      FAKETIME gpg --no-tty --pinentry-mode loopback --passphrase "${gpg_pass}" --quick-revoke-uid "0x${openpgp4fpr}" "${tmp_uuid}"
 
     } &> /dev/null
   fi
@@ -348,7 +461,7 @@ function setup_home() {
   mv     "${tmp_dir}/.git" "${HOME}"
   rm -rf "${tmp_dir}"
 
-  if [[ ! -f "${yml_file}" ]]; then
+  if [[ ! -f "${setup_yml}" ]]; then
     git -C "${HOME}" checkout setup.yml
   fi
 
@@ -359,8 +472,8 @@ function setup_ext() {
   if is_sudoer; then
 
     # https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
-    curl -fsSL 'https://dl.k8s.io/apt/doc/apt-key.gpg'                                            | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/io.kubernetes.apt.gpg
-    echo 'deb https://apt.kubernetes.io/ kubernetes-xenial main'                                  | SUDO tee                          /etc/apt/sources.list.d/io.kubernetes.apt.list         > /dev/null
+#   curl -fsSL 'https://dl.k8s.io/apt/doc/apt-key.gpg'                                            | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/io.kubernetes.apt.gpg
+#   echo 'deb https://apt.kubernetes.io/ kubernetes-xenial main'                                  | SUDO tee                          /etc/apt/sources.list.d/io.kubernetes.apt.list         > /dev/null
 
     # https://docs.docker.com/engine/install/debian/
     curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                                      | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.docker.download.gpg
@@ -481,7 +594,7 @@ function setup_src() {
     find com.github     -type d -name .git | sed -r -e 's#^com.github#https://github.com#g'         -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
     find org.golang     -type d -name .git | sed -r -e 's#^org.golang#https://golang.org#g'         -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
     find co.huggingface -type d -name .git | sed -r -e 's#^co.huggingface#https://huggingface.co#g' -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
-    yq '."0".src[]' "${yml_file}" -r                                                                                     >> "${tmp_file}" || true
+    yq '."0".src[]' "${setup_yml}" -r                                                                                    >> "${tmp_file}" || true
 
     cat "${tmp_file}" | sort -u | while read url; do
       _pull git "${url}"
@@ -499,7 +612,7 @@ function setup_lib() {
     find com.github     -type d -name .git | sed -r -e 's#^com.github#https://github.com#g'         -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
     find org.golang     -type d -name .git | sed -r -e 's#^org.golang#https://golang.org#g'         -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
     find co.huggingface -type d -name .git | sed -r -e 's#^co.huggingface#https://huggingface.co#g' -e 's#/(.git)$#\1#g' >> "${tmp_file}" || true
-    yq '."0".lib[]' "${yml_file}" -r                                                                                     >> "${tmp_file}" || true
+    yq '."0".lib[]' "${setup_yml}" -r                                                                                    >> "${tmp_file}" || true
 
     cat "${tmp_file}" | sort -u | while read url; do
       _pull git "${url}"
@@ -513,7 +626,7 @@ function setup_lib() {
 function setup_opt() {
   pushd "${HOME}/opt" &> /dev/null
 
-    yq '."0".opt | keys[]' "${yml_file}" -r | while read key; do
+    yq '."0".opt | keys[]' "${setup_yml}" -r | while read key; do
 
       if [[ -d "${key}" ]]; then
         continue
@@ -525,12 +638,12 @@ function setup_opt() {
         echo ---
         pwd
 
-        local cnt="$(yq ".\"0\".opt.\"${key}\" | length" "${yml_file}" -r)"
+        local cnt="$(yq ".\"0\".opt.\"${key}\" | length" "${setup_yml}" -r)"
         for ((i=0; i < "${cnt}"; i++)); do
 
-          local type="$( yq ".\"0\".opt.\"${key}\"[${i}].type"  "${yml_file}" -r)"
-          local depth="$(yq ".\"0\".opt.\"${key}\"[${i}].depth" "${yml_file}" -r)"
-          local url="$(  yq ".\"0\".opt.\"${key}\"[${i}].url"   "${yml_file}" -r)"
+          local type="$( yq ".\"0\".opt.\"${key}\"[${i}].type"  "${setup_yml}" -r)"
+          local depth="$(yq ".\"0\".opt.\"${key}\"[${i}].depth" "${setup_yml}" -r)"
+          local url="$(  yq ".\"0\".opt.\"${key}\"[${i}].url"   "${setup_yml}" -r)"
 
           if [[ 'raw' == "${type}" ]]; then
             curl -SLO "${url}" 2> /dev/null
@@ -551,31 +664,105 @@ function setup_opt() {
   popd &> /dev/null
 }
 
-#----------------------------------------------------------------
-# main
+function setup_cluster() {
 
-function clean() {
-
-  if is_sudoer; then
-    SUDO apt-get autoremove -y
-    SUDO apt-get clean
+  if is_wsl; then
+    return
+  fi
+  if is_container; then
+    return
+  fi
+  if ! type containerd &> /dev/null; then
+    return
+  fi
+  if ! type podman &> /dev/null; then
+    return
+  fi
+  if ! type kubectl &> /dev/null; then
+    return
+  fi
+  if ! type kind &> /dev/null; then
+    return
   fi
 
-  if type podman &> /dev/null; then
-    podman system  prune --force
-    podman volume  prune --force
-    podman network prune --force
+  export KIND_EXPERIMENTAL_PROVIDER=podman
+
+  local -r context="$(yq '."0".define.context' "${setup_yml}" -r)"
+  local -r resolve="$(yq '."0".define.resolve' "${setup_yml}" -r)"
+  local -r domain="$( yq '."0".define.domain'  "${setup_yml}" -r)"
+  local -r cluster_name="${openpgp4fpr,,}"
+
+  set_resolve "${resolve}"
+
+# kind delete clusters --all
+# kind delete cluster --name "${cluster_name}"
+  if ! kind get clusters | grep -q "${cluster_name}"; then
+
+    if is_sudoer; then
+      SUDO sysctl --write fs.inotify.max_user_instances=8192
+#     SUDO sysctl --write fs.inotify.max_user_watches=524288
+      SUDO sysctl --write net.ipv4.ip_unprivileged_port_start=0
+    fi
+
+: <<'COMMENT'
+# local -r tmp_dir="$(mktemp -d)"
+  local -r tmp_dir="${HOME}/lib/0.kind/${cluster_name}"
+  mkdir -p "${tmp_dir}"
+
+  # TODO: x509
+
+  local -r ssh_dir="${tmp_dir}/.ssh"
+  mkdir -p "${ssh_dir}"
+
+  echo y | ssh-keygen -t ed25519 -C '' -P '' -f "${ssh_dir}/id_ed25519"
+  mv "${ssh_dir}/id_ed25519.pub" "${ssh_dir}/authorized_keys"
+  cat <<EOS > "${ssh_dir}/config"
+host *
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+EOS
+COMMENT
+
+    cat "${HOME}/src/0.kind/kind.yml" | env_replace | kind create cluster --name "${cluster_name}" --config -
+
+    # context
+    kubectl config set-context     "kind-${cluster_name}"
+    kubectl cluster-info --context "kind-${cluster_name}"
+
+    kubectl get configmap kube-proxy \
+      --namespace kube-system \
+      --output    yaml | \
+        sed 's/strictARP: false/strictARP: true/' | \
+        kubectl apply -f -
+
+    curl 'https://raw.githubusercontent.com/metallb/metallb/v0.14.4/config/manifests/metallb-native.yaml'                        | kubectl apply -f -
+    curl 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/kind/deploy.yaml' | kubectl apply -f -
+#   curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml'                             | kubectl apply -f -
+
+    kubectl wait pod --namespace metallb-system --for condition=ready --selector component=controller                   --timeout 60s
+    kubectl wait pod --namespace ingress-nginx  --for condition=ready --selector app.kubernetes.io/component=controller --timeout 60s
+
   fi
-  if type docker &> /dev/null; then
-    docker system  prune --force
-    docker volume  prune --force
-    docker network prune --force
-  fi
-  if type pip3 &> /dev/null; then
-    pip3 cache purge
-  fi
+
+  kubectl delete namespace 0 2> /dev/null || true
+  kubectl create namespace 0 2> /dev/null || true
+
+                        _deploy '0.dns'; kubectl wait pod --namespace 0 --for condition=ready --selector app=dns --timeout 60s; set_resolve "${external_ip}"
+#                       _deploy '0.container'
+                        _deploy '0.pgsql'
+                        _deploy '0.mariadb'
+                        _deploy '0.redis'
+  _build '0.ntp';       _deploy '0.ntp'
+  _build '0.git';       _deploy '0.git'
+# _build '0.apt';       _deploy '0.apt'
+# _build '0.mvn';       _deploy '0.mvn'
+# _build '0.phpfpmext'; _deploy '0.wiki'
+# _build '0.bigtop';    _deploy '0.bigtop'
 
 }
+
+#----------------------------------------------------------------
+# main
 
 function main() {
 
@@ -589,6 +776,7 @@ function main() {
   setup_src
   setup_lib
   setup_opt
+  setup_cluster
 
   clean
 

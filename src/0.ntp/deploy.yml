@@ -60,7 +60,7 @@ spec:
         - {name: config-volume, configMap: {name: ntp}}
       containers:
         - name: ntp
-          image: container.0/0.ntp:${build_context}
+          image: container.0/0.ntp:${context}
           imagePullPolicy: IfNotPresent
           securityContext:
             capabilities:

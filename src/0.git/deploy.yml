@@ -18,7 +18,7 @@ spec:
         - {name: data-volume, hostPath: {path: /var/lib/0.git, type: Directory}}
       containers:
         - name: git
-          image: container.0/0.git:${build_context}
+          image: container.0/0.git:${context}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort: 9418}

@@ -1,6 +1,14 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
+
+containerdConfigPatches:
+
 kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
   - |
     kind: ClusterConfiguration
     apiServer:
@@ -10,48 +18,42 @@ kubeadmConfigPatches:
 nodes:
 
   - role: control-plane
-    kubeadmConfigPatches:
-      - |
-        kind: InitConfiguration
-        nodeRegistration:
-          kubeletExtraArgs:
-            node-labels: "ingress-ready=true"
     extraMounts:
-      - {hostPath: "${HOME}/lib/0.kind/${cluster_uuid}/.ssh", containerPath: /root/.ssh,     readOnly: true}
-      - {hostPath: "${HOME}/bin",                             containerPath: /root/bin,      readOnly: true}
-      - {hostPath: "${HOME}/opt",                             containerPath: /root/opt,      readOnly: true}
-      - {hostPath: "${HOME}/tmp",                             containerPath: /root/tmp}
       - {hostPath: "${HOME}/.profile",                        containerPath: /root/.profile, readOnly: true}
       - {hostPath: "${HOME}/.bashrc",                         containerPath: /root/.bashrc,  readOnly: true}
+      - {hostPath: "${HOME}/bin",                             containerPath: /root/bin,      readOnly: true}
+#     - {hostPath: "${HOME}/lib/0.kind/${cluster_uuid}/.ssh", containerPath: /root/.ssh,     readOnly: true}
+      - {hostPath: "${HOME}/opt",                             containerPath: /root/opt,      readOnly: true}
+#     - {hostPath: "${HOME}/tmp",                             containerPath: /root/tmp}
     extraPortMappings:
       - {hostPort:    53, containerPort:    53, listenAddress: "${external_ip}", protocol: UDP} # dns
       - {hostPort:    80, containerPort:    80, listenAddress: "${external_ip}", protocol: TCP} # http
       - {hostPort:   123, containerPort:   123, listenAddress: "${external_ip}", protocol: UDP} # ntp
       - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: TCP} # https
-      - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: UDP} # quic
-      - {hostPort:  2181, containerPort:  2181, listenAddress: "${external_ip}", protocol: TCP} # zookeeper
+#     - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: UDP} # quic
+#     - {hostPort:  2181, containerPort:  2181, listenAddress: "${external_ip}", protocol: TCP} # zookeeper
       - {hostPort:  3306, containerPort:  3306, listenAddress: "${external_ip}", protocol: TCP} # mysql,mariadb
       - {hostPort:  5432, containerPort:  5432, listenAddress: "${external_ip}", protocol: TCP} # postgresql
       - {hostPort:  6379, containerPort:  6379, listenAddress: "${external_ip}", protocol: TCP} # redis
-      - {hostPort:  8020, containerPort:  8020, listenAddress: "${external_ip}", protocol: TCP} # hdfs
+#     - {hostPort:  8020, containerPort:  8020, listenAddress: "${external_ip}", protocol: TCP} # hdfs
 #     - {hostPort:  8080, containerPort:  8080, listenAddress: "${external_ip}", protocol: TCP}
 #     - {hostPort:  8443, containerPort:  8443, listenAddress: "${external_ip}", protocol: TCP}
       - {hostPort:  9418, containerPort:  9418, listenAddress: "${external_ip}", protocol: TCP} # git
 
   - role: worker
     extraMounts:
-      - {hostPath: "${HOME}/lib/0.kind/${cluster_uuid}/.ssh", containerPath: /root/.ssh,     readOnly: true}
-      - {hostPath: "${HOME}/bin",                             containerPath: /root/bin,      readOnly: true}
-      - {hostPath: "${HOME}/opt",                             containerPath: /root/opt,      readOnly: true}
-      - {hostPath: "${HOME}/tmp",                             containerPath: /root/tmp}
       - {hostPath: "${HOME}/.profile",                        containerPath: /root/.profile, readOnly: true}
       - {hostPath: "${HOME}/.bashrc",                         containerPath: /root/.bashrc,  readOnly: true}
-      - {hostPath: "${HOME}/lib/0.bigtop",                    containerPath: /var/lib/0.bigtop}
-      - {hostPath: "${HOME}/mnt/dfs/0.container",             containerPath: /var/lib/0.container}
-      - {hostPath: "${HOME}/mnt/dfs/0.apt",                   containerPath: /var/lib/0.apt}
+      - {hostPath: "${HOME}/bin",                             containerPath: /root/bin,      readOnly: true}
+#     - {hostPath: "${HOME}/tmp",                             containerPath: /root/tmp}
+#     - {hostPath: "${HOME}/lib/0.kind/${cluster_uuid}/.ssh", containerPath: /root/.ssh,     readOnly: true}
+#     - {hostPath: "${HOME}/lib/0.bigtop",                    containerPath: /var/lib/0.bigtop}
+      - {hostPath: "${HOME}/lib/0.container",                 containerPath: /var/lib/0.container}
+      - {hostPath: "${HOME}/lib/0.apt",                       containerPath: /var/lib/0.apt}
       - {hostPath: "${HOME}/lib/0.pgsql",                     containerPath: /var/lib/0.pgsql}
       - {hostPath: "${HOME}/lib/0.mariadb",                   containerPath: /var/lib/0.mysql}
       - {hostPath: "${HOME}/lib/0.redis",                     containerPath: /var/lib/0.redis}
-      - {hostPath: "${HOME}/lib/0.git",                       containerPath: /var/lib/0.git}
-      - {hostPath: "${HOME}/mnt/dfs/0.mvn",                   containerPath: /var/lib/0.mvn}
-      - {hostPath: "${HOME}/src/com.github",                  containerPath: /usr/src/com.github}
+      - {hostPath: "${HOME}/lib/0.git",                       containerPath: /var/lib/0.git, readOnly: true}
+      - {hostPath: "${HOME}/lib/0.mvn",                       containerPath: /var/lib/0.mvn}
+      - {hostPath: "${HOME}/opt",                             containerPath: /root/opt,      readOnly: true}
+#     - {hostPath: "${HOME}/src/com.github",                  containerPath: /usr/src/com.github}

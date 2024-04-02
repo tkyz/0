@@ -27,7 +27,7 @@ data:
         ${external_ip}     hbase.0
         fallthrough
       }
-      forward . 1.1.1.1
+      forward . ${resolve}
       loop
       reload
       loadbalance

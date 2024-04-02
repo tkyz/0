@@ -18,7 +18,7 @@ spec:
         - {name: data-volume, hostPath: {path: /var/lib/0.apt, type: Directory}}
       containers:
         - name: apt
-          image: container.0/0.apt:${build_context}
+          image: container.0/0.apt:${context}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort:  443}

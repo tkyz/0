@@ -18,7 +18,7 @@ spec:
         - {name: data-volume, hostPath: {path: /var/lib/0.mvn, type: Directory}}
       containers:
         - name: mvn
-          image: container.0/0.mvn:${build_context}
+          image: container.0/0.mvn:${context}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort: 8080}
@@ -48,7 +48,7 @@ metadata:
 spec:
   rules:
     - host: mvn.0
-      http: &webui_tld
+      http: &domain
         paths:
           - pathType: Prefix
             path: /
@@ -57,5 +57,5 @@ spec:
                 name: mvn
                 port:
                   number: 8080
-    - host: mvn.${webui_tld}
-      http: *webui_tld
+    - host: mvn.${domain}
+      http: *domain
