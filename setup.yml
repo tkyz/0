@@ -55,16 +55,16 @@
       - {type: raw,           url: https://kind.sigs.k8s.io/dl/v0.22.0/kind-linux-amd64}
 #     - {type: raw,           url: https://kind.sigs.k8s.io/dl/v0.22.0/kind-windows-amd64}
     org.eclipse:
-      - {type: tgz, depth: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2023-12/R/eclipse-java-2023-12-R-linux-gtk-x86_64.tar.gz&mirror_id=1}
-#     - {type: tgz, depth: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2023-12/R/eclipse-java-2023-12-R-win32-x86_64.zip&mirror_id=1}
+      - {type: tgz, depth: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2024-03/R/eclipse-java-2024-03-R-linux-gtk-x86_64.tar.gz&mirror_id=1}
+#     - {type: tgz, depth: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2024-03/R/eclipse-java-2024-03-R-win32-x86_64.zip&mirror_id=1}
       - {type: zip, depth: 0, url: https://ftp.jaist.ac.jp/pub/mergedoc/pleiades/build/stable/pleiades.zip}
     net.java.jdk:
 #     - {type: tgz, depth: 1, url: https://download.java.net/java/GA/jdk9/9.0.4/binaries/openjdk-9.0.4_linux-x64_bin.tar.gz}
 #     - {type: zip, depth: 1, url: https://download.java.net/java/GA/jdk9/9.0.4/binaries/openjdk-9.0.4_windows-x64_bin.tar.gz}
 #     - {type: tgz, depth: 1, url: https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_linux-x64_bin.tar.gz}
 #     - {type: zip, depth: 1, url: https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_windows-x64_bin.zip}
-      - {type: tgz, depth: 1, url: https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_linux-x64_bin.tar.gz}
-#     - {type: zip, depth: 1, url: https://download.java.net/java/GA/jdk21.0.2/f2283984656d49d69e91c558476027ac/13/GPL/openjdk-21.0.2_windows-x64_bin.zip}
+      - {type: tgz, depth: 1, url: https://download.java.net/java/GA/jdk22/830ec9fcccef480bb3e73fb7ecafe059/36/GPL/openjdk-22_linux-x64_bin.tar.gz}
+#     - {type: zip, depth: 1, url: https://download.java.net/java/GA/jdk22/830ec9fcccef480bb3e73fb7ecafe059/36/GPL/openjdk-22_windows-x64_bin.zip}
     com.visualstudio.code:
       - {type: zip, depth: 1, url: https://code.visualstudio.com/sha/download?build=stable&os=linux-x64}
 #     - {type: zip, depth: 1, url: https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive}
@@ -75,7 +75,7 @@
     org.apache.ivy:
       - {type: tgz, depth: 1, url: https://dlcdn.apache.org/ant/ivy/2.5.2/apache-ivy-2.5.2-bin.tar.gz}
     org.squirrelsql:
-      - {type: zip, depth: 1, url: https://sourceforge.net/projects/squirrel-sql/files/1-stable/4.6.0-plainzip/squirrelsql-4.6.0-standard.zip}
+      - {type: zip, depth: 1, url: https://sourceforge.net/projects/squirrel-sql/files/1-stable/4.7.1-plainzip/squirrelsql-4.7.1-standard.zip}
 #     - {type: raw,           url: http://sourceforge.net/p/squirrel-sql/git/ci/cf32722c6974108e5fdddff1c53d519205347617/tree/sql12/squirrelsql-translations/src/main/resources/squirrel-sql_ja_JP.jar?format=raw}
     io.dbeaver:
       - {type: tgz, depth: 1, url: https://dbeaver.io/files/dbeaver-ce-latest-linux.gtk.x86_64-nojdk.tar.gz}
