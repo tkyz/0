@@ -194,67 +194,6 @@ function _pull() {
 
 }
 
-function _build() {
-
-  local -r namespace="${1}"
-
-  local -r build_dir="${HOME}/src/${namespace}"
-  pushd "${build_dir}" &> /dev/null
-
-    build "${context}"
-
-    # TODO: ImagePullBackOff
-    local -r image="container.0/${namespace}:${context}"
-    if [[ -n "$(podman images --noheading "${image}")" ]] && ! podman exec "${cluster_name}-control-plane" crictl images | awk -F ' ' '{print $1":"$2}' | grep -q "${image}"; then
-
-      local -r tmpfile="$(mktemp)"
-
-      podman save --format oci-archive "${image}" --output "${tmpfile}"
-      kind load image-archive --name "${cluster_name}" "${tmpfile}" || true
-
-      rm "${tmpfile}"
-
-    fi
-
-  popd &> /dev/null
-
-}
-
-function _deploy() {
-
-  local -r arg1="${1}"
-
-  if [[ -f "${HOME}/src/${arg1}/deploy.yml" ]]; then
-    cat "${HOME}/src/${arg1}/deploy.yml" | env_replace | kubectl apply -f -
-  # TODO: "${HOME}/src/com.github/*
-# elif [[ "${arg1}" =~ ^https://raw\.githubusercontent\.com/.*$ ]]; then
-#   curl "${arg1}"                                     | kubectl apply -f -
-  fi
-
-  # TODO: ImagePullBackOff
-  if [[ '0.container' == "${arg1}" ]]; then
-
-    cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: local-registry-hosting
-  namespace: kube-public
-data:
-  localRegistryHosting.v1: |
-    host: container.0
-    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
-EOF
-
-    podman exec -i "${cluster_name}-control-plane" mkdir -p "/etc/containerd/certs.d/container.0"
-    podman exec -i "${cluster_name}-worker"        mkdir -p "/etc/containerd/certs.d/container.0"
-    echo '[host."http://container.0"]' | podman exec -i "${cluster_name}-control-plane" cp /dev/stdin "/etc/containerd/certs.d/container.0/hosts.toml"
-    echo '[host."http://container.0"]' | podman exec -i "${cluster_name}-worker"        cp /dev/stdin "/etc/containerd/certs.d/container.0/hosts.toml"
-
-  fi
-
-}
-
 #----------------------------------------------------------------
 # setup_*
 
@@ -743,21 +682,83 @@ COMMENT
     kubectl wait pod --namespace ingress-nginx  --for condition=ready --selector app.kubernetes.io/component=controller --timeout 60s
 
   fi
-
   kubectl delete namespace 0 2> /dev/null || true
   kubectl create namespace 0 2> /dev/null || true
 
-                        _deploy '0.dns'; kubectl wait pod --namespace 0 --for condition=ready --selector app=dns --timeout 60s; set_resolve "${external_ip}"
-#                       _deploy '0.container'
-                        _deploy '0.pgsql'
-                        _deploy '0.mariadb'
-                        _deploy '0.redis'
-  _build '0.ntp';       _deploy '0.ntp'
-  _build '0.git';       _deploy '0.git'
-# _build '0.apt';       _deploy '0.apt'
-# _build '0.mvn';       _deploy '0.mvn'
-# _build '0.phpfpmext'; _deploy '0.wiki'
-# _build '0.bigtop';    _deploy '0.bigtop'
+# find "${HOME}/src" -mindepth 1 -maxdepth 1 -type d -name "0.*"
+  arr=()
+  arr+=('0.dns')
+# arr+=('0.container')
+  arr+=('0.pgsql')
+  arr+=('0.mariadb')
+  arr+=('0.redis')
+  arr+=('0.ntp')
+  arr+=('0.git')
+# arr+=('0.apt')
+# arr+=('0.mvn')
+# arr+=('0.wiki')
+# arr+=('0.bigtop')
+  for namespace in "${arr[@]}"; do
+
+    local target_dir="${HOME}/src/${namespace}"
+    if [[ ! -d "${target_dir}" ]]; then
+      continue
+    fi
+
+    pushd "${target_dir}" &> /dev/null
+
+      # build
+      build "${context}"
+
+      # TODO: ImagePullBackOff
+      local image="container.0/${namespace}:${context}"
+      if [[ -n "$(podman images --noheading "${image}")" ]] && ! podman exec "${cluster_name}-control-plane" crictl images | awk -F ' ' '{print $1":"$2}' | grep -q "${image}"; then
+
+        local tmpfile="$(mktemp)"
+
+        podman save --format oci-archive "${image}" --output "${tmpfile}"
+        kind load image-archive --name "${cluster_name}" "${tmpfile}" || true
+
+        rm "${tmpfile}"
+
+      fi
+
+      # deploy
+      if [[ -f './deploy.yml' ]]; then
+        cat './deploy.yml' | env_replace | kubectl apply -f -
+      fi
+
+      # patch
+      if [[ '0.dns' == "${namespace}" ]]; then
+
+        kubectl wait pod --namespace 0 --for condition=ready --selector app=dns --timeout 60s
+
+        set_resolve "${external_ip}"
+
+      elif [[ '0.container' == "${namespace}" ]]; then
+
+        cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    host: container.0
+    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+EOF
+
+        podman exec -i "${cluster_name}-control-plane" mkdir -p "/etc/containerd/certs.d/container.0"
+        podman exec -i "${cluster_name}-worker"        mkdir -p "/etc/containerd/certs.d/container.0"
+        echo '[host."http://container.0"]' | podman exec -i "${cluster_name}-control-plane" cp /dev/stdin "/etc/containerd/certs.d/container.0/hosts.toml"
+        echo '[host."http://container.0"]' | podman exec -i "${cluster_name}-worker"        cp /dev/stdin "/etc/containerd/certs.d/container.0/hosts.toml"
+
+      fi
+
+    popd &> /dev/null
+
+  done
 
 }
 
