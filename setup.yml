@@ -3,7 +3,6 @@
   define:
     context: latest
     resolve: 0.0.0.0
-    domain:  example.org
 
   src:
     # jpki

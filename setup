@@ -138,8 +138,7 @@ function env_replace() {
     -e "s|\${HOME}|${HOME}|g" \
     -e "s|\${external_ip}|${external_ip}|g" \
     -e "s|\${context}|${context}|g" \
-    -e "s|\${resolve}|${resolve}|g" \
-    -e "s|\${domain}|${domain}|g" \
+    -e "s|\${resolve}|${resolve}|g"
 #   -e "s|\${cluster_name}|${openpgp4fpr,,}|g" \
 }
 
@@ -688,15 +687,16 @@ COMMENT
 # find "${HOME}/src" -mindepth 1 -maxdepth 1 -type d -name "0.*"
   arr=()
   arr+=('0.dns')
-# arr+=('0.container')
+  arr+=('0.container')
   arr+=('0.pgsql')
   arr+=('0.mariadb')
   arr+=('0.redis')
   arr+=('0.ntp')
   arr+=('0.git')
-# arr+=('0.apt')
-# arr+=('0.mvn')
-# arr+=('0.wiki')
+  arr+=('0.apt')
+  arr+=('0.mvn')
+  arr+=('0.phpfpmext')
+  arr+=('0.wiki')
 # arr+=('0.bigtop')
   for namespace in "${arr[@]}"; do
 

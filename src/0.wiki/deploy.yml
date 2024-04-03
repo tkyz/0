@@ -114,7 +114,7 @@ metadata:
 spec:
   rules:
     - host: wiki.0
-      http: &domain
+      http:
         paths:
           - pathType: Prefix
             path: /
@@ -123,5 +123,3 @@ spec:
                 name: wiki
                 port:
                   number: 80
-    - host: wiki.${domain}
-      http: *domain

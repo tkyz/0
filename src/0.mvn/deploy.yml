@@ -48,7 +48,7 @@ metadata:
 spec:
   rules:
     - host: mvn.0
-      http: &domain
+      http:
         paths:
           - pathType: Prefix
             path: /
@@ -57,5 +57,3 @@ spec:
                 name: mvn
                 port:
                   number: 8080
-    - host: mvn.${domain}
-      http: *domain
