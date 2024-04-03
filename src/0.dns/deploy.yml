@@ -16,14 +16,14 @@ data:
         ${external_ip} container.0
         ${external_ip}       git.0
         ${external_ip}       apt.0
-        ${external_ip}       mvn.0       mvn.${webui_tld}
+        ${external_ip}       mvn.0       mvn.${domain}
         ${external_ip}     pgsql.0
         ${external_ip}     mysql.0
         ${external_ip}   mariadb.0
         ${external_ip}     redis.0
-        ${external_ip}      wiki.0      wiki.${webui_tld}
-        ${external_ip} dashboard.0 dashboard.${webui_tld}
-        ${external_ip}      hdfs.0      hdfs.${webui_tld}
+        ${external_ip}      wiki.0      wiki.${domain}
+        ${external_ip} dashboard.0 dashboard.${domain}
+        ${external_ip}      hdfs.0      hdfs.${domain}
         ${external_ip}     hbase.0
         fallthrough
       }
