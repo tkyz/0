@@ -623,11 +623,10 @@ function setup_cluster() {
     return
   fi
 
-  export KIND_EXPERIMENTAL_PROVIDER=podman
+  export KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster
 
   local -r context="$(yq '."0".define.context' "${setup_yml}" -r)"
   local -r resolve="$(yq '."0".define.resolve' "${setup_yml}" -r)"
-  local -r domain="$( yq '."0".define.domain'  "${setup_yml}" -r)"
   local -r cluster_name="${openpgp4fpr,,}"
 
   set_resolve "${resolve}"
@@ -638,10 +637,9 @@ function setup_cluster() {
 
     if is_sudoer; then
       SUDO sysctl --write fs.inotify.max_user_instances=8192
-#     SUDO sysctl --write fs.inotify.max_user_watches=524288
+      SUDO sysctl --write fs.inotify.max_user_watches=524288
       SUDO sysctl --write net.ipv4.ip_unprivileged_port_start=0
     fi
-
 : <<'COMMENT'
 # local -r tmp_dir="$(mktemp -d)"
   local -r tmp_dir="${HOME}/lib/0.kind/${cluster_name}"
@@ -660,31 +658,27 @@ host *
   UserKnownHostsFile /dev/null
 EOS
 COMMENT
-
+    # kind
     cat "${HOME}/src/0.kind/kind.yml" | env_replace | kind create cluster --name "${cluster_name}" --config -
-
-    # context
     kubectl config set-context     "kind-${cluster_name}"
     kubectl cluster-info --context "kind-${cluster_name}"
 
-    kubectl get configmap kube-proxy \
-      --namespace kube-system \
-      --output    yaml | \
-        sed 's/strictARP: false/strictARP: true/' | \
-        kubectl apply -f -
-
-    curl 'https://raw.githubusercontent.com/metallb/metallb/v0.14.4/config/manifests/metallb-native.yaml'                        | kubectl apply -f -
+    # ingress
     curl 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/kind/deploy.yaml' | kubectl apply -f -
-#   curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml'                             | kubectl apply -f -
+    kubectl wait pod --namespace ingress-nginx --for condition=ready --selector app.kubernetes.io/component=controller --timeout 60s
 
-    kubectl wait pod --namespace metallb-system --for condition=ready --selector component=controller                   --timeout 60s
-    kubectl wait pod --namespace ingress-nginx  --for condition=ready --selector app.kubernetes.io/component=controller --timeout 60s
+    # loadbalancer
+    kubectl get configmap kube-proxy --namespace kube-system --output yaml | sed 's/strictARP: false/strictARP: true/' | kubectl apply -f -
+    curl 'https://raw.githubusercontent.com/metallb/metallb/v0.14.4/config/manifests/metallb-native.yaml' | kubectl apply -f -
+    kubectl wait pod --namespace metallb-system --for condition=ready --selector component=controller --timeout 60s
+
+    # dashboard
+#   curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
 
   fi
   kubectl delete namespace 0 2> /dev/null || true
   kubectl create namespace 0 2> /dev/null || true
 
-# find "${HOME}/src" -mindepth 1 -maxdepth 1 -type d -name "0.*"
   arr=()
   arr+=('0.dns')
   arr+=('0.container')
@@ -736,7 +730,7 @@ COMMENT
         set_resolve "${external_ip}"
 
       elif [[ '0.container' == "${namespace}" ]]; then
-
+: <<'COMMENT'
         cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: ConfigMap
@@ -753,7 +747,7 @@ EOF
         podman exec -i "${cluster_name}-worker"        mkdir -p "/etc/containerd/certs.d/container.0"
         echo '[host."http://container.0"]' | podman exec -i "${cluster_name}-control-plane" cp /dev/stdin "/etc/containerd/certs.d/container.0/hosts.toml"
         echo '[host."http://container.0"]' | podman exec -i "${cluster_name}-worker"        cp /dev/stdin "/etc/containerd/certs.d/container.0/hosts.toml"
-
+COMMENT
       fi
 
     popd &> /dev/null
