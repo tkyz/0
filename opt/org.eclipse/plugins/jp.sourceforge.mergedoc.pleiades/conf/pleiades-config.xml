@@ -126,12 +126,12 @@
 	<!-- Eclipse 標準の空白文字表記を変更 2016.05.14 -->
 	<pointCut editPoint="execution" timing="before">
 		<advice><![CDATA[
-			$3	= $3.equals("·" ) ? " "		// 半角空白
-				: $3.equals("°" ) ? "□"		// 全角空白
-				: $3.equals("»" ) ? ">"		// \t
+			$3	= $3.equals("·" ) ? " "	// 半角空白
+				: $3.equals("°" ) ? "□"	// 全角空白
+				: $3.equals("»" ) ? ">"	// \t
 				: $3.equals("¤¶") ? "↵"	// \r\n
-				: $3.equals("¤" ) ? "←"		// \r
-				: $3.equals("¶" ) ? "↓"		// \n
+				: $3.equals("¤" ) ? "←"	// \r
+				: $3.equals("¶" ) ? "↓"	// \n
 				: $3;
 		]]></advice>
 
@@ -410,6 +410,7 @@
 		<advice><![CDATA[
 			$0.setAlpha(40);
 			$_ = $proceed($$);
+			$0.setAlpha(255);
 		]]></advice>
 
 		<joinPoint className="org.eclipse.swt.graphics.GC" methodName="drawLine">
