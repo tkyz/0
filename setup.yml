@@ -64,6 +64,8 @@
 #     - {type: zip, depth: 1, url: https://download.java.net/java/GA/jdk11/9/GPL/openjdk-11.0.2_windows-x64_bin.zip}
       - {type: tgz, depth: 1, url: https://download.java.net/java/GA/jdk22/830ec9fcccef480bb3e73fb7ecafe059/36/GPL/openjdk-22_linux-x64_bin.tar.gz}
 #     - {type: zip, depth: 1, url: https://download.java.net/java/GA/jdk22/830ec9fcccef480bb3e73fb7ecafe059/36/GPL/openjdk-22_windows-x64_bin.zip}
+      - {type: tgz, depth: 1, url: https://download.java.net/java/GA/javafx22/d95151bba92e4a31a3170a68c917c699/30/openjfx-22_linux-x64_bin-sdk.tar.gz}
+#     - {type: zip, depth: 1, url: https://download.java.net/java/GA/javafx22/d95151bba92e4a31a3170a68c917c699/30/openjfx-22_windows-x64_bin-sdk.zip}
     com.visualstudio.code:
       - {type: zip, depth: 1, url: https://code.visualstudio.com/sha/download?build=stable&os=linux-x64}
 #     - {type: zip, depth: 1, url: https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive}
