@@ -414,8 +414,8 @@ function setup_ext() {
 #   echo 'deb https://apt.kubernetes.io/ kubernetes-xenial main'                                  | SUDO tee                          /etc/apt/sources.list.d/io.kubernetes.apt.list         > /dev/null
 
     # https://docs.docker.com/engine/install/debian/
-    curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                                      | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.docker.download.gpg
-    echo "deb [arch=${arch}] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable"  | SUDO tee                          /etc/apt/sources.list.d/com.docker.download.list       > /dev/null
+#   curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                                      | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.docker.download.gpg
+#   echo "deb [arch=${arch}] https://download.docker.com/linux/${ID} ${VERSION_CODENAME} stable"  | SUDO tee                          /etc/apt/sources.list.d/com.docker.download.list       > /dev/null
 
     # https://nvidia.github.io/nvidia-container-runtime/
     # TODO: debian 12
@@ -425,6 +425,11 @@ function setup_ext() {
 #   echo "deb https://nvidia.github.io/libnvidia-container/experimental/debian10/\$(ARCH)      /" | SUDO tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
 #   echo "deb https://nvidia.github.io/nvidia-container-runtime/experimental/debian10/\$(ARCH) /" | SUDO tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
 
+    # nordvpn
+    # https://support.nordvpn.com/hc/ja/articles/20196094470929-Debian-Ubuntu-Raspberry-Pi-Elementary-OS-Linux-Mintのためのセットアップガイド
+    curl -fsSL 'https://repo.nordvpn.com/gpg/nordvpn_public.asc'                                  | SUDO tee                          /etc/apt/trusted.gpg.d/com.nordvpn.asc                 > /dev/null
+    echo "deb https://repo.nordvpn.com/deb/nordvpn/debian stable main"                            | SUDO tee                          /etc/apt/sources.list.d/com.nordvpn.list               > /dev/null
+
     # bigtop
     # TODO: debian 12
     curl -fsSL 'https://dlcdn.apache.org/bigtop/bigtop-3.2.1/repos/GPG-KEY-bigtop'                | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/org.apache.bigtop.gpg
@@ -433,7 +438,7 @@ function setup_ext() {
     # https://cloud.google.com/storage/docs/gcsfuse-install
     # google-cloud
     curl -fsSL 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'                            | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.google.cloud.packages.gpg
-    echo 'deb https://packages.cloud.google.com/apt cloud-sdk                   main'             | SUDO tee                          /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
+    echo 'deb https://packages.cloud.google.com/apt cloud-sdk main'                               | SUDO tee                          /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
 #   echo "deb https://packages.cloud.google.com/apt gcsfuse-${VERSION_CODENAME} main"             | SUDO tee -a                       /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
 : <<'EOS'
     # bazel
@@ -463,7 +468,8 @@ EOS
       libarchive-tools unar zip rsync xsel tmux vim emacs htop nkf cups jq \
       nmap tcpdump \
       locales-all task-japanese \
-      firmware-linux firmware-realtek firmware-iwlwifi
+      firmware-linux firmware-realtek firmware-iwlwifi \
+      nordvpn
 #     nvidia-kernel-dkms nvidia-driver nvidia-detect nvidia-smi nvidia-container-toolkit
 
     set +e
@@ -632,7 +638,7 @@ function setup_cluster() {
   set_resolve "${resolve}"
 
 # kind delete clusters --all
-# kind delete cluster --name "${cluster_name}"
+  kind delete cluster --name "${cluster_name}"
   if ! kind get clusters | grep -q "${cluster_name}"; then
 
     if is_sudoer; then

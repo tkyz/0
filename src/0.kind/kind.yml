@@ -5,15 +5,15 @@ containerdConfigPatches:
 
 kubeadmConfigPatches:
   - |
-    kind: InitConfiguration
-    nodeRegistration:
-      kubeletExtraArgs:
-        node-labels: "ingress-ready=true"
-  - |
     kind: ClusterConfiguration
     apiServer:
       extraArgs:
         service-node-port-range: 1-65535
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
 
 nodes:
 
@@ -56,4 +56,4 @@ nodes:
       - {hostPath: "${HOME}/lib/0.git",                       containerPath: /var/lib/0.git, readOnly: true}
       - {hostPath: "${HOME}/lib/0.mvn",                       containerPath: /var/lib/0.mvn}
       - {hostPath: "${HOME}/opt",                             containerPath: /root/opt,      readOnly: true}
-#     - {hostPath: "${HOME}/src/com.github",                  containerPath: /usr/src/com.github}
+      - {hostPath: "${HOME}/src/com.github",                  containerPath: /usr/src/com.github}
