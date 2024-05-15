@@ -35,6 +35,7 @@
 /mnt/
 /opt/
 /sbin
+/src/0.openpgp4fpr/*.key
 /src/**/.settings/
 /src/**/.classpath
 /src/**/.project

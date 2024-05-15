@@ -1,58 +1,13 @@
 0:
 
   define:
-    context: latest
-    resolve: 0.0.0.0
+    context:  latest
+    resolve:  0.0.0.0
 
-  src:
-    # jpki
-    - https://github.com/OpenSC/OpenSC.git
-    - https://github.com/jpki/OpenSC.git
-    - https://github.com/jpki/myna.git
-    # k8s
-    - https://github.com/metallb/metallb.git
-    - https://github.com/kubernetes/ingress-nginx.git
-    - https://github.com/kubernetes/dashboard.git
-    # dokuwiki
-    - https://github.com/splitbrain/dokuwiki.git
-    - https://github.com/Chris--S/dokuwiki-plugin-iframe.git
-    - https://github.com/Chris--S/dokuwiki-plugin-xbr.git
-    - https://github.com/lejmr/dokuwiki-plugin-drawio.git
-    - https://github.com/selfthinker/dokuwiki_plugin_wrap.git
-    - https://github.com/splitbrain/dokuwiki-plugin-translation.git
-    - https://github.com/hanche/dokuwiki_color_plugin.git
-    - https://github.com/samuelet/indexmenu.git
-    - https://github.com/giterlizzi/dokuwiki-template-bootstrap3.git
-    # stability
-#   - https://github.com/Stability-AI/StableLM.git
-#   - https://github.com/Stability-AI/stablediffusion.git
-#   - https://github.com/Stability-AI/StableStudio.git
-#   - https://github.com/Stability-AI/generative-models.git
-    # cloud
-    - https://github.com/sacloud/usacloud.git
-
-  lib:
-    # stablelm
-#   - https://huggingface.co/stabilityai/japanese-stablelm-base-alpha-7b.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-instruct-alpha-7b.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-instruct-alpha-7b-v2.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-base-beta-7b.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-instruct-beta-7b.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-base-gamma-7b.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-instruct-gamma-7b.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-base-ja_vocab-beta-7b.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-instruct-ja_vocab-beta-7b.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-base-beta-70b.git
-#   - https://huggingface.co/stabilityai/japanese-stablelm-instruct-beta-70b.git
-    # stablediffusion
-#   - https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0.git
-#   - https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0.git
-
-  # TODO: checksum
   opt:
     io.k8s.sigs.kind:
-      - {type: raw,           url: https://kind.sigs.k8s.io/dl/v0.22.0/kind-linux-amd64}
-#     - {type: raw,           url: https://kind.sigs.k8s.io/dl/v0.22.0/kind-windows-amd64}
+      - {type: raw,           url: https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64}
+#     - {type: raw,           url: https://kind.sigs.k8s.io/dl/v0.23.0/kind-windows-amd64}
     org.eclipse:
       - {type: tgz, depth: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2024-03/R/eclipse-java-2024-03-R-linux-gtk-x86_64.tar.gz&mirror_id=1}
 #     - {type: tgz, depth: 1, url: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2024-03/R/eclipse-java-2024-03-R-win32-x86_64.zip&mirror_id=1}

@@ -1,0 +1,11 @@
+https://huggingface.co/runwayml/stable-diffusion-inpainting.git
+https://huggingface.co/runwayml/stable-diffusion-v1-5.git
+https://huggingface.co/stabilityai/japanese-stablelm-base-beta-70b.git
+https://huggingface.co/stabilityai/japanese-stablelm-base-ja_vocab-beta-7b.git
+https://huggingface.co/stabilityai/japanese-stablelm-instruct-beta-70b.git
+https://huggingface.co/stabilityai/japanese-stablelm-instruct-ja_vocab-beta-7b.git
+https://huggingface.co/stabilityai/sd-vae-ft-mse-original.git
+https://huggingface.co/stabilityai/sdxl-vae.git
+https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0.git
+https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0.git
+https://huggingface.co/webui/ControlNet-modules-safetensors.git
