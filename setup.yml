@@ -1,8 +1,8 @@
 0:
 
   define:
-    context:  latest
-    resolve:  0.0.0.0
+    context: latest
+    resolve: 0.0.0.0
 
   opt:
     io.k8s.sigs.kind:

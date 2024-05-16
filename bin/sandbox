@@ -19,29 +19,25 @@ if ! is_container; then
     --interactive \
     --tty \
     --rm \
-    --name   "0.pod.${container_context}" \
-    --volume "${HOME}/.profile:/root/.profile:ro" \
-    --volume "${HOME}/.bashrc:/root/.bashrc:ro" \
-    --volume "${HOME}/setup:/root/setup:ro" \
-    --volume "${HOME}/bin:/root/bin:ro" \
-    --volume "${HOME}/lib:/root/lib:ro" \
-    --volume "${HOME}/mnt:/root/mnt:ro" \
-    --volume "${HOME}/opt:/root/opt:ro" \
-    --volume "${PWD}:/root/.pwd:ro" \
-    --volume "${BASH_SOURCE}:/${container_context}:ro" \
+    --name    "0.pod.${container_context}" \
+    --workdir '/root' \
+    --volume  "${HOME}/.cache:/root/.cache" \
+    --volume  "${HOME}/.profile:/root/.profile:ro" \
+    --volume  "${HOME}/.bashrc:/root/.bashrc:ro" \
+    --volume  "${HOME}/setup:/root/setup:ro" \
+    --volume  "${HOME}/bin:/root/bin:ro" \
+    --volume  "${HOME}/lib:/root/lib:ro" \
+    --volume  "${HOME}/mnt:/root/mnt:ro" \
+    --volume  "${HOME}/opt:/root/opt:ro" \
+    --volume  "${HOME}/tmp:/root/tmp" \
+    --volume  "${PWD}:/root/.pwd:ro" \
+    --volume  "${BASH_SOURCE}:/${container_context}:ro" \
     "${image}" bash -l \
     "/${container_context}" "${@}"
 
-else
+#   --device  /dev/fuse \
+#   --volume  "${HOME}/.Xauthority:/root/.Xauthority:ro" \
 
-  if [[ '1' == "${SHLVL}" ]]; then
-    exec bash -l
-  fi
-
+elif [[ '1' == "${SHLVL}" ]]; then
+  exec bash -l
 fi
-
-: <<'COMMENT'
-    --workdir "${workdir}" \
-    --device  /dev/fuse \
-    --volume  "${HOME}/.Xauthority:/root/.Xauthority:ro" \
-COMMENT

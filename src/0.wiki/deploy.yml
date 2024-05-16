@@ -52,10 +52,10 @@ spec:
         app: wiki
     spec:
       volumes:
-        - {name: config-volume, configMap: {name: wiki}}
-        - {name: src-volume,    hostPath:  {path: /usr/src,        type: Directory}}
-#       - {name: dfs-volume,    hostPath:  {path: ${HOME}/mnt/dfs, type: Directory}}
-#       - {name: tmp-volume,    hostPath:  {path: ${HOME}/tmp,     type: Directory}}
+        - {name: nginx-volume,    configMap: {name: wiki}}
+        - {name: dokuwiki-volume, hostPath:  {path: /usr/src/0.wiki/dokuwiki, type: Directory}}
+        - {name: src-volume,      hostPath:  {path: /usr/src/com.github,      type: Directory}}
+        - {name: tmp-volume,      hostPath:  {path: /root/tmp,                type: Directory}}
       containers:
         - name: phpfpm
           image: container.0/0.phpfpmext:${context}
@@ -63,24 +63,25 @@ spec:
           ports:
             - {protocol: TCP, containerPort: 9000}
           volumeMounts:
-            - {name: src-volume,    subPath: com.github/splitbrain/dokuwiki,                     mountPath: /usr/share/nginx/html}
-            - {name: src-volume,    subPath: com.github/Chris--S/dokuwiki-plugin-iframe,         mountPath: /usr/share/nginx/html/lib/plugins/iframe}
-            - {name: src-volume,    subPath: com.github/Chris--S/dokuwiki-plugin-xbr,            mountPath: /usr/share/nginx/html/lib/plugins/xbr}
-            - {name: src-volume,    subPath: com.github/lejmr/dokuwiki-plugin-drawio,            mountPath: /usr/share/nginx/html/lib/plugins/drawio}
-            - {name: src-volume,    subPath: com.github/selfthinker/dokuwiki_plugin_wrap,        mountPath: /usr/share/nginx/html/lib/plugins/wrap}
-            - {name: src-volume,    subPath: com.github/splitbrain/dokuwiki-plugin-translation,  mountPath: /usr/share/nginx/html/lib/plugins/translation}
-            - {name: src-volume,    subPath: com.github/hanche/dokuwiki_color_plugin,            mountPath: /usr/share/nginx/html/lib/plugins/color}
-            - {name: src-volume,    subPath: com.github/samuelet/indexmenu,                      mountPath: /usr/share/nginx/html/lib/plugins/indexmenu}
-            - {name: src-volume,    subPath: com.github/giterlizzi/dokuwiki-template-bootstrap3, mountPath: /usr/share/nginx/html/lib/tpl/bootstrap3}
-#           - {name: dfs-volume,                                                                 mountPath: /usr/share/nginx/html/data/pages}
-#           - {name: dfs-volume,                                                                 mountPath: /usr/share/nginx/html/data/media}
-#           - {name: tmp-volume,                                                                 mountPath: /usr/share/nginx/html/data/pages/tmp}
-#           - {name: tmp-volume,                                                                 mountPath: /usr/share/nginx/html/data/media/tmp}
+            - {name: src-volume,      subPath: splitbrain/dokuwiki,                     mountPath: /usr/share/nginx/html}
+            - {name: src-volume,      subPath: Chris--S/dokuwiki-plugin-iframe,         mountPath: /usr/share/nginx/html/lib/plugins/iframe}
+            - {name: src-volume,      subPath: Chris--S/dokuwiki-plugin-xbr,            mountPath: /usr/share/nginx/html/lib/plugins/xbr}
+            - {name: src-volume,      subPath: lejmr/dokuwiki-plugin-drawio,            mountPath: /usr/share/nginx/html/lib/plugins/drawio}
+            - {name: src-volume,      subPath: selfthinker/dokuwiki_plugin_wrap,        mountPath: /usr/share/nginx/html/lib/plugins/wrap}
+            - {name: src-volume,      subPath: splitbrain/dokuwiki-plugin-translation,  mountPath: /usr/share/nginx/html/lib/plugins/translation}
+            - {name: src-volume,      subPath: hanche/dokuwiki_color_plugin,            mountPath: /usr/share/nginx/html/lib/plugins/color}
+            - {name: src-volume,      subPath: samuelet/indexmenu,                      mountPath: /usr/share/nginx/html/lib/plugins/indexmenu}
+            - {name: src-volume,      subPath: giterlizzi/dokuwiki-template-bootstrap3, mountPath: /usr/share/nginx/html/lib/tpl/bootstrap3}
+            - {name: dokuwiki-volume, subPath: conf,                                    mountPath: /usr/share/nginx/html/conf}
+            - {name: dokuwiki-volume, subPath: data,                                    mountPath: /usr/share/nginx/html/data/pages}
+            - {name: dokuwiki-volume, subPath: data,                                    mountPath: /usr/share/nginx/html/data/media}
+            - {name: tmp-volume,                                                        mountPath: /usr/share/nginx/html/data/pages/tmp}
+            - {name: tmp-volume,                                                        mountPath: /usr/share/nginx/html/data/media/tmp}
           command: [/bin/sh, -c]
           args:
             - |
-              find /usr/share/nginx/html -type d -print0 | xargs -0 chmod 777
-              find /usr/share/nginx/html -type f -print0 | xargs -0 chmod 666
+              #find /usr/share/nginx/html -type d -print0 | xargs -0 chmod 777
+              #find /usr/share/nginx/html -type f -print0 | xargs -0 chmod 666
               php-fpm
         - name: nginx
           image: nginx:alpine
@@ -88,9 +89,9 @@ spec:
           ports:
             - {protocol: TCP, containerPort: 80}
           volumeMounts:
-            - {name: config-volume,                                                              mountPath: /etc/nginx/conf.d,                             readOnly: true}
-            - {name: src-volume,    subPath: com.github/splitbrain/dokuwiki,                     mountPath: /usr/share/nginx/html,                         readOnly: true}
-            - {name: src-volume,    subPath: com.github/giterlizzi/dokuwiki-template-bootstrap3, mountPath: /usr/share/nginx/html/lib/tpl/bootstrap3,      readOnly: true}
+            - {name: nginx-volume,                                                      mountPath: /etc/nginx/conf.d,                        readOnly: true}
+            - {name: src-volume,      subPath: splitbrain/dokuwiki,                     mountPath: /usr/share/nginx/html,                    readOnly: true}
+            - {name: src-volume,      subPath: giterlizzi/dokuwiki-template-bootstrap3, mountPath: /usr/share/nginx/html/lib/tpl/bootstrap3, readOnly: true}
 
 ---
 apiVersion: v1

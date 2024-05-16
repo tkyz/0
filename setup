@@ -48,6 +48,9 @@ export DEBIAN_FRONTEND
 
 readonly arch="$(dpkg --print-architecture)"
 
+readonly external_ip="$(ip a | grep dynamic | grep -v inet6 | awk -F ' ' '{print $2}' | sed 's|/.*||g')"
+test -n "${external_ip}"
+
 # sudo
 if [[ 0 == "$(id -u)" ]]; then
   readonly SUDO=
@@ -152,11 +155,24 @@ function git_pull() {
   )
 }
 
+# envsubst
+function env_replace() {
+  (
+    sed \
+      -e "s|\${HOME}|${HOME}|g" \
+      -e "s|\${external_ip}|${external_ip}|g" \
+      -e "s|\${context}|${context}|g" \
+      -e "s|\${resolve}|${resolve}|g"
+#     -e "s|\${cluster_name}|${openpgp4fpr,,}|g" \
+  )
+}
+
 #----------------------------------------------------------------
 # setup
 
 function setup_etc() {
   (
+
     # /etc/wsl.conf
     if is_wsl; then
       cat <<EOS | ${SUDO} tee /etc/wsl.conf > /dev/null
@@ -220,6 +236,7 @@ function setup_apt() {
       lshw lsscsi usbutils \
       parted cryptsetup lvm2 \
       firmware-linux firmware-realtek firmware-iwlwifi \
+      pkg-config \
       ufw rkhunter clamav \
       uuid-runtime util-linux gettext-base procps parallel \
       openssh-client openssh-server \
@@ -229,7 +246,10 @@ function setup_apt() {
       python3 python3-pip python3.11-venv \
       gocryptfs cifs-utils \
       libarchive-tools unar zip rsync xsel tmux vim emacs htop nkf cups jq \
-      locales-all task-japanese
+      locales-all task-japanese \
+      fonts-dejavu-core moreutils aria2 ffmpeg \
+      libcairo2 build-essential \
+      libglfw3-dev libgles2-mesa-dev libcairo2-dev
 
     # ufw
     echo y | ${SUDO} ufw enable
@@ -277,24 +297,6 @@ function setup_apt() {
     ${SUDO} update-locale LANG='ja_JP.UTF-8'
 
   )
-}
-
-function setup_venv() {
-  (
-
-    venv_dir="./.venv"
-
-    python3 -m venv "${venv_dir}"
-    source "${venv_dir}/bin/activate"
-
-    req_file="${venv_dir}/requirements.txt"
-    if [[ -f "${req_file}" ]]; then
-      cat "${req_file}" | sed 's/=.*//g' | pip install --upgrade --requirement /dev/stdin
-    fi
-    pip freeze > "${req_file}"
-
-  )
-  source './.venv/bin/activate'
 }
 
 function setup_openpgp4fpr() {
@@ -547,6 +549,35 @@ function setup_opt() {
   )
 }
 
+function setup_venv() {
+  (
+
+    venv_dir="./.venv"
+
+    python3 -m venv "${venv_dir}"
+    source "${venv_dir}/bin/activate"
+
+    req_file="${venv_dir}/requirements.txt"
+    touch "${req_file}"
+
+    {
+      cat "${req_file}"
+#     find ./src/com.github -mindepth 3 -maxdepth 3 -type f -name requirements.txt | while read item; do
+#       cat "${item}"
+#     done
+      cat ./src/com.github/AUTOMATIC1111/stable-diffusion-webui/requirements.txt
+      cat ./src/com.github/openai/CLIP/requirements.txt
+      cat ./src/com.github/sczhou/CodeFormer/requirements.txt
+      cat ./src/com.github/TencentARC/GFPGAN/requirements.txt
+      cat ./src/com.github/mlfoundations/open_clip/requirements.txt
+    } | sed -e 's/[!=<>].*//g' | sort -u | pip install --upgrade --requirement /dev/stdin
+
+    pip freeze > "${req_file}"
+
+  )
+  source './.venv/bin/activate'
+}
+
 function setup_cluster() {
   (
 
@@ -569,90 +600,148 @@ function setup_cluster() {
       return
     fi
 
+    context="$(yq '."0".define.context' ./setup.yml -r)"
+    resolve="$(yq '."0".define.resolve' ./setup.yml -r)"
+
+    cluster_name="${context}"
+#   cluster_name="${openpgp4fpr,,}"
+
     export KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster
 
-    cluster_name="${openpgp4fpr,,}"
+#   kind    delete clusters --all
+#   kind    delete cluster --name "${cluster_name}"
+    kubectl delete namespace 0 2> /dev/null || true
 
-#   kind delete clusters --all
-    kind delete cluster --name "${cluster_name}"
     if ! kind get clusters | grep -q "${cluster_name}"; then
 
       ${SUDO} sysctl --write fs.inotify.max_user_instances=8192
       ${SUDO} sysctl --write fs.inotify.max_user_watches=524288
-      ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=0
+      ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53
 
       # kind
-      cat "${HOME}/src/0.kind/kind.yml" #| env_replace | kind create cluster --name "${cluster_name}" --config -
-#     kubectl config set-context     "kind-${cluster_name}"
-#     kubectl cluster-info --context "kind-${cluster_name}"
-
-      # ingress
-#     curl 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.0/deploy/static/provider/kind/deploy.yaml' | kubectl apply -f -
-#     kubectl wait pod --namespace ingress-nginx --for condition=ready --selector app.kubernetes.io/component=controller --timeout 60s
+      cat "${HOME}/src/0.kind/kind.yml" | env_replace | kind create cluster --name "${cluster_name}" --config -
+      kubectl config set-context     "kind-${cluster_name}"
+      kubectl cluster-info --context "kind-${cluster_name}"
 
       # loadbalancer
-#     kubectl get configmap kube-proxy --namespace kube-system --output yaml | sed 's/strictARP: false/strictARP: true/' | kubectl apply -f -
-#     curl 'https://raw.githubusercontent.com/metallb/metallb/v0.14.4/config/manifests/metallb-native.yaml' | kubectl apply -f -
-#     kubectl wait pod --namespace metallb-system --for condition=ready --selector component=controller --timeout 60s
+      kubectl get configmap kube-proxy --namespace kube-system --output yaml | sed 's/strictARP: false/strictARP: true/' | kubectl apply -f -
+      curl 'https://raw.githubusercontent.com/metallb/metallb/v0.14.5/config/manifests/metallb-native.yaml' | kubectl apply -f -
+      kubectl wait pod --namespace metallb-system --for condition=ready --selector component=controller --timeout 60s
+
+      # ingress
+      curl 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/kind/deploy.yaml' | kubectl apply -f -
+      kubectl wait pod --namespace ingress-nginx --for condition=ready --selector app.kubernetes.io/component=controller --timeout 60s
 
       # dashboard
 #     curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
 
     fi
-#   kubectl delete namespace 0 2> /dev/null || true
-#   kubectl create namespace 0
+    kubectl create namespace 0 || true
+
+    arr=()
+    arr+=('0.dns')
+    arr+=('0.container')
+    arr+=('0.pgsql')
+    arr+=('0.mariadb')
+    arr+=('0.redis')
+    arr+=('0.ntp')
+    arr+=('0.git')
+    arr+=('0.apt')
+    arr+=('0.mvn')
+    arr+=('0.phpfpmext')
+    arr+=('0.wiki')
+#   arr+=('0.bigtop')
+    for namespace in "${arr[@]}"; do
+
+      target_dir="./src/${namespace}"
+      if [[ ! -d "${target_dir}" ]]; then
+        continue
+      fi
+
+      pushd "${target_dir}" &> /dev/null
+
+        echo ---
+        pwd
+
+        container_image="container.0/${namespace}:${context}"
+
+        # build
+        if [[ -f './Dockerfile' ]]; then
+          podman build --tag "${container_image}" .
+        fi
+
+        # TODO: ImagePullBackOff
+        if [[ -n "$(podman images --noheading "${container_image}")" ]] && ! podman exec "${cluster_name}-control-plane" crictl images | awk -F ' ' '{print $1":"$2}' | grep -q "${container_image}"; then
+          tmpfile="$(mktemp)"
+          podman save --format oci-archive "${container_image}" --output "${tmpfile}"
+          kind load image-archive --name "${cluster_name}" "${tmpfile}" || true
+          rm "${tmpfile}"
+        fi
+
+        # deploy
+        if [[ -f './deploy.yml' ]]; then
+          cat './deploy.yml' | env_replace | kubectl apply -f -
+        fi
+
+      popd &> /dev/null
+
+    done
 
   )
 }
 
 function clean() {
+  (
 
-  ${SUDO} apt-get autoremove -y
-  ${SUDO} apt-get clean
+    ${SUDO} apt-get autoremove -y
+    ${SUDO} apt-get clean
 
-  if is_cmd podman; then
-    podman system  prune --force
-    podman volume  prune --force
-    podman network prune --force
-  fi
-  if is_cmd docker; then
-    docker system  prune --force
-    docker volume  prune --force
-    docker network prune --force
-  fi
-  if is_cmd pip3; then
-    pip3 cache purge
-  fi
+    if is_cmd podman; then
+      podman system  prune --force
+      podman volume  prune --force
+      podman network prune --force
+    fi
+    if is_cmd docker; then
+      docker system  prune --force
+      docker volume  prune --force
+      docker network prune --force
+    fi
+    if is_cmd pip3; then
+      pip3 cache purge
+    fi
 
+  )
 }
 
 #----------------------------------------------------------------
 # main
 
 function main() {
+  (
 
-  local -r timestamp_st="$(date --utc "+%Y-%m-%d %H:%M:%S")"
+    timestamp_st="$(date --utc "+%Y-%m-%d %H:%M:%S")"
 
-  pushd "${HOME}"
+    pushd "${HOME}"
 
-    export
-    setup_etc
-    setup_apt
-    setup_openpgp4fpr
-    setup_home
-    setup_apt_ext
-    setup_venv
-    setup_src
-    setup_lib
-    setup_opt
-    setup_cluster
-    clean
+      export
+      setup_etc
+      setup_apt
+      setup_openpgp4fpr
+      setup_home
+      setup_apt_ext
+      setup_src
+      setup_lib
+      setup_opt
+      setup_venv
+      setup_cluster
+      clean
 
-  popd
+    popd
 
-  local -r timestamp_ed="$(date --utc "+%Y-%m-%d %H:%M:%S")"
-  echo "start: ${timestamp_st}"
-  echo "end:   ${timestamp_ed}"
+    timestamp_ed="$(date --utc "+%Y-%m-%d %H:%M:%S")"
+    echo "start: ${timestamp_st}"
+    echo "end:   ${timestamp_ed}"
 
+  )
 }
 main "${@}"
