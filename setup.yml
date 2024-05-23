@@ -3,6 +3,21 @@
   define:
     context: latest
     resolve: 0.0.0.0
+    base_dir: ${HOME}
+
+  kind:
+    - dns
+    - container
+    - pgsql
+    - mariadb
+    - redis
+    - ntp
+    - git
+    - apt
+    - mvn
+    - phpfpmext
+    - wiki
+#   - bigtop
 
   opt:
     io.k8s.sigs.kind:

@@ -614,9 +614,9 @@ function setup_cluster() {
 
     if ! kind get clusters | grep -q "${cluster_name}"; then
 
-      ${SUDO} sysctl --write fs.inotify.max_user_instances=8192
-      ${SUDO} sysctl --write fs.inotify.max_user_watches=524288
-      ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53
+      ${SUDO} sysctl --write fs.inotify.max_user_instances=1024     # default:  128
+      ${SUDO} sysctl --write fs.inotify.max_user_watches=65536      # default: 8192
+      ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53 # default: 1024
 
       # kind
       cat "${HOME}/src/0.kind/kind.yml" | env_replace | kind create cluster --name "${cluster_name}" --config -
@@ -638,20 +638,9 @@ function setup_cluster() {
     fi
     kubectl create namespace 0 || true
 
-    arr=()
-    arr+=('0.dns')
-    arr+=('0.container')
-    arr+=('0.pgsql')
-    arr+=('0.mariadb')
-    arr+=('0.redis')
-    arr+=('0.ntp')
-    arr+=('0.git')
-    arr+=('0.apt')
-    arr+=('0.mvn')
-    arr+=('0.phpfpmext')
-    arr+=('0.wiki')
-#   arr+=('0.bigtop')
-    for namespace in "${arr[@]}"; do
+    yq '."0".kind[]' ./setup.yml -rc | while read item; do
+
+      namespace="0.${item}"
 
       target_dir="./src/${namespace}"
       if [[ ! -d "${target_dir}" ]]; then
@@ -716,6 +705,14 @@ function clean() {
 #----------------------------------------------------------------
 # main
 
+function main_py() {
+  (
+    if [[ -f entrypoint.py ]]; then
+      python entrypoint.py
+    fi
+  )
+}
+
 function main() {
   (
 
@@ -735,6 +732,8 @@ function main() {
       setup_venv
       setup_cluster
       clean
+
+      main_py
 
     popd
 
