@@ -44,8 +44,12 @@ public class Sshd implements PublickeyAuthenticator, PasswordAuthenticator, Auto
 		// TODO: sftp
 
 		server.start();
-		log.trace("sshd: {}", server.getPort());
+		log.trace("sshd: {}", port());
 
+	}
+
+	public int port() {
+		return server.getPort();
 	}
 
 	@Override
@@ -55,6 +59,7 @@ public class Sshd implements PublickeyAuthenticator, PasswordAuthenticator, Auto
 		log.debug("client={}, username={}, type={}, format={}, pub={}", session.getClientAddress(), username, key.getAlgorithm(), key.getFormat()); // key.getEncoded();
 
 		// TODO: 公開鍵認証
+
 		return false;
 
 	}
@@ -64,6 +69,8 @@ public class Sshd implements PublickeyAuthenticator, PasswordAuthenticator, Auto
 			throws PasswordChangeRequiredException, AsyncAuthException {
 
 		log.debug("client={}, username={}, password={}", session.getClientAddress(), username, password);
+
+		// TODO: 共通鍵認証
 
 		return false;
 

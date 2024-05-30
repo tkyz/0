@@ -1,96 +1,80 @@
 package _0.kvs;
 
+import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.Map;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import _0.playground.core._0;
 
-public class Entry implements java.util.Map.Entry<String, String> {
+public final class Entry {
 
-	private static final Logger log = LoggerFactory.getLogger(Entry.class);
+	private String              key = null;
+	private Map<String, Object> val = null;
 
-	private String key = null;
-	private String val = null;
-
-	public Entry(final String key) {
-		this(key, (String)null);
+	private Entry() {
 	}
 
-	public Entry(final String key, final String val) {
+	public static Entry of(final ResultSet rs)
+			throws IOException, SQLException {
+
+		String key = (String)rs.getObject("key");
+		String val = (String)rs.getObject("val");
+
+		return of(key, val);
+
+	}
+
+	public static Entry of(final String key)
+			throws IOException {
+		return of(key, (String)null);
+	}
+
+	public static Entry of(final String key, final String val)
+			throws IOException {
+		return of(key, _0.json(val));
+	}
+
+	public static Entry of(final String key, final Map<String, Object> val)
+			throws IOException {
+
+		Entry entry = new Entry();
+		entry.key(key);
+		entry.val(val);
+
+		return entry;
+
+	}
+
+	private void key(final String key) {
 		this.key = key;
-		this.val = val;
 	}
 
-	public Entry(final ResultSet rs)
-			throws SQLException {
-		this((String)rs.getObject("key"), (String)rs.getObject("val"));
-	}
-
-	@Override
-	public String getKey() {
+	public String key() {
 		return key;
 	}
 
-	@Override
-	public String getValue() {
+	private void val(final Map<String, Object> val) {
+		this.val = val;
+	}
+
+	public Map<String, Object> val() {
+		val = null == val ? new HashMap<>() : val;
 		return val;
 	}
 
+	public void valset(final String valkey, final Object val) {
+		_0.set(val(), valkey, val);
+	}
+
+	public <T> T valget(final String valkey) {
+		return _0.get(val(), valkey);
+	}
+
 	@Override
-	public String setValue(final String val) {
-		String old = this.val;
-		this.val = val;
-		return old;
-	}
-
-	public Map<String, Object> json() {
-		return json(val);
-	}
-
-	public static Map<String, Object> json(final byte[] bytes) {
-		return json(new String(bytes));
-	}
-
-	public static Map<String, Object> json(final String val) {
-
-		Map<String, Object> ret = null;
-
-		if (null != val) {
-			try {
-				// TODO: conv nest map
-				ret = new JSONObject(val).toMap();
-			} catch (JSONException e) {
-				log.warn("{}", val, e);
-			}
-		}
-
-		return ret;
-
-	}
-
-	public static String json(final Map<String, Object> val) {
-		return json(val, 0);
-	}
-
-	public static String json(final Map<String, Object> val, final int indent) {
-
-		String ret = null;
-
-		if (null != val) {
-			try {
-				// TODO: conv nest map
-				ret = new JSONObject(val).toString(indent);
-			} catch (JSONException e) {
-				log.warn("{}", val, e);
-			}
-		}
-
-		return ret;
-
+	public String toString() {
+		return key();
 	}
 
 }

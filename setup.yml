@@ -3,7 +3,6 @@
   define:
     context: latest
     resolve: 0.0.0.0
-    base_dir: ${HOME}
 
   kind:
     - dns
@@ -42,7 +41,7 @@
     org.apache.ant:
       - {type: tgz, depth: 1, url: https://dlcdn.apache.org/ant/binaries/apache-ant-1.10.14-bin.tar.gz}
     org.apache.maven:
-      - {type: tgz, depth: 1, url: https://dlcdn.apache.org/maven/maven-3/3.9.6/binaries/apache-maven-3.9.6-bin.tar.gz}
+      - {type: tgz, depth: 1, url: https://dlcdn.apache.org/maven/maven-3/3.9.7/binaries/apache-maven-3.9.7-bin.tar.gz}
     org.apache.ivy:
       - {type: tgz, depth: 1, url: https://dlcdn.apache.org/ant/ivy/2.5.2/apache-ivy-2.5.2-bin.tar.gz}
     org.squirrelsql:

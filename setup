@@ -707,14 +707,6 @@ function clean() {
 #----------------------------------------------------------------
 # main
 
-function main_py() {
-  (
-    if [[ -f entrypoint.py ]]; then
-      python entrypoint.py
-    fi
-  )
-}
-
 function main() {
   (
 
@@ -734,8 +726,6 @@ function main() {
       setup_venv
       setup_cluster
       clean
-
-      main_py
 
     popd
 

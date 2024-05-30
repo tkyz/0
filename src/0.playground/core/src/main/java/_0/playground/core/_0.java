@@ -34,6 +34,9 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 public final class _0 {
 
 	public static final String cr   = "\r";
@@ -218,8 +221,9 @@ public final class _0 {
 	public static final long ino(final BasicFileAttributes attrs) {
 
 		String key = attrs.fileKey().toString();
+		key = key.substring(key.indexOf("ino=") + 4, key.indexOf(")"));
 
-		return Long.parseLong(key.substring(key.indexOf("ino=") + 4, key.indexOf(")")));
+		return Long.parseLong(key);
 
 	}
 
@@ -321,7 +325,8 @@ public final class _0 {
 
 	}
 
-	public static <T extends Comparable<T>> int compare(final Object v1, final Object v2) {
+	@SuppressWarnings("unchecked")
+	public static int compare(final Object v1, final Object v2) {
 
 		int compare = 0;
 
@@ -352,10 +357,10 @@ public final class _0 {
 
 		} else if (v1 instanceof Comparable && v2 instanceof Comparable) {
 
-			@SuppressWarnings("unchecked") T t1 = (T)v1;
-			@SuppressWarnings("unchecked") T t2 = (T)v2;
+			@SuppressWarnings("rawtypes") Comparable c1 = (Comparable)v1;
+			@SuppressWarnings("rawtypes") Comparable c2 = (Comparable)v2;
 
-			compare = t1.compareTo(t2);
+			compare = c1.compareTo(c2);
 
 		} else if (v1 instanceof Map && v2 instanceof Map) {
 
@@ -913,6 +918,35 @@ public final class _0 {
 
 	}
 
+	public static final String mime_type(final Path path)
+			throws IOException {
+		return mime_type(path.toFile());
+	}
+
+	public static final String mime_type(final File file)
+			throws IOException {
+		return mime_type(file.toString());
+	}
+
+	public static final String mime_type(final String str)
+			throws IOException {
+
+		// TODO: native
+		Process proc = Runtime.getRuntime().exec(new String[] {"file", "--brief", "--mime-type", str});
+		try {
+			proc.waitFor();
+		} catch (InterruptedException e) {
+			throw new IOException(e);
+		}
+
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+		proc.getInputStream().transferTo(out);
+
+		return trim(new String(out.toByteArray())).toLowerCase();
+
+	}
+
 	@SuppressWarnings("unchecked")
 	public static final <T> T read(final Path file)
 			throws IOException, ClassNotFoundException {
@@ -989,14 +1023,54 @@ public final class _0 {
 
 		String ext = null;
 
-		String name = path;
-
-		int idx = name.lastIndexOf(".");
+		int idx = path.lastIndexOf(".");
 		if (-1 < idx) {
-			ext = name.substring(idx + 1).toLowerCase();
+			ext = path.substring(idx + 1).toLowerCase();
+		}
+		if (empty(ext)) {
+			ext = null;
 		}
 
 		return ext;
+
+	}
+
+	public static Map<String, Object> json(final String val)
+			throws IOException {
+
+		Map<String, Object> ret = null;
+
+		if (null != val) {
+			try {
+				ret = new JSONObject(val).toMap();
+			} catch (JSONException e) {
+				throw new IOException(e);
+			}
+		}
+
+		return ret;
+
+	}
+
+	public static String json(final Map<String, Object> val)
+			throws IOException {
+		return json(val, 0);
+	}
+
+	public static String json(final Map<String, Object> val, final int indent)
+			throws IOException {
+
+		String ret = null;
+
+		if (null != val) {
+			try {
+				ret = new JSONObject(val).toString(indent);
+			} catch (JSONException e) {
+				throw new IOException(e);
+			}
+		}
+
+		return ret;
 
 	}
 

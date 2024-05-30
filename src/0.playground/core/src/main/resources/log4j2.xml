@@ -3,32 +3,32 @@
 
   <Properties>
 
-    <Property name="logdir">./log</Property>
+    <Property name="log_dir">./log</Property>
     <Property name="charset">UTF-8</Property>
 
-    <Property name="ptn_raw">%msg%n</Property>
-    <Property name="ptn_dtl">[%highlight{%-5level}][%d{yyyy-MM-dd HH:mm:ss.SSS}][%t]: %msg%n</Property>
+    <Property name="pattern_simple">%msg%n</Property>
+    <Property name="pattern_detail">[%highlight{%-5level}][%d{yyyy-MM-dd HH:mm:ss.SSS}][%t]: %msg%n</Property>
 
   </Properties>
 
   <Appenders>
 
     <Console name="stdout" target="SYSTEM_OUT">
-      <PatternLayout pattern="${ptn_dtl}" />
+      <PatternLayout pattern="${pattern_detail}" />
     </Console>
 
     <Console name="stderr" target="SYSTEM_ERR">
-      <PatternLayout pattern="${ptn_dtl}" />
+      <PatternLayout pattern="${pattern_detail}" />
     </Console>
-
-    <!-- RollingFile name="file" fileName="${logdir}/log.txt" filePattern="${logdir}/%d{yyyy-MM-dd}_%i.gz">
-      <PatternLayout pattern="${ptn_dtl}" charset="${charset}" />
+<!--
+    <RollingFile name="file" fileName="${log_dir}/log.txt" filePattern="${log_dir}/%d{yyyy-MM-dd}_%i.gz">
+      <PatternLayout pattern="${pattern_detail}" charset="${charset}" />
       <Policies>
         <TimeBasedTriggeringPolicy />
       </Policies>
       <DefaultRolloverStrategy />
-    </RollingFile -->
-
+    </RollingFile>
+-->
   </Appenders>
 
   <Loggers>

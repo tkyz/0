@@ -17,6 +17,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.Function;
 
+import _0.kvs.udf.Eq;
+import _0.kvs.udf.Getenv;
+import _0.kvs.udf.Matches;
+import _0.kvs.udf.Nvl;
+import _0.kvs.udf.Replace;
+import _0.kvs.udf.Sha256;
+import _0.kvs.udf.Split;
 import _0.playground.core.Jdbc;
 import _0.playground.core.Regex;
 import _0.playground.core._0;
@@ -26,45 +33,58 @@ public final class Kvs implements Flushable, AutoCloseable {
 
 	private static final Logger log = LoggerFactory.getLogger(Kvs.class);
 
+	private static final long timeout = 5 * 60 * 1000;
+
 	private Connection con = null;
 
-	private int         upd_query_bulkmax = -1;
-	private List<Entry> upd_query_cache   = null;
-	private List<Entry> del_query_cache   = null;
+	private int         bulkmax         = -1;
+	private List<Entry> entry_cache_upd = null;
+	private List<Entry> entry_cache_del = null;
+
+	public Kvs(final String dbfile)
+			throws ReflectiveOperationException, IOException, SQLException {
+		this(Path.of(dbfile));
+	}
 
 	public Kvs(final Path dbfile)
-			throws IOException, SQLException {
+			throws ReflectiveOperationException, IOException, SQLException {
 
 		con = new Jdbc("sqlite").path(dbfile).connect();
 
-		upd_query_bulkmax = Math.min(Jdbc.bulksize(con, 2), 0x2000); // SQLITE_TOOBIG
-		upd_query_cache   = Collections.synchronizedList(new LinkedList<>());
-		del_query_cache   = Collections.synchronizedList(new LinkedList<>());
+		bulkmax         = Math.min(Jdbc.bulksize(con, 2), 0x2000); // SQLITE_TOOBIG
+		entry_cache_upd = Collections.synchronizedList(new LinkedList<>());
+		entry_cache_del = Collections.synchronizedList(new LinkedList<>());
 
-//		udf(Eq.class);
-//		udf(Getenv.class);
-//		udf(Nvl.class);
-//		udf(Matches.class);
-//		udf(Replace.class);
-//		udf(Sha256.class);
-//		udf(Split.class);
+		udf(Eq.class);
+		udf(Getenv.class);
+		udf(Nvl.class);
+		udf(Matches.class);
+		udf(Replace.class);
+		udf(Sha256.class);
+		udf(Split.class);
 		udf("json_merge", new Function() {
 
 			@Override
 			protected final void xFunc()
 					throws SQLException {
 
-				Map<String, Object> json1  = Entry.json(value_text(0));
-				Map<String, Object> json2  = Entry.json(value_text(1));
-				Map<String, Object> merged = _0.merge(json1, json2);
+				try {
 
-				result(Entry.json(merged));
+					Map<String, Object> json1  = _0.json(value_text(0));
+					Map<String, Object> json2  = _0.json(value_text(1));
+					Map<String, Object> merged = _0.merge(json1, json2);
+
+					result(_0.json(merged));
+
+				} catch (IOException e) {
+					throw new SQLException(e);
+				}
 
 			}
 
 		});
 
-		execute("PRAGMA busy_timeout = " + (5 * 60 * 1000));
+		execute("PRAGMA busy_timeout = " + timeout);
 //		execute("DROP TABLE IF EXISTS kvs");
 		execute("""
 CREATE TABLE IF NOT EXISTS kvs (
@@ -73,7 +93,7 @@ CREATE TABLE IF NOT EXISTS kvs (
   ,upd TEXT NOT NULL
 
   ,key TEXT NOT NULL
-  ,val TEXT
+  ,val JSON
 
   ,PRIMARY KEY (key)
 
@@ -93,7 +113,7 @@ CREATE TABLE IF NOT EXISTS kvs (
 
 	}
 
-	private void udf(final String name, final Function impl)
+	private synchronized void udf(final String name, final Function impl)
 			throws SQLException {
 		Function.create(con, name, impl);
 	}
@@ -108,7 +128,7 @@ CREATE TABLE IF NOT EXISTS kvs (
 
 				stmt.executeUpdate(query);
 
-				log.trace("{} {}", sw.stop(), query.replaceAll("--[^\\r\\n]*[\\r\\n]+", "").replaceAll(Regex.spaces, " ").replaceAll(" ,", ", ").trim());
+				log.trace("{} {}", sw.stop(), _0.trim(query.replaceAll("--[^\\r\\n]*[\\r\\n]+", "").replaceAll(Regex.spaces, " ").replaceAll(" ,", ", ")));
 
 			}
 		}
@@ -116,7 +136,7 @@ CREATE TABLE IF NOT EXISTS kvs (
 	}
 
 	public synchronized Entry get(final String key)
-			throws SQLException {
+			throws IOException, SQLException {
 
 		Entry entry = null;
 
@@ -127,7 +147,7 @@ CREATE TABLE IF NOT EXISTS kvs (
 
 			try (ResultSet rs = stmt.executeQuery()) {
 				if (rs.next()) {
-					entry = new Entry(rs);
+					entry = Entry.of(rs);
 				}
 			}
 
@@ -138,7 +158,7 @@ CREATE TABLE IF NOT EXISTS kvs (
 	}
 
 	public synchronized List<Entry> rand(int size)
-			throws SQLException {
+			throws IOException, SQLException {
 
 		List<Entry> entries = new LinkedList<>();
 
@@ -160,7 +180,7 @@ SELECT * FROM kvs
 
 			try (ResultSet rs = stmt.executeQuery()) {
 				while (rs.next()) {
-					entries.add(new Entry(rs));
+					entries.add(Entry.of(rs));
 				}
 			}
 
@@ -170,28 +190,12 @@ SELECT * FROM kvs
 
 	}
 
-	public void set(final String key) {
-		set(key, (String)null);
+	public void add(final Entry entry) {
+		entry_cache_upd.add(entry);
 	}
 
-	public void set(final String key, final Map<String, Object> val) {
-		set(key, Entry.json(val));
-	}
-
-	public void set(final String key, final String val) {
-		set(new Entry(key, val));
-	}
-
-	private void set(final Entry entry) {
-		upd_query_cache.add(entry);
-	}
-
-	public void del(final String key) {
-		del(new Entry(key));
-	}
-
-	private void del(final Entry entry) {
-		del_query_cache.add(entry);
+	public void del(final Entry entry) {
+		entry_cache_del.add(entry);
 	}
 
 	public synchronized long size()
@@ -233,7 +237,7 @@ SELECT * FROM kvs
 	private synchronized void del()
 			throws SQLException {
 
-		int rowcnt = del_query_cache.size();
+		int rowcnt = entry_cache_del.size();
 		if (0 < rowcnt) {
 
 			StringBuilder query = new StringBuilder();
@@ -247,8 +251,8 @@ SELECT * FROM kvs
 			try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
 
 				for (int i = 0; i < rowcnt; i++) {
-					Entry entry = del_query_cache.remove(0);
-					stmt.setObject(1 + i, entry.getKey());
+					Entry entry = entry_cache_del.remove(0);
+					stmt.setObject(1 + i, entry.key());
 				}
 
 				stmt.executeUpdate();
@@ -260,9 +264,9 @@ SELECT * FROM kvs
 	}
 
 	private synchronized void upd()
-			throws SQLException {
+			throws IOException, SQLException {
 
-		int rowcnt = Math.min(upd_query_cache.size(), upd_query_bulkmax);
+		int rowcnt = Math.min(entry_cache_upd.size(), bulkmax);
 		if (0 < rowcnt) {
 
 			StringBuilder query = new StringBuilder();
@@ -278,9 +282,9 @@ SELECT * FROM kvs
 			try (PreparedStatement stmt = con.prepareStatement(query.toString())) {
 
 				for (int i = 0; i < rowcnt; i++) {
-					Entry entry = upd_query_cache.remove(0);
-					stmt.setObject(i * 2 + 1, entry.getKey());
-					stmt.setObject(i * 2 + 2, entry.getValue());
+					Entry entry = entry_cache_upd.remove(0);
+					stmt.setObject(i * 2 + 1, entry.key());
+					stmt.setObject(i * 2 + 2, _0.json(entry.val()));
 				}
 
 				stmt.executeUpdate();
@@ -292,7 +296,7 @@ SELECT * FROM kvs
 	}
 
 	@Override
-	public void close() {
+	public synchronized void close() {
 		_0.close(con);
 	}
 
