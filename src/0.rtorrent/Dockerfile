@@ -12,7 +12,7 @@ RUN \
 
 COPY .rtorrent.rc      /root/.rtorrent.rc
 COPY entrypoint        /entrypoint
-COPY rtorrent-event.sh /rtorrent-event.sh
+COPY rtorrent-event.sh /usr/local/bin/rtorrent-event.sh
 
 ENTRYPOINT ["/entrypoint"]
 CMD ["-h"]
