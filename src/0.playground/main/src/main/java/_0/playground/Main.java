@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -37,7 +38,8 @@ public final class Main implements AutoCloseable {
 	private static final Path blob_dir = base_dir.resolve("blob");
 	private static final Path ref_dir  = base_dir.resolve("ref");
 
-	private static final int proc_block_size = 0x1000;
+	private static final int         proc_queue_size = 0x1000;
+	private static final List<Entry> proc_queue      = Collections.synchronizedList(new LinkedList<>());
 
 	public boolean proc = true;
 	public boolean exit = false;
@@ -65,8 +67,9 @@ public final class Main implements AutoCloseable {
 
 		init();
 		task(() -> _cli(System.in));
+		task(() -> _proc_add());
+		task(() -> _proc_run());
 		task(() -> _flush());
-		task(() -> _proc());
 
 		wait_futures();
 		exit = true;
@@ -89,14 +92,12 @@ public final class Main implements AutoCloseable {
 
 			Future<?> future = futures.remove(0);
 
-			boolean done   = future.isDone();
-			boolean cancel = future.isCancelled();
-
-			if (cancel) {
+			if (!future.isDone()) {
+				futures.add(future);
+				_0.yield();
 				continue;
 			}
-			if (!done) {
-				futures.add(future);
+			if (future.isCancelled()) {
 				_0.yield();
 				continue;
 			}
@@ -298,42 +299,26 @@ public final class Main implements AutoCloseable {
 
 	}
 
-	private Void _proc()
+	private Void _proc_add()
 			throws Exception {
 
-		Thread.currentThread().setName("task/kvs/proc");
+		Thread.currentThread().setName("task/kvs/proc/add");
 		while (!exit) {
 
 			if (!proc) {
+				proc_queue.clear();
 				_0.yield();
 				continue;
 			}
 
-			List<Entry> entries = kvs.rand(proc_block_size);
-			while (!exit && !_0.empty(entries)) {
-
-				Entry entry = entries.remove(0);
-				if (!proc) {
-					_0.yield();
-					continue;
-				}
-
-				int idx = entry.key().indexOf("://");
-				if (-1 == idx) {
-					continue;
-				}
-
-				String scheme = entry.key().substring(0, idx);
-				String remain = entry.key().substring(idx + 3);
-
-				if ("file".equals(scheme)) {
-					_proc(entry, Path.of(remain));
-					continue;
-				}
-
-				log.warn("{}", scheme);
-
+			int size = proc_queue_size - proc_queue.size();
+			if (size <= 0) {
+				_0.yield();
+				continue;
 			}
+
+			List<Entry> entries = kvs.rand(proc_queue_size);
+			proc_queue.addAll(entries);
 
 		}
 
@@ -341,7 +326,45 @@ public final class Main implements AutoCloseable {
 
 	}
 
-	private Void _proc(final Entry entry, final Path file)
+	private Void _proc_run()
+			throws Exception {
+
+		Thread.currentThread().setName("task/kvs/proc/run");
+		while (!exit) {
+
+			Entry entry = null;
+			try {
+				entry = proc_queue.remove(0);
+			} catch (IndexOutOfBoundsException e) {
+			}
+			if (null == entry) {
+				_0.yield();
+				continue;
+			}
+
+			int idx = entry.key().indexOf("://");
+			if (-1 == idx) {
+				_0.yield();
+				continue;
+			}
+
+			String scheme = entry.key().substring(0, idx);
+			String remain = entry.key().substring(idx + 3);
+
+			if ("file".equals(scheme)) {
+				_proc_run(entry, Path.of(remain));
+				continue;
+			}
+
+			log.warn("{}", scheme);
+
+		}
+
+		return null;
+
+	}
+
+	private Void _proc_run(final Entry entry, final Path file)
 			throws Exception {
 
 		if (!Files.exists(file) || Files.isDirectory(file) || Files.isSymbolicLink(file)) {
@@ -349,10 +372,14 @@ public final class Main implements AutoCloseable {
 			return null;
 		}
 
+		String ext = _0.ext(file);
+		ext = "jpeg".equals(ext) ? "jpg" : ext;
+		ext = "mpeg".equals(ext) ? "mpg" : ext;
+
 		// meta/**/*
-		Number size      = entry.valget("meta/size");
-		String sha256    = entry.valget("meta/sha256");
-		String mime_type = entry.valget("meta/mime_type");
+		Number size      = entry.val("meta/size");
+		String sha256    = entry.val("meta/sha256");
+		String mime_type = entry.val("meta/mime_type");
 		{
 
 			String  regex   = blob_dir.resolve("sha256") + "(/[0-9a-f]{2})*/(?<hash>[0-9a-f]{64})(\\.(?<ext>[^/\\.]*))?";
@@ -371,13 +398,27 @@ public final class Main implements AutoCloseable {
 				sha256    = is_blob ? file.toString().replaceAll(regex, "${hash}") : _0.hex(_0.sha256(file));
 				mime_type = _0.mime_type(file);
 
-				entry.valset("meta/size",      size);
-				entry.valset("meta/sha256",    sha256);
-				entry.valset("meta/mime_type", mime_type);
+				entry.val("meta/size",      size);
+				entry.val("meta/sha256",    sha256);
+				entry.val("meta/mime_type", mime_type);
 
 				kvs.add(entry);
 
 			}
+
+		}
+
+		// attr/**/*
+		String name = entry.val("attr/name");
+		if ("application/x-bittorrent".equals(mime_type) && null == name) {
+
+			Map<String, Object> bencode = _0.bencode(Files.readAllBytes(file));
+
+			name = _0.get(bencode, "info/name");
+
+			entry.val("attr/name", name);
+
+			kvs.add(entry);
 
 		}
 
@@ -393,19 +434,33 @@ public final class Main implements AutoCloseable {
 			is_link |= mime_type.startsWith("audio/");
 			is_link |= mime_type.startsWith("video/");
 
-			String blob_ext = _0.ext(file);
-			blob_ext = "jpeg".equals(blob_ext) ? "jpg" : blob_ext;
-			blob_ext = "mpeg".equals(blob_ext) ? "mpg" : blob_ext;
-
 			Path blob_dir  = Main.blob_dir.resolve("sha256").resolve(sha256.substring(0, 2)).resolve(sha256.substring(2, 4));
-			Path blob_file = blob_dir.resolve(sha256 + (null == blob_ext ? "" : ("." + blob_ext)));
+			Path blob_file = blob_dir.resolve(sha256 + (null == ext ? "" : ("." + ext)));
 
 			String sign = null;
 			if (!is_link && !Files.exists(blob_file)) {
-//				sign = "#";
+
+				sign = "#";
+
+				boolean log_skip = false;
+				if (log_skip) {
+					sign = "inode/x-empty".equals(mime_type)                    ? null : sign;
+					sign = "text/plain".equals(mime_type)                       ? null : sign;
+					sign = "text/html".equals(mime_type)                        ? null : sign;
+					sign = "text/x-asm".equals(mime_type)                       ? null : sign;
+					sign = "font/sfnt".equals(mime_type)                        ? null : sign;
+					sign = "message/rfc822".equals(mime_type)                   ? null : sign;
+					sign = "application/gzip".equals(mime_type)                 ? null : sign;
+					sign = "application/json".equals(mime_type)                 ? null : sign;
+					sign = "application/javascript".equals(mime_type)           ? null : sign;
+					sign = "application/x-mswinurl".equals(mime_type)           ? null : sign;
+					sign = "application/x-wine-extension-ini".equals(mime_type) ? null : sign;
+				}
 
 			} else if (!is_link && Files.exists(blob_file)) {
+
 				Files.delete(blob_file);
+
 				sign = "-";
 
 			} else if (is_link && !Files.exists(blob_file)) {
@@ -448,7 +503,7 @@ public final class Main implements AutoCloseable {
 
 			int nlink = (int)Files.getAttribute(file, "unix:nlink");
 			if (null != sign) {
-				log.trace("{} {} {} {} {}", sha256, nlink, sign, String.format("%-32s", mime_type), entry);
+				log.trace("{} {} {} {} {}", sha256, nlink, sign, String.format("%-32s", mime_type), entry.key().replaceFirst("^file://" + base_dir, ""));
 			}
 
 		}

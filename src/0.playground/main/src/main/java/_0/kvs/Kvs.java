@@ -163,13 +163,13 @@ CREATE TABLE IF NOT EXISTS kvs (
 		List<Entry> entries = new LinkedList<>();
 
 		String query = """
-WITH random_id(id) AS (
-            SELECT ABS(RANDOM() % (SELECT MAX(rowid) FROM kvs))
-  UNION ALL SELECT ABS(RANDOM() % (SELECT MAX(rowid) FROM kvs)) FROM random_id
+WITH random_id(rid) AS (
+        SELECT ABS(RANDOM() % (SELECT MAX(rowid) FROM kvs)) + 1
+  UNION SELECT ABS(RANDOM() % (SELECT MAX(rowid) FROM kvs)) + 1 FROM random_id
 )
 SELECT * FROM kvs
   INNER JOIN
-    (SELECT DISTINCT id AS rid FROM random_id LIMIT ?)
+    (SELECT rid FROM random_id LIMIT ?)
       ON kvs.rowid == rid;
 """;
 

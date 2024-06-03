@@ -1,6 +1,5 @@
 session.path.set = "/.rtorrent"
 
-network.port_range.set  = 50000-50000
 network.port_random.set = no
 protocol.encryption.set = allow_incoming,try_outgoing,enable_retry
 encoding.add            = UTF-8

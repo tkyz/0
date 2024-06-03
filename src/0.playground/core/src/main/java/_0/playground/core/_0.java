@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -23,6 +24,7 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -339,6 +341,17 @@ public final class _0 {
 		} else if (null == v1 && null != v2) {
 			compare = -1;
 
+		} else if (v1 instanceof byte[] && v2 instanceof byte[]) {
+
+			byte[] b1 = (byte[])v1;
+			byte[] b2 = (byte[])v2;
+
+			compare = compare(b1.length, b2.length);
+
+			for (int i = 0; i < b1.length && 0 == compare; i++) {
+				compare = compare(b1[i], b2[i]);
+			}
+
 		} else if (v1 instanceof Number && v2 instanceof Number) {
 
 			Number n1 = (Number)v1;
@@ -396,7 +409,7 @@ public final class _0 {
 
 		Map<String, Object> obj = map;
 
-		String[] tree = selector.split("[/\\.]");
+		String[] tree = selector.split("/");
 		for (int i = 0; i < tree.length; i++) {
 
 			String item = tree[i];
@@ -422,7 +435,7 @@ public final class _0 {
 
 		Object obj = map;
 
-		String[] tree = selector.split("[/\\.]");
+		String[] tree = selector.split("/");
 		for (int i = 0; i < tree.length; i++) {
 
 			String item = tree[i];
@@ -1032,6 +1045,123 @@ public final class _0 {
 		}
 
 		return ext;
+
+	}
+
+	public static String base64(final byte[] val) {
+		return Base64.getEncoder().encodeToString(val);
+	}
+
+	public static byte[] base64(final String val) {
+		return Base64.getDecoder().decode(val);
+	}
+
+	public static <T> T bencode(final byte[] val)
+			throws IOException {
+		return bencode(new ByteArrayInputStream(val));
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T> T bencode(final ByteArrayInputStream in)
+			throws IOException {
+
+		T ret = null;
+
+		int token = in.read();
+
+		if (token == 'i') {
+
+			StringBuilder sb = new StringBuilder();
+
+			int b = -1;
+			while ((b = in.read()) != 'e') {
+
+				if (-1 == b) {
+					throw new IllegalArgumentException();
+				}
+
+				sb.append((char)b);
+
+			}
+
+			ret = (T)new BigDecimal(sb.toString());
+
+		} else if (Character.isDigit(token)) {
+
+			StringBuilder sb = new StringBuilder();
+			sb.append((char)token);
+
+			int b = -1;
+			while ((b = in.read()) != ':') {
+
+				if (-1 == b) {
+					throw new IllegalArgumentException();
+				}
+
+				sb.append((char)b);
+
+			}
+
+			int len = Integer.parseInt(sb.toString());
+
+			byte[] buf = new byte[len];
+			in.read(buf, 0, len);
+
+			String utf8 = new String(buf, _0.utf8);
+
+			if (0 == compare(buf, utf8.getBytes())) {
+				ret = (T)utf8;
+
+			} else {
+				ret = (T)hex(buf);
+			}
+
+		} else if (token == 'l') {
+
+			List<Object> list = new ArrayList<>();
+
+			while (true) {
+
+				in.mark(1);
+				if (in.read() == 'e') {
+					break;
+				}
+				in.reset();
+
+				Object rec = bencode(in);
+
+				list.add(rec);
+
+			}
+
+			ret = (T)list;
+
+		} else if (token == 'd') {
+
+			Map<String, Object> map = new HashMap<>();
+
+			while (true) {
+
+				in.mark(1);
+				if (in.read() == 'e') {
+					break;
+				}
+				in.reset();
+
+				String key = bencode(in);
+				Object val = bencode(in);
+
+				map.put(key, val);
+
+			}
+
+			ret = (T)map;
+
+		} else {
+			throw new IOException(Character.toString((char)token));
+		}
+
+		return ret;
 
 	}
 

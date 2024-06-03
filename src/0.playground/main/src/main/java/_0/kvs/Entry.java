@@ -64,11 +64,11 @@ public final class Entry {
 		return val;
 	}
 
-	public void valset(final String valkey, final Object val) {
+	public void val(final String valkey, final Object val) {
 		_0.set(val(), valkey, val);
 	}
 
-	public <T> T valget(final String valkey) {
+	public <T> T val(final String valkey) {
 		return _0.get(val(), valkey);
 	}
 
