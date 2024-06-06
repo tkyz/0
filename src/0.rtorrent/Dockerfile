@@ -1,12 +1,14 @@
-FROM alpine:latest
+FROM debian:latest
 
-RUN \
-  apk update \
-  && apk upgrade \
-  && apk add \
-    bash \
+RUN true \
+  && apt-get update \
+  && apt-get upgrade -y \
+  && apt-get install -y \
     mktorrent \
     rtorrent \
+    unar \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/* \
   && mkdir -p \
     /.rtorrent
 

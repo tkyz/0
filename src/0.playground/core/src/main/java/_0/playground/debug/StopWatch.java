@@ -29,7 +29,19 @@ public final class StopWatch {
 	}
 
 	public String stop() {
-		return df.format(new Date(System.currentTimeMillis() - start));
+		return stop(false);
+	}
+
+	public String stop(final boolean restart) {
+
+		String stop = df.format(new Date(System.currentTimeMillis() - start));
+
+		if (restart) {
+			start();
+		}
+
+		return stop;
+
 	}
 
 }

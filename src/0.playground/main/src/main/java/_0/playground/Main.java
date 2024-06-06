@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.sql.SQLException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,8 +40,14 @@ public final class Main implements AutoCloseable {
 	private static final Path blob_dir = base_dir.resolve("blob");
 	private static final Path ref_dir  = base_dir.resolve("ref");
 
+	private static final String blob_regex = blob_dir.resolve("sha256") + "(/[0-9a-f]{2})*/(?<hash>[0-9a-f]{64})(\\.(?<ext>[^/\\.]*))?";
+
 	private static final int         proc_queue_size = 0x1000;
 	private static final List<Entry> proc_queue      = Collections.synchronizedList(new LinkedList<>());
+
+	private static final Function<String, Boolean> find = str -> {
+		return false;
+	};
 
 	public boolean proc = true;
 	public boolean exit = false;
@@ -208,80 +216,84 @@ public final class Main implements AutoCloseable {
 		list.add(blob_dir);
 
 		while (!_0.empty(list)) {
-
-			Path path = list.remove(0).toAbsolutePath().normalize();
-			Files.createDirectories(path);
-
-			Files.walkFileTree(path, new FileVisitor<Path>() {
-
-				@Override
-				public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs)
-						throws IOException {
-
-					Thread.currentThread().setName("task/walk" + Main.toString(dir) + "/");
-
-					if (exit) {
-						return FileVisitResult.TERMINATE;
-					}
-					if (dir.startsWith(blob_dir) && dir.toString().matches(blob_dir.resolve("sha256") + "(/[0-9a-f]{2})*/(?<hash>[0-9a-f]{64})\\.tmp")) {
-						return FileVisitResult.SKIP_SUBTREE;
-					}
-
-					return FileVisitResult.CONTINUE;
-
-				}
-
-				@Override
-				public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs)
-						throws IOException {
-
-					Thread.currentThread().setName("task/walk" + Main.toString(file));
-
-					if (exit) {
-						return FileVisitResult.TERMINATE;
-					}
-					if (file.startsWith(blob_dir) && file.toString().matches(blob_dir.resolve("sha256") + "(/[0-9a-f]{2})*/(?<hash>[0-9a-f]{64})(\\.[^/\\.]*)?")) {
-						return FileVisitResult.CONTINUE;
-					}
-
-					Entry entry = Entry.of("file://" + Main.toString(file));
-					kvs.add(entry);
-
-					return FileVisitResult.CONTINUE;
-
-				}
-
-				@Override
-				public FileVisitResult visitFileFailed(final Path file, final IOException e)
-						throws IOException {
-
-					Thread.currentThread().setName("task/walk" + Main.toString(file));
-
-					if (null != e) {
-						log.warn("{}", e.getMessage());
-					}
-
-					return FileVisitResult.CONTINUE;
-
-				}
-
-				@Override
-				public FileVisitResult postVisitDirectory(final Path dir, final IOException e)
-						throws IOException {
-
-					Thread.currentThread().setName("task/walk" + Main.toString(dir) + "/");
-
-					if (null != e) {
-						log.warn("{}", e.getMessage());
-					}
-
-					return FileVisitResult.CONTINUE;
-
-				}
-
-			});
-
+			_walk(list.remove(0));
 		}
+
+		return null;
+
+	}
+
+	private Void _walk(final Path path)
+			throws IOException {
+
+		Files.walkFileTree(path.toAbsolutePath().normalize(), new FileVisitor<Path>() {
+
+			@Override
+			public FileVisitResult preVisitDirectory(final Path dir, final BasicFileAttributes attrs)
+					throws IOException {
+
+				Thread.currentThread().setName("task/walk" + Main.toString(dir) + "/");
+
+				if (exit) {
+					return FileVisitResult.TERMINATE;
+				}
+				if (dir.startsWith(blob_dir) && dir.toString().matches(blob_dir.resolve("sha256") + "(/[0-9a-f]{2})*/(?<hash>[0-9a-f]{64})\\.tmp")) {
+					return FileVisitResult.SKIP_SUBTREE;
+				}
+
+				return FileVisitResult.CONTINUE;
+
+			}
+
+			@Override
+			public FileVisitResult visitFile(final Path file, final BasicFileAttributes attrs)
+					throws IOException {
+
+				Thread.currentThread().setName("task/walk" + Main.toString(file));
+
+				if (exit) {
+					return FileVisitResult.TERMINATE;
+				}
+				if (file.startsWith(blob_dir) && file.toString().matches(blob_regex) && !file.getFileName().toString().toLowerCase().endsWith(".torrent")) {
+					return FileVisitResult.CONTINUE;
+				}
+
+				Entry entry = Entry.of("file://" + Main.toString(file));
+				kvs.add(entry);
+
+				return FileVisitResult.CONTINUE;
+
+			}
+
+			@Override
+			public FileVisitResult visitFileFailed(final Path file, final IOException e)
+					throws IOException {
+
+				Thread.currentThread().setName("task/walk" + Main.toString(file));
+
+				if (null != e) {
+					log.warn("{}", e.getMessage());
+				}
+
+				return FileVisitResult.CONTINUE;
+
+			}
+
+			@Override
+			public FileVisitResult postVisitDirectory(final Path dir, final IOException e)
+					throws IOException {
+
+				Thread.currentThread().setName("task/walk" + Main.toString(dir) + "/");
+
+				if (null != e) {
+					log.warn("{}", e.getMessage());
+				}
+
+				return FileVisitResult.CONTINUE;
+
+			}
+
+		});
 
 		return null;
 
@@ -329,6 +341,12 @@ public final class Main implements AutoCloseable {
 	private Void _proc_run()
 			throws Exception {
 
+//		SimpleDateFormat sw = new SimpleDateFormat("HH:mm:ss.SSS");
+//		sw.setTimeZone(TimeZone.getTimeZone("GMT"));
+
+		long proc_cnt  = 0;
+//		long time_prev = System.currentTimeMillis();
+
 		Thread.currentThread().setName("task/kvs/proc/run");
 		while (!exit) {
 
@@ -342,21 +360,40 @@ public final class Main implements AutoCloseable {
 				continue;
 			}
 
-			int idx = entry.key().indexOf("://");
-			if (-1 == idx) {
-				_0.yield();
-				continue;
-			}
+			String scheme = null;
+			String remain = null;
+			{
 
-			String scheme = entry.key().substring(0, idx);
-			String remain = entry.key().substring(idx + 3);
+				String key = entry.key();
+
+				int idx = key.indexOf("://");
+				if (-1 == idx) {
+					_0.yield();
+					continue;
+				}
+
+				scheme = key.substring(0, idx);
+				remain = key.substring(idx + 3);
+
+			}
 
 			if ("file".equals(scheme)) {
-				_proc_run(entry, Path.of(remain));
-				continue;
+				_file(entry, Path.of(remain));
+
+			} else {
+				log.warn("{}", scheme);
 			}
 
-			log.warn("{}", scheme);
+			proc_cnt++;
+			proc_cnt %= proc_queue_size;
+			if (0 == proc_cnt) {
+//				long   time_now  = System.currentTimeMillis();
+//				long   time_diff = time_now - time_prev;
+//				double ln        = Math.log(time_diff);
+//				log.trace("{} {}", sw.format(new Date(time_diff)), ln);
+				log.trace("--------------------------------------------------------------------------------------------------------------------------------");
+//				time_prev = time_now;
+			}
 
 		}
 
@@ -364,104 +401,116 @@ public final class Main implements AutoCloseable {
 
 	}
 
-	private Void _proc_run(final Entry entry, final Path file)
+	private Void _file(final Entry entry, final Path file)
 			throws Exception {
 
-		if (!Files.exists(file) || Files.isDirectory(file) || Files.isSymbolicLink(file)) {
-			kvs.del(entry);
+		if (!Files.exists(file)) {
+			return null;
+		}
+		if (Files.isDirectory(file)) {
+			return null;
+		}
+		if (Files.isSymbolicLink(file)) {
 			return null;
 		}
 
-		String ext = _0.ext(file);
-		ext = "jpeg".equals(ext) ? "jpg" : ext;
-		ext = "mpeg".equals(ext) ? "mpg" : ext;
+		Map<String, Object> state = new HashMap<>();
+		_0.set(state, "upd", false);
 
-		// meta/**/*
-		Number size      = entry.val("meta/size");
-		String sha256    = entry.val("meta/sha256");
-		String mime_type = entry.val("meta/mime_type");
-		{
+		boolean is_blob = file.toString().matches(blob_regex);
 
-			String  regex   = blob_dir.resolve("sha256") + "(/[0-9a-f]{2})*/(?<hash>[0-9a-f]{64})(\\.(?<ext>[^/\\.]*))?";
-			boolean is_blob = file.toString().matches(regex);
+		Callable<Void> meta = () -> {
 
-			Number size_ = Files.size(file);
+			Number size      = entry.val("meta/size");
+			Number size_     = Files.size(file);
+			String mime_type = entry.val("meta/mime_type");
+			String sha256    = entry.val("meta/sha256");
 
-			boolean upd = false;
-			upd |= 0 != _0.compare(size, size_);
-			upd |= null == sha256;
-			upd |= null == mime_type;
+			boolean rehash = false;
+			rehash |= 0 != _0.compare(size, size_);
+			rehash |= null == mime_type;
+			rehash |= null == sha256;
+			if (!rehash) {
+				return null;
+			}
 
-			if (upd) {
+			mime_type = _0.mime_type(file);
+			sha256    = is_blob ? file.toString().replaceAll(blob_regex, "${hash}") : _0.hex(_0.sha256(file));
 
-				size      = size_;
-				sha256    = is_blob ? file.toString().replaceAll(regex, "${hash}") : _0.hex(_0.sha256(file));
-				mime_type = _0.mime_type(file);
+			entry.val("meta/size",      size_);
+			entry.val("meta/mime_type", mime_type);
+			entry.val("meta/sha256",    sha256);
+			_0.set(state, "upd", true);
 
-				entry.val("meta/size",      size);
-				entry.val("meta/sha256",    sha256);
-				entry.val("meta/mime_type", mime_type);
+			return null;
 
-				kvs.add(entry);
+		};
+
+		Callable<Void> attr = () -> {
+
+			if (!is_blob) {
+				return null;
+			}
+
+			String mime_type = entry.val("meta/mime_type");
+			String name      = entry.val("attr/name");
+
+			if ("application/x-bittorrent".equals(mime_type) && null == name) {
+
+				Map<String, Object> bencode = _0.bencode(Files.readAllBytes(file));
+
+				name = _0.get(bencode, "info/name");
+
+				entry.val("attr/name", name);
+				_0.set(state, "upd", true);
 
 			}
 
-		}
+			return null;
 
-		// attr/**/*
-		String name = entry.val("attr/name");
-		if ("application/x-bittorrent".equals(mime_type) && null == name) {
+		};
 
-			Map<String, Object> bencode = _0.bencode(Files.readAllBytes(file));
+		Callable<Void> upd = () -> {
 
-			name = _0.get(bencode, "info/name");
-
-			entry.val("attr/name", name);
+			if (!(boolean)_0.get(state, "upd")) {
+				return null;
+			}
 
 			kvs.add(entry);
 
-		}
+			return null;
 
-		// link
-		{
+		};
+
+		Callable<Void> link = () -> {
+
+			String mime_type = entry.val("meta/mime_type");
+			String sha256    = entry.val("meta/sha256");
 
 			boolean is_link = false;
+			is_link |= mime_type.startsWith("image/");
+			is_link |= mime_type.startsWith("audio/");
+			is_link |= mime_type.startsWith("video/");
 			is_link |= "application/pdf".equals(mime_type);
 			is_link |= "application/x-bittorrent".equals(mime_type);
 			is_link |= "application/x-shockwave-flash".equals(mime_type);
 			is_link |= "application/octet-stream".equals(mime_type);
-			is_link |= mime_type.startsWith("image/");
-			is_link |= mime_type.startsWith("audio/");
-			is_link |= mime_type.startsWith("video/");
+
+			// TODO: ext <- mime_type
+			// a254607ce38dd2f8965e621d59792b220c2fa1d140c9e1cb7d89bb06027d0dac
+			String ext = _0.ext(file);
+			ext = "jpeg".equals(ext) ? "jpg" : ext;
+			ext = "mpeg".equals(ext) ? "mpg" : ext;
 
 			Path blob_dir  = Main.blob_dir.resolve("sha256").resolve(sha256.substring(0, 2)).resolve(sha256.substring(2, 4));
 			Path blob_file = blob_dir.resolve(sha256 + (null == ext ? "" : ("." + ext)));
 
-			String sign = null;
 			if (!is_link && !Files.exists(blob_file)) {
-
-				sign = "#";
-
-				boolean log_skip = false;
-				if (log_skip) {
-					sign = "inode/x-empty".equals(mime_type)                    ? null : sign;
-					sign = "text/plain".equals(mime_type)                       ? null : sign;
-					sign = "text/html".equals(mime_type)                        ? null : sign;
-					sign = "text/x-asm".equals(mime_type)                       ? null : sign;
-					sign = "font/sfnt".equals(mime_type)                        ? null : sign;
-					sign = "message/rfc822".equals(mime_type)                   ? null : sign;
-					sign = "application/gzip".equals(mime_type)                 ? null : sign;
-					sign = "application/json".equals(mime_type)                 ? null : sign;
-					sign = "application/javascript".equals(mime_type)           ? null : sign;
-					sign = "application/x-mswinurl".equals(mime_type)           ? null : sign;
-					sign = "application/x-wine-extension-ini".equals(mime_type) ? null : sign;
-				}
+				_0.set(state, "lnk", "#");
 
 			} else if (!is_link && Files.exists(blob_file)) {
-
 				Files.delete(blob_file);
-
-				sign = "-";
+				_0.set(state, "lnk", "-");
 
 			} else if (is_link && !Files.exists(blob_file)) {
 
@@ -477,7 +526,7 @@ public final class Main implements AutoCloseable {
 					Files.setLastModifiedTime(blob_file, Files.getLastModifiedTime(file));
 				}
 
-				sign = "<";
+				_0.set(state, "lnk", "<");
 
 			} else if (is_link && Files.exists(blob_file)) {
 
@@ -488,25 +537,100 @@ public final class Main implements AutoCloseable {
 				BasicFileAttributes attr2 = Files.readAttributes(blob_file, BasicFileAttributes.class);
 
 				if (!store1.equals(store2) && attr1.size() == attr2.size()) {
-					sign = "=";
+					_0.set(state, "lnk", "=");
+
 				} else if (store1.equals(store2) && attr1.fileKey().equals(attr2.fileKey())) {
-//					sign = ".";
+					_0.set(state, "lnk", " ");
+
 				} else if (store1.equals(store2) && !attr1.fileKey().equals(attr2.fileKey()) && attr1.size() == attr2.size()) {
 					Files.delete(file);
 					Files.createLink(file, blob_file);
-					sign = ">";
+					_0.set(state, "lnk", ">");
+
 				} else {
-					sign = "!";
+					_0.set(state, "lnk", "!");
+				}
+
+			}
+
+			return null;
+
+		};
+
+		Callable<Void> log = () -> {
+
+			String mime_type = entry.val("meta/mime_type");
+			String sha256    = entry.val("meta/sha256");
+			String name      = entry.val("attr/name");
+
+			boolean skip = false;
+//			skip |= "#".equals(lnk_state);
+			skip |= "inode/x-empty".equals(mime_type);
+			skip |= "text/plain".equals(mime_type);
+			skip |= "text/html".equals(mime_type);
+			skip |= "text/x-asm".equals(mime_type);
+			skip |= "font/sfnt".equals(mime_type);
+			skip |= "message/rfc822".equals(mime_type);
+			skip |= "application/gzip".equals(mime_type);
+			skip |= "application/json".equals(mime_type);
+			skip |= "application/javascript".equals(mime_type);
+			skip |= "application/x-mswinurl".equals(mime_type);
+			skip |= "application/x-wine-extension-ini".equals(mime_type);
+			if (skip) {
+				return null;
+			}
+
+			// upd [ *]
+			// lnk [ =-<>#!]
+			// tmp [ .*_!]
+			String upd_state = ((boolean)_0.get(state, "upd")) ? "*" : " ";
+			String lnk_state = _0.get(state, "lnk");
+			String tmp_state = " ";
+			if (is_blob) {
+
+				Path cmp_dir = Main.blob_dir.resolve("sha256").resolve(sha256.substring(0, 2)).resolve(sha256.substring(2, 4)).resolve(sha256);
+				Path tmp_dir = Main.blob_dir.resolve("sha256").resolve(sha256.substring(0, 2)).resolve(sha256.substring(2, 4)).resolve(sha256 + ".tmp");
+
+				if (Files.isDirectory(cmp_dir) && Files.isDirectory(tmp_dir)) {
+					tmp_state = "!";
+
+				} else if (Files.isDirectory(cmp_dir)) {
+					tmp_state = ".";
+
+				} else if (Files.isDirectory(tmp_dir) && 0 < Files.list(tmp_dir).count()) {
+					tmp_state = "*";
+
+				} else if (Files.isDirectory(tmp_dir) && 0 == Files.list(tmp_dir).count()) {
+					tmp_state = "_";
 				}
 
 			}
 
 			int nlink = (int)Files.getAttribute(file, "unix:nlink");
-			if (null != sign) {
-				log.trace("{} {} {} {} {}", sha256, nlink, sign, String.format("%-32s", mime_type), entry.key().replaceFirst("^file://" + base_dir, ""));
+
+			name = is_blob ? _0.normalize(name) : file.toString().replaceFirst("^" + blob_regex, "/${hash}");
+
+			boolean trace = false;
+			trace |= !" ".equals(upd_state);
+			trace |= !" ".equals(lnk_state);
+//			trace |= !" ".equals(tmp_state);
+			trace |= !is_blob && 1 == nlink;
+			trace |= find.apply(name);
+			if (!trace) {
+				return null;
 			}
 
-		}
+			Main.log.trace("{}", String.format("%-64s %-32s [%s%s%s] %2d %s", sha256, mime_type, tmp_state, lnk_state, upd_state, nlink, name));
+
+			return null;
+
+		};
+
+		meta.call();
+		attr.call();
+		upd.call();
+		link.call();
+		log.call();
 
 		return null;
 

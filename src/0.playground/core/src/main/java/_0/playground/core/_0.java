@@ -1056,6 +1056,11 @@ public final class _0 {
 		return Base64.getDecoder().decode(val);
 	}
 
+	public static <T> T bencode(final Path file)
+			throws IOException {
+		return bencode(Files.readAllBytes(file));
+	}
+
 	public static <T> T bencode(final byte[] val)
 			throws IOException {
 		return bencode(new ByteArrayInputStream(val));
