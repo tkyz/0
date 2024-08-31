@@ -247,7 +247,7 @@ function setup_apt() {
       gocryptfs cifs-utils \
       libarchive-tools unar zip rsync xsel tmux vim emacs htop nkf cups jq \
       locales-all task-japanese \
-      fonts-dejavu-core moreutils aria2 ffmpeg \
+      fonts-dejavu-core moreutils aria2 ffmpeg webp-pixbuf-loader \
       libcairo2 build-essential \
       libglfw3-dev libgles2-mesa-dev libcairo2-dev
 
@@ -417,14 +417,14 @@ function setup_home() {
 function setup_apt_ext() {
   (
 
-    # gpu/nvidia
+    # nvidia
     # https://nvidia.github.io/nvidia-container-runtime/
     # TODO: debian 12
-#   curl -fsSL 'https://nvidia.github.io/nvidia-container-runtime/gpgkey'                         | SUDO gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.nvidia.gpg
-#   echo "deb https://nvidia.github.io/libnvidia-container/stable/${ID}10/\$(ARCH)             /" | SUDO tee                          /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
-#   echo "deb https://nvidia.github.io/nvidia-container-runtime/stable/${ID}10/\$(ARCH)        /" | SUDO tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
-#   echo "deb https://nvidia.github.io/libnvidia-container/experimental/debian10/\$(ARCH)      /" | SUDO tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
-#   echo "deb https://nvidia.github.io/nvidia-container-runtime/experimental/debian10/\$(ARCH) /" | SUDO tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+    curl -fsSL 'https://nvidia.github.io/nvidia-container-runtime/gpgkey'                        | ${SUDO} gpg --dearmor --yes --output /etc/apt/trusted.gpg.d/com.nvidia.gpg
+    echo "deb https://nvidia.github.io/libnvidia-container/stable/${ID}10/\$(ARCH)            /" | ${SUDO} tee                          /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+#   echo "deb https://nvidia.github.io/libnvidia-container/experimental/${ID}10/\$(ARCH)      /" | ${SUDO} tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+    echo "deb https://nvidia.github.io/nvidia-container-runtime/stable/${ID}10/\$(ARCH)       /" | ${SUDO} tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+#   echo "deb https://nvidia.github.io/nvidia-container-runtime/experimental/${ID}10/\$(ARCH) /" | ${SUDO} tee -a                       /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
 
     # k8s
     # https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
@@ -608,7 +608,7 @@ function setup_cluster() {
 
     export KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster
 
-#   kind    delete clusters --all
+    kind    delete clusters --all
 #   kind    delete cluster --name "${cluster_name}"
     kubectl delete namespace 0 2> /dev/null || true
 
@@ -618,7 +618,7 @@ function setup_cluster() {
 #     ${SUDO} sysctl --write fs.inotify.max_user_watches=65536      # default: 8192
       ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53 # default: 1024
 
-        cat "${HOME}/src/0.kind/kind.yml" | env_replace | kind create cluster --name "${cluster_name}" --config -
+      cat "${HOME}/src/0.kind/kind.yml" | env_replace | kind create cluster --name "${cluster_name}" --config -
 
       ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
@@ -658,7 +658,10 @@ function setup_cluster() {
 
         # build
         if [[ -f './Dockerfile' ]]; then
-          podman build --tag "${container_image}" .
+          opts=()
+          opts+=('--pull')
+#         opts+=('--no-cache')
+          podman build ${opts[@]} --tag "${container_image}" .
         fi
 
         # TODO: ImagePullBackOff
@@ -713,8 +716,6 @@ function main() {
     timestamp_st="$(date --utc "+%Y-%m-%d %H:%M:%S")"
 
     pushd "${HOME}"
-
-      export
       setup_etc
       setup_apt
       setup_openpgp4fpr
@@ -726,7 +727,6 @@ function main() {
       setup_venv
       setup_cluster
       clean
-
     popd
 
     timestamp_ed="$(date --utc "+%Y-%m-%d %H:%M:%S")"
