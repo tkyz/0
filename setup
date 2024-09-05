@@ -495,7 +495,7 @@ function setup_src() {
     mv "${list_file}.tmp" "${list_file}"
 
     cat "${list_file}" | while read url; do
-      git_pull "${dir_name}" "${url}"
+      git_pull "${dir_name}" "${url}" || true
     done
 
   )
