@@ -24,8 +24,6 @@
 	rebase = true
 [diff "sjis"]
 	textconv = iconv -f sjis
-[alias]
-	graph = log --all --graph --pretty=format:\"<%H> %ad [%an] %cd [%cn] %G? %Cgreen%d%Creset %s\" --date=short --date-order
 [filter "lfs"]
 	smudge = git-lfs smudge --skip -- %f
 [user]
