@@ -60,7 +60,7 @@ spec:
         - {name: config-volume, configMap: {name: ntp}}
       containers:
         - name: ntp
-          image: container.0/0.ntp:${context}
+          image: container.0/org.chrony-project:${context}
           imagePullPolicy: IfNotPresent
           securityContext:
             capabilities:
