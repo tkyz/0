@@ -18,13 +18,13 @@ spec:
         - {name: data-volume, hostPath: {path: /mnt/0.mvn, type: Directory}}
       containers:
         - name: mvn
-          image: container.0/0.mvn:${context}
+          image: container.0/org.apache.archiva:${context}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort: 8080}
           volumeMounts:
-            - {name: data-volume, subPath: data,         mountPath: /opt/org.apache.archiva/data}
-            - {name: data-volume, subPath: repositories, mountPath: /opt/org.apache.archiva/repositories}
+            - {name: data-volume, subPath: data,         mountPath: /org.apache.archiva/data}
+            - {name: data-volume, subPath: repositories, mountPath: /org.apache.archiva/repositories}
 
 ---
 apiVersion: v1
