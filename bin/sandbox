@@ -7,7 +7,7 @@ set -o pipefail
 image="${1:-}"
 if [[ -z "${image}" ]]; then
   source /etc/os-release
-  image="docker.io/library/${ID}:${VERSION_CODENAME:-latest}"
+  image="${ID}:${VERSION_CODENAME:-latest}"
 fi
 
 podman run \
@@ -27,4 +27,4 @@ podman run \
   --volume  "${HOME}/src:/root/src:ro" \
   --volume  "${HOME}/tmp:/root/tmp" \
   --volume  "${PWD}:/root/.pwd:ro" \
-  "${image}"
+  "${image}" bash -l
