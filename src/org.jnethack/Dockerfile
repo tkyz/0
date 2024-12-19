@@ -3,7 +3,6 @@
 # https://github.com/jnethack/jnethack-alpha.git
 FROM debian:latest as builder
 
-ARG NKF_VERSION=v2_1_5
 ARG JNETHACK_VERSION=v3.6.7-0.1
 
 RUN \
