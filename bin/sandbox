@@ -27,4 +27,4 @@ podman run \
   --volume  "${HOME}/src:/root/src:ro" \
   --volume  "${HOME}/tmp:/root/tmp" \
   --volume  "${PWD}:/root/.pwd:ro" \
-  "${image}" bash -l
+  "${image}"
