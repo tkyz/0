@@ -14,5 +14,5 @@ RUN \
   curl -fsSL "https://archive.apache.org/dist/archiva/${ARCHIVA_VERSION}/binaries/apache-archiva-${ARCHIVA_VERSION}-bin.tar.gz" | tar zxf - --no-same-permissions --no-same-owner && \
   mv "apache-archiva-${ARCHIVA_VERSION}" '/org.apache.archiva'
 
-ENTRYPOINT ["/org.apache.archiva/bin/archiva"]
-CMD ["console"]
+COPY ./entrypoint /entrypoint
+ENTRYPOINT ["/entrypoint"]

@@ -53,4 +53,5 @@ COPY --from=builder \
 
 ENV NETHACKOPTIONS "kcode:u,!autopickup,color,disclose:+i +a +v +g +c,hilite_pet"
 
-ENTRYPOINT ["/org.jnethack/jnethack"]
+COPY ./entrypoint /entrypoint
+ENTRYPOINT ["/entrypoint"]
