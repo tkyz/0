@@ -54,6 +54,8 @@ else
   false
 fi
 
+readonly context='latest'
+
 readonly setup_yml="$(cat << 'EOS'
 0:
 
@@ -764,6 +766,51 @@ function _chmod() {
   chmod -R go-rwx './.ssh'   &> /dev/null || true
 }
 
+function _build() {
+
+  if is_container; then
+    return
+  fi
+  if ! is_cmd podman; then
+    return
+  fi
+
+  (
+
+    opts=()
+#   opts+=('--pull')
+#   opts+=('--no-cache')
+
+    find ./src -name Dockerfile | while read item; do
+
+      name="$(echo "${item}" | sed -r 's|^\./src/(.*)/Dockerfile|\1|g')"
+      if [[ "${name}" =~ ^com.github/ ]]; then
+        continue
+      fi
+      if [[ "${name}" =~ ^com.gitlab/ ]]; then
+        continue
+      fi
+      if [[ "${name}" =~ ^org.golang/ ]]; then
+        continue
+      fi
+
+      pushd "./src/${name}" &> /dev/null
+
+        echo ---
+        pwd
+
+        image="container.0/${name}:${context}"
+
+        podman build "${opts[@]}" --tag "${image}" .
+#       podman push --tls-verify=false "${image}" || true
+
+      popd &> /dev/null
+
+    done
+  )
+
+}
+
 function _k8s() {
 
   if is_wsl; then
@@ -772,13 +819,13 @@ function _k8s() {
   if is_container; then
     return
   fi
-  if ! type containerd &> /dev/null; then
+  if ! is_cmd containerd; then
     return
   fi
-  if ! type podman &> /dev/null; then
+  if ! is_cmd podman; then
     return
   fi
-  if ! type kubectl &> /dev/null; then
+  if ! is_cmd kubectl; then
     return
   fi
   if ! type kind &> /dev/null; then
@@ -787,7 +834,6 @@ function _k8s() {
 
   (
 
-    context='latest'
     cluster_name="${openpgp4fpr,,}"
 
     external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | sort | head -n 1)"
@@ -829,10 +875,10 @@ function _k8s() {
     kubectl delete namespace 0 2> /dev/null || true
     kubectl create namespace 0              || true
 
-    echo "${setup_yml}" | yq -cr '."0".k8s[]' | while read namespace; do
+    echo "${setup_yml}" | yq -cr '."0".k8s[]' | while read item; do
 
-      src_dir="./src/${namespace}"
-      if [[ ! -d "${src_dir}" ]]; then
+      src_dir="./src/${item}"
+      if [[ ! -f "${src_dir}/deploy.yml" ]]; then
         continue
       fi
 
@@ -841,28 +887,24 @@ function _k8s() {
         echo ---
         pwd
 
-        container_image="container.0/${namespace}:${context}"
-
-        # build
-        if [[ -f './Dockerfile' ]]; then
-          opts=()
-          opts+=('--pull')
-#         opts+=('--no-cache')
-          podman build "${opts[@]}" --tag "${container_image}" .
-        fi
-
         # TODO: ImagePullBackOff
-        if [[ -n "$(podman images --noheading "${container_image}")" ]] && ! podman exec "${cluster_name}-control-plane" crictl images | awk -F ' ' '{print $1":"$2}' | grep -q "${container_image}"; then
+        yq -cr '.. | objects | select(.image != null) | .image' deploy.yml | env_replace | while read image; do
+
+          if [[ -z "$(podman images --noheading "${image}")" ]]; then
+            continue
+          fi
+          if podman exec "${cluster_name}-control-plane" crictl images | awk -F ' ' '{print $1":"$2}' | grep -q "${image}"; then
+            continue
+          fi
+
           tmpfile="$(mktemp)"
-          podman save --format oci-archive "${container_image}" --output "${tmpfile}"
+          podman save --format oci-archive "${image}" --output "${tmpfile}"
           kind load image-archive --name "${cluster_name}" "${tmpfile}" || true
           rm "${tmpfile}"
-        fi
 
-        # deploy
-        if [[ -f './deploy.yml' ]]; then
-          cat './deploy.yml' | env_replace | kubectl apply -f -
-        fi
+        done
+
+        cat './deploy.yml' | env_replace | kubectl apply -f -
 
       popd &> /dev/null
 
@@ -915,6 +957,7 @@ function main() {
         _lib
         _opt
         _chmod
+        _build
         _k8s
         _clean
 

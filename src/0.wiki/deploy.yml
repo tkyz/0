@@ -59,7 +59,7 @@ spec:
         - {name: tmp-volume,      hostPath:  {path: /root/tmp,            type: Directory}}
       containers:
         - name: phpfpm
-          image: container.0/0.phpfpmext:${context}
+          image: container.0/net.php/fpm:${context}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort: 9000}

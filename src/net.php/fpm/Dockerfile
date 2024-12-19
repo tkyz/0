@@ -2,10 +2,10 @@ FROM php:fpm-alpine
 
 EXPOSE 9000
 
-RUN true \
-  && apk update \
-  && apk upgrade \
-  && apk add --no-cache \
+RUN \
+  apk update && \
+  apk upgrade && \
+  apk add --no-cache \
     libpq \
     libjpeg-turbo \
     libpng \
@@ -14,20 +14,21 @@ RUN true \
     imagemagick \
     freetype \
     oniguruma \
-    ffmpeg \
-  && apk add --no-cache --virtual .build-deps \
+    ffmpeg && \
+  apk add --no-cache --virtual .build \
     libpq-dev \
     libjpeg-turbo-dev \
     libpng-dev \
     oniguruma-dev \
-    freetype-dev \
-  && docker-php-ext-configure gd \
+    freetype-dev && \
+  docker-php-ext-configure \
+    gd \
     --with-jpeg \
-    --with-freetype \
-  && docker-php-ext-install \
+    --with-freetype && \
+  docker-php-ext-install \
     pdo_pgsql \
     pdo_mysql \
     mbstring \
     exif \
-    gd \
-  && apk del --purge .build-deps
+    gd && \
+  apk del --purge .build
