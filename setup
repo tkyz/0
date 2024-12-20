@@ -96,18 +96,20 @@ readonly setup_yml="$(cat << 'EOS'
       - {type: raw,           url: https://dl.embulk.org/embulk-latest.jar}
 
   k8s:
-    - 0.container
     - 0.dns
     - 0.ntp
     - 0.pgsql
-#   - 0.mysql
     - 0.mariadb
     - 0.redis
     - 0.git
+    - 0.container
     - 0.apt
     - 0.mvn
-    - 0.phpfpmext
     - 0.wiki
+    - 0.minecraft
+    - 0.btc
+    - 0.eth
+    - 0.ltc
 EOS
 )"
 
@@ -851,6 +853,7 @@ function _k8s() {
 
     export KIND_EXPERIMENTAL_PROVIDER=podman
 
+    # cluster
     kind delete cluster --name "${cluster_name}"
     if ! kind get clusters | grep -q "${cluster_name}"; then
 
@@ -884,6 +887,7 @@ function _k8s() {
     kubectl delete namespace 0 2> /dev/null || true
     kubectl create namespace 0              || true
 
+    # deploy
     echo "${setup_yml}" | yq -cr '."0".k8s[]' | while read item; do
 
       src_dir="./src/${item}"
