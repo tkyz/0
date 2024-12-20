@@ -51,7 +51,7 @@ nodes:
       - {hostPath: "${HOME}/lib/0.container",    containerPath: /mnt/0.container}
       - {hostPath: "${HOME}/lib/0.mvn",          containerPath: /mnt/0.mvn}
       - {hostPath: "${HOME}/lib/0.apt",          containerPath: /mnt/0.apt}
-      - {hostPath: "${HOME}/src/0.wiki",         containerPath: /mnt/0.wiki}
+      - {hostPath: "${HOME}/src/0.doc",          containerPath: /mnt/0.doc}
       - {hostPath: "${HOME}/tmp",                containerPath: /mnt/0.pub}
       - {hostPath: "${HOME}/lib/0.minecraft",    containerPath: /mnt/0.minecraft}
       - {hostPath: "${HOME}/lib/0.btc",          containerPath: /mnt/0.btc}

@@ -21,7 +21,7 @@ data:
         ${external_ip}     mysql.0     mysql.${tld}
         ${external_ip}   mariadb.0   mariadb.${tld}
         ${external_ip}     redis.0     redis.${tld}
-        ${external_ip}      wiki.0      wiki.${tld}
+        ${external_ip}       doc.0       doc.${tld}
         ${external_ip}       pub.0       pub.${tld}
         ${external_ip} minecraft.0 minecraft.${tld}
         ${external_ip}       btc.0       btc.${tld}

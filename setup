@@ -105,12 +105,12 @@ readonly setup_yml="$(cat << 'EOS'
     - 0.container
     - 0.apt
     - 0.mvn
-    - 0.wiki
+    - 0.doc
     - 0.pub
-    - 0.minecraft
-    - 0.btc
-    - 0.eth
-    - 0.ltc
+#   - 0.minecraft
+#   - 0.btc
+#   - 0.eth
+#   - 0.ltc
 EOS
 )"
 
@@ -309,8 +309,19 @@ function _gpg() {
 }
 
 function _fpr() {
+
   readonly openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
   export   openpgp4fpr
+
+  if is_cmd qrencode; then
+
+    uri="openpgp4fpr:${openpgp4fpr}"
+
+    qrencode -t ansi          "${uri}"
+#   qrencode -t svg -o ".fpr" "${uri}"
+
+  fi
+
 }
 
 function _home() {

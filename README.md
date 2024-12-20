@@ -11,7 +11,7 @@
 
 ### links
 
-[wiki.0](https://wiki.0)<br>
+[doc.0](https://doc.0)<br>
 [github.com](.)
 
 ### licence

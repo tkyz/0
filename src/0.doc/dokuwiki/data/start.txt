@@ -11,7 +11,7 @@
 
 ===== link =====
 
-[[https://wiki.0|wiki.0]]
+[[https://doc.0|doc.0]]
 [[https://github.com/tkyz/0.git|github.com]]
 
 ===== licence =====

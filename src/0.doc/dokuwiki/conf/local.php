@@ -1,5 +1,5 @@
 <?php
-$conf['title'] = '0.wiki';
+$conf['title'] = '0.doc';
 $conf['lang'] = 'ja';
 $conf['template'] = 'bootstrap3';
 $conf['license'] = '';

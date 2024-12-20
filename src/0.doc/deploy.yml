@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   namespace: "0"
-  name: wiki
+  name: doc
 data:
   default.conf: |
     server {
@@ -40,23 +40,23 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: "0"
-  name: wiki
+  name: doc
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: wiki
+      app: doc
   template:
     metadata:
       labels:
-        app: wiki
+        app: doc
     spec:
       volumes:
-        - {name: nginx-volume,    configMap: {name: wiki}}
-        - {name: dokuwiki-volume, hostPath:  {path: /mnt/0.wiki/dokuwiki, type: Directory}}
-        - {name: github-volume,   hostPath:  {path: /mnt/com.github,      type: Directory}}
-        - {name: gitlab-volume,   hostPath:  {path: /mnt/com.gitlab,      type: Directory}}
-        - {name: tmp-volume,      hostPath:  {path: /root/tmp,            type: Directory}}
+        - {name: nginx-volume,    configMap: {name: doc}}
+        - {name: dokuwiki-volume, hostPath:  {path: /mnt/0.doc/dokuwiki, type: Directory}}
+        - {name: pub-volume,      hostPath:  {path: /mnt/0.pub,          type: Directory}}
+        - {name: github-volume,   hostPath:  {path: /mnt/com.github,     type: Directory}}
+        - {name: gitlab-volume,   hostPath:  {path: /mnt/com.gitlab,     type: Directory}}
       containers:
         - name: phpfpm
           image: container.0/net.php/fpm:${context}
@@ -77,8 +77,8 @@ spec:
             - {name: dokuwiki-volume, subPath: conf,                                    mountPath: /usr/share/nginx/html/conf}
             - {name: dokuwiki-volume, subPath: data,                                    mountPath: /usr/share/nginx/html/data/pages}
             - {name: dokuwiki-volume, subPath: data,                                    mountPath: /usr/share/nginx/html/data/media}
-            - {name: tmp-volume,                                                        mountPath: /usr/share/nginx/html/data/pages/tmp}
-            - {name: tmp-volume,                                                        mountPath: /usr/share/nginx/html/data/media/tmp}
+            - {name: pub-volume,                                                        mountPath: /usr/share/nginx/html/data/pages/0.pub}
+            - {name: pub-volume,                                                        mountPath: /usr/share/nginx/html/data/media/0.pub}
           command: [/bin/sh, -c]
           args:
             - |
@@ -100,11 +100,11 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: "0"
-  name: wiki
+  name: doc
 spec:
   type: LoadBalancer
   selector:
-    app: wiki
+    app: doc
   ports:
     - {protocol: TCP, port: 80}
 
@@ -113,26 +113,26 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   namespace: "0"
-  name: wiki
+  name: doc
 spec:
   rules:
-    - host: wiki.0
+    - host: doc.0
       http:
         paths:
           - pathType: Prefix
             path: /
             backend:
               service:
-                name: wiki
+                name: doc
                 port:
                   number: 80
-    - host: wiki.${tld}
+    - host: doc.${tld}
       http:
         paths:
           - pathType: Prefix
             path: /
             backend:
               service:
-                name: wiki
+                name: doc
                 port:
                   number: 80
