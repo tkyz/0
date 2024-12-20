@@ -106,6 +106,7 @@ readonly setup_yml="$(cat << 'EOS'
     - 0.apt
     - 0.mvn
     - 0.wiki
+    - 0.pub
     - 0.minecraft
     - 0.btc
     - 0.eth

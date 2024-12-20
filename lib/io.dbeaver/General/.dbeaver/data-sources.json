@@ -6,7 +6,7 @@
 		"mariaDB-18e04db387c-3b1e0fa34be497ba": {
 			"provider": "mysql",
 			"driver": "mariaDB",
-			"name": "jdbc:mariadb://mariadb.0:3306/ ",
+			"name": "jdbc:mariadb://mariadb.0:3306/",
 			"save-password": true,
 			"folder": "0",
 			"configuration": {
@@ -21,7 +21,7 @@
 		"postgres-jdbc-18e04db4029-51a72a848ca0b79c": {
 			"provider": "postgresql",
 			"driver": "postgres-jdbc",
-			"name": "jdbc:postgresql://pgsql.0:5432/ ",
+			"name": "jdbc:postgresql://pgsql.0:5432/",
 			"save-password": true,
 			"folder": "0",
 			"configuration": {

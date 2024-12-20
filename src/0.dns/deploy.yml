@@ -13,8 +13,8 @@ data:
       hosts {
         ${external_ip}       dns.0       dns.${tld}
         ${external_ip}       ntp.0       ntp.${tld}
-        ${external_ip} container.0 container.${tld}
         ${external_ip}       git.0       git.${tld}
+        ${external_ip} container.0 container.${tld}
         ${external_ip}       apt.0       apt.${tld}
         ${external_ip}       mvn.0       mvn.${tld}
         ${external_ip}     pgsql.0     pgsql.${tld}
@@ -22,6 +22,7 @@ data:
         ${external_ip}   mariadb.0   mariadb.${tld}
         ${external_ip}     redis.0     redis.${tld}
         ${external_ip}      wiki.0      wiki.${tld}
+        ${external_ip}       pub.0       pub.${tld}
         fallthrough
       }
       forward . ${resolve}
