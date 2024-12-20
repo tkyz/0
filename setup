@@ -977,8 +977,9 @@ function main() {
 
       else
         _fpr
-        _umnt
         kind delete clusters --all
+        _umnt
+        _clean
       fi
 
       timestamp_ed="$(date --utc "+%Y-%m-%d %H:%M:%S")"

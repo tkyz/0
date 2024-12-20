@@ -33,23 +33,30 @@ nodes:
 #     - {hostPort:  6969, containerPort:  6969, listenAddress: "${external_ip}", protocol: TCP} # bittorrent tracker
 #     - {hostPort:  8020, containerPort:  8020, listenAddress: "${external_ip}", protocol: TCP} # hdfs
 #     - {hostPort:  8080, containerPort:  8080, listenAddress: "${external_ip}", protocol: TCP}
+      - {hostPort:  8333, containerPort:  8333, listenAddress: "${external_ip}", protocol: TCP} # bitcoin
 #     - {hostPort:  8443, containerPort:  8443, listenAddress: "${external_ip}", protocol: TCP}
       - {hostPort:  9418, containerPort:  9418, listenAddress: "${external_ip}", protocol: TCP} # git
+      - {hostPort: 25565, containerPort: 25565, listenAddress: "${external_ip}", protocol: TCP} # minecraft
+      - {hostPort: 30303, containerPort: 30303, listenAddress: "${external_ip}", protocol: TCP} # ethereum
 
   - role: worker
     extraMounts:
       - {hostPath: "${HOME}/.profile",           containerPath: /root/.profile,      readOnly: true}
       - {hostPath: "${HOME}/.bashrc",            containerPath: /root/.bashrc,       readOnly: true}
       - {hostPath: "${HOME}/tmp",                containerPath: /root/tmp}
-#     - {hostPath: "${HOME}/lib/0.bigtop",       containerPath: /mnt/0.bigtop}
-      - {hostPath: "${HOME}/lib/0.container",    containerPath: /mnt/0.container}
       - {hostPath: "${HOME}/lib/0.pgsql",        containerPath: /mnt/0.pgsql}
       - {hostPath: "${HOME}/lib/0.mariadb",      containerPath: /mnt/0.mysql}
       - {hostPath: "${HOME}/lib/0.redis",        containerPath: /mnt/0.redis}
       - {hostPath: "${HOME}/lib/0.git",          containerPath: /mnt/0.git,          readOnly: true}
+      - {hostPath: "${HOME}/lib/0.container",    containerPath: /mnt/0.container}
       - {hostPath: "${HOME}/lib/0.mvn",          containerPath: /mnt/0.mvn}
       - {hostPath: "${HOME}/lib/0.apt",          containerPath: /mnt/0.apt}
       - {hostPath: "${HOME}/src/0.wiki",         containerPath: /mnt/0.wiki}
+      - {hostPath: "${HOME}/tmp",                containerPath: /mnt/0.pub}
+      - {hostPath: "${HOME}/lib/0.minecraft",    containerPath: /mnt/0.minecraft}
+      - {hostPath: "${HOME}/lib/0.btc",          containerPath: /mnt/0.btc}
+      - {hostPath: "${HOME}/lib/0.eth",          containerPath: /mnt/0.eth}
+      - {hostPath: "${HOME}/lib/0.ltc",          containerPath: /mnt/0.ltc}
       - {hostPath: "${HOME}/lib/co.huggingface", containerPath: /mnt/co.huggingface, readOnly: true}
       - {hostPath: "${HOME}/src/com.github",     containerPath: /mnt/com.github}
       - {hostPath: "${HOME}/src/com.gitlab",     containerPath: /mnt/com.gitlab}
