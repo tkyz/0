@@ -776,14 +776,11 @@ function _build() {
   fi
 
   (
+    find ./src -name Makefile -or -name pom.xml -or -name build.xml -or -name Dockerfile | while read item; do
 
-    opts=()
-#   opts+=('--pull')
-#   opts+=('--no-cache')
+      type="${item##*/}"
+      name="$(echo "${item}" | sed -r 's|^\./src/(.*)/[^/]+$|\1|g')"
 
-    find ./src -name Dockerfile | while read item; do
-
-      name="$(echo "${item}" | sed -r 's|^\./src/(.*)/Dockerfile|\1|g')"
       if [[ "${name}" =~ ^com.github/ ]]; then
         continue
       fi
@@ -799,10 +796,22 @@ function _build() {
         echo ---
         pwd
 
-        image="container.0/${name}:${context}"
+        if [[ 'Dockerfile' == "${type}" ]]; then
 
-        podman build "${opts[@]}" --tag "${image}" .
-#       podman push --tls-verify=false "${image}" || true
+          image="container.0/${name}:${context}"
+
+          if [[ -z "$(podman images --noheading "${image}")" ]]; then
+
+            opts=()
+            opts+=('--pull')
+            opts+=('--no-cache')
+
+            podman build "${opts[@]}" --tag "${image}" .
+#           podman push --tls-verify=false "${image}" || true
+
+          fi
+
+        fi
 
       popd &> /dev/null
 
@@ -920,14 +929,14 @@ function _clean() {
   ${SUDO} apt-get clean
 
   if is_cmd podman; then
-    podman system  prune --force
-    podman volume  prune --force
-    podman network prune --force
+    podman system  prune --force || true
+    podman volume  prune --force || true
+    podman network prune --force || true
   fi
   if is_cmd docker; then
-    docker system  prune --force
-    docker volume  prune --force
-    docker network prune --force
+    docker system  prune --force || true
+    docker volume  prune --force || true
+    docker network prune --force || true
   fi
   if is_cmd pip3; then
     pip3 cache purge
