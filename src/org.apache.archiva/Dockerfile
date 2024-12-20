@@ -8,7 +8,7 @@ RUN \
   mv "apache-archiva-${ARCHIVA_VERSION}" '/org.apache.archiva'
 
 #----------------------------------------------------------------
-FROM openjdk:8-jre-slim-bullseye
+FROM openjdk:8-jre-slim
 
 COPY --from=downloader \
   /org.apache.archiva \
