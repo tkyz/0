@@ -3,37 +3,37 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   namespace: "0"
-  name: btc
+  name: eth
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: btc
+      app: eth
   template:
     metadata:
       labels:
-        app: btc
+        app: eth
     spec:
       volumes:
-        - {name: data-volume, hostPath: {path: /mnt/0.btc, type: Directory}}
+        - {name: data-volume, hostPath: {path: /mnt/0.eth, type: Directory}}
       containers:
-        - name: btc
-          image: container.0/org.bitcoin:${context}
+        - name: eth
+          image: container.0/org.ethereum:${context}
           imagePullPolicy: IfNotPresent
           ports:
-            - {protocol: TCP, containerPort: 8333}
+            - {protocol: TCP, containerPort: 30303}
           volumeMounts:
-            - {name: data-volume, mountPath: /root/.bitcoin}
+            - {name: data-volume, mountPath: /root/.ethereum}
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   namespace: "0"
-  name: btc
+  name: eth
 spec:
   type: LoadBalancer
   selector:
-    app: btc
+    app: eth
   ports:
-    - {protocol: TCP, port: 8333, nodePort: 8333}
+    - {protocol: TCP, port: 30303, nodePort: 30303}
