@@ -368,6 +368,12 @@ function _home() {
 
 }
 
+function _chmod() {
+  chmod    go-rwx '.'        &> /dev/null || true
+  chmod -R go-rwx './.gnupg' &> /dev/null || true
+  chmod -R go-rwx './.ssh'   &> /dev/null || true
+}
+
 function _apt_ext() {
 
   (
@@ -774,12 +780,6 @@ function _opt() {
 
 }
 
-function _chmod() {
-  chmod    go-rwx '.'        &> /dev/null || true
-  chmod -R go-rwx './.gnupg' &> /dev/null || true
-  chmod -R go-rwx './.ssh'   &> /dev/null || true
-}
-
 function _build() {
 
   if is_container; then
@@ -975,13 +975,13 @@ function main() {
         _gpg
         _fpr
         _home
+        _chmod
         _apt_ext
         _mnt
         _venv
         _src
         _lib
         _opt
-        _chmod
         _build
         _k8s
         _clean
