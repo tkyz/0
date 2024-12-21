@@ -343,7 +343,6 @@ function _home() {
   git config --global pull.ff            only
   git config --global pull.rebase        true
   git config --global diff.sjis.textconv 'iconv -f sjis'
-  git config --global alias.graph        'log --all --graph --pretty=format:"<%H> %ad [%an] %cd [%cn] %G? %Cgreen%d%Creset %s" --date=short --date-order'
   git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
 # git config --global user.name          "${USER:-}"
 # git config --global user.email         "${USER:-}@$(hostname -f)"
