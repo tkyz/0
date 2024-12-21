@@ -883,16 +883,20 @@ function _k8s() {
       kubectl config set-context     "kind-${cluster_name}"
       kubectl cluster-info --context "kind-${cluster_name}"
 
-      # loadbalancer
       kubectl get configmap kube-proxy --namespace kube-system --output yaml | sed 's/strictARP: false/strictARP: true/' | kubectl apply -f -
+
+      # loadbalancer
+#     cat  './src/com.github/metallb/metallb/config/manifests/metallb-native.yaml'                          | kubectl apply -f -
       curl 'https://raw.githubusercontent.com/metallb/metallb/v0.14.8/config/manifests/metallb-native.yaml' | kubectl apply -f -
       kubectl wait pod --namespace metallb-system --for condition=ready --selector component=controller --timeout 60s
 
       # ingress
+#     cat  './src/com.github/kubernetes/ingress-nginx/deploy/static/provider/kind/deploy.yaml'                                     | kubectl apply -f -
       curl 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.11.3/deploy/static/provider/kind/deploy.yaml' | kubectl apply -f -
       kubectl wait pod --namespace ingress-nginx --for condition=ready --selector app.kubernetes.io/component=controller --timeout 60s
 
       # dashboard
+#     cat  './src/com.github/kubernetes/dashboard/aio/deploy/recommended.yaml'                         | kubectl apply -f -
       curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
 
     fi
