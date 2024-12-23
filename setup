@@ -125,6 +125,10 @@ function is_cmd() {
   ${SUDO} bash -c "type '${1}'"
 } &> /dev/null
 
+function is_func() {
+  test 'function' == "$(type -t "${1}" || true)"
+} &> /dev/null
+
 function is_deb() {
 # test 'debian' == "${ID_LIKE}" ||
   test 'debian' == "${ID}"
@@ -973,7 +977,8 @@ function main() {
 
       timestamp_st="$(date --utc "+%Y-%m-%d %H:%M:%S")"
 
-      if [[ 'start' == "${1:-start}" ]]; then
+      arg1="${1:-.}"; shift || true
+      if [[ '.' == "${arg1}" ]]; then
         _etc
         _apt
         _gpg
@@ -990,11 +995,22 @@ function main() {
         _k8s
         _clean
 
-      else
+      elif [[ '-' == "${arg1}" ]]; then
         _fpr
         kind delete clusters --all
         _umnt
         _clean
+
+      else
+        _fpr
+        if ! is_func 'deactivate'; then
+          source './.venv/bin/activate'
+        fi
+        if is_func "_${arg1}"; then
+          "_${arg1}" "${@}"
+        elif is_cmd "${arg1}"; then
+          "${arg1}" "${@}"
+        fi
       fi
 
       timestamp_ed="$(date --utc "+%Y-%m-%d %H:%M:%S")"
