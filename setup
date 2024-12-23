@@ -325,6 +325,7 @@ function _fpr() {
 
     uri="openpgp4fpr:${openpgp4fpr}"
 
+    echo "${uri}"
     qrencode -t ansi          "${uri}"
 #   qrencode -t svg -o ".fpr" "${uri}"
 
@@ -977,8 +978,17 @@ function main() {
 
       timestamp_st="$(date --utc "+%Y-%m-%d %H:%M:%S")"
 
-      arg1="${1:-.}"; shift || true
+      if [[ "${PWD}/bin/fpr" == "${BASH_SOURCE}" ]]; then
+        arg1="${1:-.}"
+      else
+        arg1="${1:-setup}"
+      fi
+      shift || true
+
       if [[ '.' == "${arg1}" ]]; then
+        _fpr
+
+      elif [[ 'setup' == "${arg1}" ]]; then
         _etc
         _apt
         _gpg
@@ -1006,10 +1016,13 @@ function main() {
         if ! is_func 'deactivate'; then
           source './.venv/bin/activate'
         fi
+        # cat /dev/stdin | gpg --encrypt | ... | gpg --decrypt > /dev/stdout
         if is_func "_${arg1}"; then
           "_${arg1}" "${@}"
         elif is_cmd "${arg1}"; then
           "${arg1}" "${@}"
+        else
+          false
         fi
       fi
 
