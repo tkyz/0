@@ -80,6 +80,7 @@ fi
 if true; then
 
   touch "${HOME}/.bash_history"
+# cat "${HOME}/.bash_history" | sort -u > "${HOME}/.bash_history.tmp"; mv "${HOME}/.bash_history.tmp" "${HOME}/.bash_history"
 
   HISTSIZE=131072
   HISTFILESIZE="${HISTSIZE}"
