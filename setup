@@ -129,6 +129,10 @@ function is_func() {
   test 'function' == "$(type -t "${1}" || true)"
 } &> /dev/null
 
+function is_fpr() {
+  test "${PWD}/bin/fpr" == "${BASH_SOURCE:-}"
+} &> /dev/null
+
 function is_deb() {
 # test 'debian' == "${ID_LIKE}" ||
   test 'debian' == "${ID}"
@@ -978,17 +982,7 @@ function main() {
 
       timestamp_st="$(date --utc "+%Y-%m-%d %H:%M:%S")"
 
-      if [[ "${PWD}/bin/fpr" == "${BASH_SOURCE}" ]]; then
-        arg1="${1:-.}"
-      else
-        arg1="${1:-setup}"
-      fi
-      shift || true
-
-      if [[ '.' == "${arg1}" ]]; then
-        _fpr
-
-      elif [[ 'setup' == "${arg1}" ]]; then
+      if ! is_fpr; then
         _etc
         _apt
         _gpg
@@ -1005,25 +999,35 @@ function main() {
         _k8s
         _clean
 
-      elif [[ '-' == "${arg1}" ]]; then
-        _fpr
-        kind delete clusters --all
-        _umnt
-        _clean
-
       else
+
+        arg1="${1:-.}"
+        shift || true
+
         _fpr
+
         if ! is_func 'deactivate'; then
           source './.venv/bin/activate'
         fi
-        # cat /dev/stdin | gpg --encrypt | ... | gpg --decrypt > /dev/stdout
-        if is_func "_${arg1}"; then
+
+        if [[ '.' == "${arg1}" ]]; then
+          true
+
+        elif [[ '-' == "${arg1}" ]]; then
+          kind delete clusters --all
+          _umnt
+          _clean
+
+        elif is_func "_${arg1}"; then
           "_${arg1}" "${@}"
-        elif is_cmd "${arg1}"; then
+
+        elif is_cmd "${arg1}" || type -f "${arg1}" &> /dev/null; then
           "${arg1}" "${@}"
+
         else
           false
         fi
+
       fi
 
       timestamp_ed="$(date --utc "+%Y-%m-%d %H:%M:%S")"
