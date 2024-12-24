@@ -96,28 +96,26 @@ fi
 # alias
 if true; then
 
-  alias ..='cd ..'
+  # wrap
   alias ls='ls -1v --color=auto --show-control-chars --full-time '
-  alias la='ls -a '
-  alias ll='la -lF '
-
   alias cp='cp -v '
   alias mv='mv -v '
   alias rm='rm -v '
-
+  alias lsblk='lsblk --fs --paths '
   alias grep=' grep  --color=auto --line-buffered '
   alias egrep='egrep --color=auto --line-buffered '
   alias fgrep='fgrep --color=auto --line-buffered '
+  alias diff=' diff  --color=auto '
+  alias curl=' curl -fsSL '
 
+  alias ..='cd ..'
+  alias la='ls -a '
+  alias ll='la -lF '
   alias gs='git status '
   alias vi='vim '
-
   alias timestamp='date --utc "+%Y%m%d_%H%M%S_%N" '
-
   alias clipcopy=' xsel --clipboard --input '
   alias clippaste='xsel --clipboard --output '
-
-  alias diff='diff --color=auto '
 
 fi
 
