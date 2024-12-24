@@ -31,10 +31,15 @@
 
 # ${HOME}
 /.*
+/doc/*.png
 /lib/
 /mnt/
 /opt/
 /sbin
+/src/**/.settings/
+/src/**/.classpath
+/src/**/.project
+/src/**/target/
 /src/com.github/
 /src/com.gitlab/
 /src/org.golang/
@@ -80,14 +85,7 @@
 *.tmp
 *.temp
 
-/src/**/.settings/
-/src/**/.classpath
-/src/**/.project
-/src/**/target/
-
-/src/0.openpgp4fpr/*/enc/gocryptfs.conf
-/src/0.openpgp4fpr/*/gpw/*-*
-/src/0.openpgp4fpr/*/*.key
+gocryptfs.conf
 
 /.sudo_as_admin_successful
 /snap/

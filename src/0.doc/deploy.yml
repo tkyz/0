@@ -54,7 +54,6 @@ spec:
       volumes:
         - {name: nginx-volume,    configMap: {name: doc}}
         - {name: dokuwiki-volume, hostPath:  {path: /mnt/0.doc/dokuwiki, type: Directory}}
-        - {name: pub-volume,      hostPath:  {path: /mnt/0.pub,          type: Directory}}
         - {name: github-volume,   hostPath:  {path: /mnt/com.github,     type: Directory}}
         - {name: gitlab-volume,   hostPath:  {path: /mnt/com.gitlab,     type: Directory}}
       containers:
@@ -77,8 +76,6 @@ spec:
             - {name: dokuwiki-volume, subPath: conf,                                    mountPath: /usr/share/nginx/html/conf}
             - {name: dokuwiki-volume, subPath: data,                                    mountPath: /usr/share/nginx/html/data/pages}
             - {name: dokuwiki-volume, subPath: data,                                    mountPath: /usr/share/nginx/html/data/media}
-            - {name: pub-volume,                                                        mountPath: /usr/share/nginx/html/data/pages/0.pub}
-            - {name: pub-volume,                                                        mountPath: /usr/share/nginx/html/data/media/0.pub}
           command: [/bin/sh, -c]
           args:
             - |

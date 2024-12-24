@@ -40,22 +40,24 @@ source /etc/os-release
 test 'debian' == "${ID_LIKE:-${ID}}"
 test 'bash'   == "${SHELL##*/}"
 
-readonly DEBIAN_FRONTEND=noninteractive
-export DEBIAN_FRONTEND
-
-readonly arch="$(dpkg --print-architecture)"
-
 # sudo
 if [[ 0 == "$(id -u)" ]]; then
   readonly SUDO=
-elif sudo -n -v > /dev/null; then
+elif type sudo &> /dev/null && sudo -v -n > /dev/null; then
   readonly SUDO=sudo
 else
+  sudo -k
   false
 fi
 
-readonly context='latest'
+readonly arch="$(dpkg --print-architecture)"
+readonly DEBIAN_FRONTEND=noninteractive
+export   DEBIAN_FRONTEND
 
+readonly context='latest'
+readonly external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | sort | head -n 1)"
+readonly resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
+readonly tld="$(cat "${HOME}/.tld" 2> /dev/null || hostname -d)"
 readonly setup_yml="$(cat << EOS
 0:
 
@@ -130,7 +132,8 @@ function is_func() {
 } &> /dev/null
 
 function is_fpr() {
-  test "${PWD}/bin/fpr" == "${BASH_SOURCE:-}"
+# test '/usr/local/bin/fpr' == "${BASH_SOURCE:-}" ||
+  test "${PWD}/bin/fpr"     == "${BASH_SOURCE:-}"
 } &> /dev/null
 
 function is_deb() {
@@ -320,21 +323,34 @@ function _gpg() {
   )
 }
 
+function _chmod() {
+  chmod    go-rwx '.'        &> /dev/null || true
+  chmod -R go-rwx './.gnupg' &> /dev/null || true
+  chmod -R go-rwx './.ssh'   &> /dev/null || true
+}
+
 function _fpr() {
+  if unset openpgp4fpr &> /dev/null; then
 
-  readonly openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
-  export   openpgp4fpr
+    openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
 
-  if is_cmd qrencode; then
+    readonly openpgp4fpr
+    export   openpgp4fpr
 
-    uri="openpgp4fpr:${openpgp4fpr}"
+    (
+      if is_cmd qrencode; then
 
-    echo "${uri}"
-    qrencode -t ansi          "${uri}"
-#   qrencode -t svg -o ".fpr" "${uri}"
+        uri="openpgp4fpr:${openpgp4fpr}"
+
+        echo ---
+        echo "${uri}"
+        qrencode -t ansi          "${uri}"
+#       qrencode -t svg -o ".fpr" "${uri}"
+
+      fi
+    )
 
   fi
-
 }
 
 function _home() {
@@ -378,12 +394,6 @@ function _home() {
 
   # TODO: merge
 
-}
-
-function _chmod() {
-  chmod    go-rwx '.'        &> /dev/null || true
-  chmod -R go-rwx './.gnupg' &> /dev/null || true
-  chmod -R go-rwx './.ssh'   &> /dev/null || true
 }
 
 function _apt_ext() {
@@ -868,10 +878,6 @@ function _k8s() {
 
     cluster_name="${openpgp4fpr,,}"
 
-    external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | sort | head -n 1)"
-    resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
-    tld="$(hostname -d)"
-
     export KIND_EXPERIMENTAL_PROVIDER=podman
 
     # cluster
@@ -952,6 +958,35 @@ function _k8s() {
 
 }
 
+function _dev() {
+
+  (
+
+    url="http://doc.${tld}/"
+
+    # doc
+    if is_cmd qrencode; then
+      echo ---
+      echo "${url}"
+      qrencode -t ansi                    "${url}"
+      qrencode -t png -o './doc/logo.png' "${url}"
+    fi
+
+    # ide
+#   code    &> /dev/null &
+#   eclipse &> /dev/null &
+#   dbeaver &> /dev/null &
+
+    # browse
+    if is_cmd firefox; then
+      firefox --new-instance --profile "$(mktemp -d)" --private-window "${url}" &> /dev/null &
+    fi
+#   google-chrome &
+
+  )
+
+}
+
 function _clean() {
 
   ${SUDO} apt-get autoremove -y
@@ -980,15 +1015,27 @@ function main() {
   (
     pushd "${HOME}" &> /dev/null
 
-      timestamp_st="$(date --utc "+%Y-%m-%d %H:%M:%S")"
-
       if ! is_fpr; then
+        arg1='setup'
+      else
+        arg1="${1:-}"
+        shift || true
+      fi
+
+      if ! is_func 'deactivate' && [[ -f './.venv/bin/activate' ]]; then
+        source './.venv/bin/activate'
+      fi
+
+      if [[ -z "${arg1}" ]]; then
+        _fpr
+
+      elif [[ 'setup' == "${arg1}" ]]; then
         _etc
         _apt
         _gpg
+        _chmod
         _fpr
         _home
-        _chmod
         _apt_ext
         _mnt
         _venv
@@ -999,40 +1046,23 @@ function main() {
         _k8s
         _clean
 
-      else
-
-        arg1="${1:-.}"
-        shift || true
-
+      elif [[ '-' == "${arg1}" ]]; then
         _fpr
+        kind delete clusters --all
+        _umnt
+        _clean
 
-        if ! is_func 'deactivate'; then
-          source './.venv/bin/activate'
-        fi
+      elif is_func "_${arg1}"; then
+        _fpr
+        "_${arg1}" "${@}"
 
-        if [[ '.' == "${arg1}" ]]; then
-          true
+      elif is_cmd "${arg1}" && [[ 'file' == "$(type -t "${arg1}")" ]]; then
+        _fpr
+        "${arg1}" "${@}"
 
-        elif [[ '-' == "${arg1}" ]]; then
-          kind delete clusters --all
-          _umnt
-          _clean
-
-        elif is_func "_${arg1}"; then
-          "_${arg1}" "${@}"
-
-        elif is_cmd "${arg1}" || type -f "${arg1}" &> /dev/null; then
-          "${arg1}" "${@}"
-
-        else
-          false
-        fi
-
+      else
+        false
       fi
-
-      timestamp_ed="$(date --utc "+%Y-%m-%d %H:%M:%S")"
-      echo "start: ${timestamp_st}"
-      echo "end:   ${timestamp_ed}"
 
     popd &> /dev/null
   )
