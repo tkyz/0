@@ -83,7 +83,7 @@ if true; then
 
   HISTSIZE=131072
   HISTFILESIZE="${HISTSIZE}"
-  HISTCONTROL=ignoreboth
+  HISTCONTROL=ignorespace:erasedups
   HISTIGNORE='pwd:top:htop:history:history *:bg:bg *:fg:fg *:cd *:ls:ls *:la:la *:ll:ll *:fpr:fpr *'
 # HISTTIMEFORMAT='%F %T '
 
