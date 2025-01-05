@@ -1,5 +1,6 @@
 package _0.playground.sshd;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.security.PublicKey;
 
@@ -18,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import _0.playground.core._0;
 
-public class Sshd implements PublickeyAuthenticator, PasswordAuthenticator, AutoCloseable {
+public class Sshd implements PublickeyAuthenticator, PasswordAuthenticator, Closeable {
 
 	private static final Logger log = LoggerFactory.getLogger(Sshd.class);
 

@@ -1103,7 +1103,7 @@ function main() {
         _fpr
         "${arg1}" "${@}"
 
-      elif false && is_cmd java; then
+      elif is_cmd java; then
         _fpr
         java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
 
