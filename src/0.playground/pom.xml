@@ -30,7 +30,6 @@
   <modules>
     <module>core</module>
     <module>jdbc</module>
-    <module>sshd</module>
     <module>main</module>
   </modules>
 

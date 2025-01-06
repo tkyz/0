@@ -1312,12 +1312,7 @@ public final class _0 {
 	}
 
 	@SuppressWarnings("unchecked")
-	public static final Map<String, Object> merge(final Map<String, Object> origin, final Map<String, Object> merge) {
-		return (Map<String, Object>)merge((Object)origin, (Object)merge);
-	}
-
-	@SuppressWarnings("unchecked")
-	private static final Object merge(final Object origin, final Object merge) {
+	public static final Object merge(final Object origin, final Object merge) {
 
 		Object ret = null;
 
