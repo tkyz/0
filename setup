@@ -63,7 +63,6 @@ readonly tld="$(cat "${HOME}/.tld" 2> /dev/null || hostname -d)"
 readonly setup_yml="$(cat << EOS
 0:
 
-  # TODO: checksum
   opt:
     # https://kind.sigs.k8s.io/docs/user/quick-start/#installing-from-release-binaries
     io.k8s.sigs.kind:
@@ -334,28 +333,33 @@ function _fpr() {
       sed -i -r -e "s/^(default-key).*/\1       0x${openpgp4fpr}/g" "${gpg_conf}"
       sed -i -r -e "s/^(default-recipient).*/\1 0x${openpgp4fpr}/g" "${gpg_conf}"
 
-      license
-
       # fpr
       fpr_list | while read fpr; do
-
-        uri="openpgp4fpr:${fpr}"
-        echo "${uri}"
 
         fpr_dir="./src/0.fpr/${fpr}"
         gpg_pub="${fpr_dir}/pub"
 
         mkdir -p "${fpr_dir}"
-        test -v gpg_key && gpg --with-colons --list-secret-keys "0x${fpr}" &> /dev/null && gpg --export-secret-keys         --output "${gpg_key}" --yes "0x${fpr}"
-        test -v gpg_pub && gpg --with-colons --list-keys        "0x${fpr}" &> /dev/null && gpg --export             --armor --output "${gpg_pub}" --yes "0x${fpr}"
-        test -v gpg_key && test -f "${gpg_key}"                                         && gpg --import "${gpg_key}"
-        test -v gpg_pub && test -f "${gpg_pub}"                                         && gpg --import "${gpg_pub}"
-
-        if [[ "${openpgp4fpr}" == "${fpr}" ]] && is_cmd qrencode; then
-          echo -n "${uri}" | qrencode -t ansi
-        fi
+        test -v gpg_key && gpg --with-colons --list-secret-keys "0x${fpr}" &> /dev/null && gpg --export-secret-keys         --output "${gpg_key}" --yes "0x${fpr}" || true
+        test -v gpg_pub && gpg --with-colons --list-keys        "0x${fpr}" &> /dev/null && gpg --export             --armor --output "${gpg_pub}" --yes "0x${fpr}" || true
+        test -v gpg_key && test -f "${gpg_key}"                                         && gpg --import "${gpg_key}"                                               || true
+        test -v gpg_pub && test -f "${gpg_pub}"                                         && gpg --import "${gpg_pub}"                                               || true
 
       done
+
+      fpr_uri="openpgp4fpr:${openpgp4fpr}"
+      doc_dir='./doc'
+      doc_uri="http://doc.${tld}/"
+
+      echo "${fpr_uri}"
+      if is_cmd qrencode; then
+        mkdir -p "${doc_dir}"
+        echo -n "${fpr_uri}"                    | qrencode -t ansi
+        gpg --export --armor "0x${openpgp4fpr}" | qrencode -t png -o "${doc_dir}/pub.png"
+        echo -n "${doc_uri}"                    | qrencode -t png -o "${doc_dir}/logo.png"
+      fi
+
+      license
 
       chmod    go-rwx '.'        &> /dev/null || true
       chmod -R go-rwx './.gnupg' &> /dev/null || true
@@ -392,8 +396,7 @@ function _home() {
 # git config --global user.email         "${USER:-}@$(hostname -f)"
   git config --global user.signingkey    "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
 
-  # TODO: --object-format=sha256
-  git init
+  git init # --object-format=sha256
 
   git config --local core.hooksPath '.git-hooks'
 
@@ -407,7 +410,7 @@ function _home() {
   git fetch --all --prune || true
   git remote set-head 'public' 'main'
 
-  # TODO: merge
+  # merge...
 
 }
 
@@ -444,7 +447,7 @@ function _apt_ext() {
     echo 'deb [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)       /'                                   | ${SUDO} tee    /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
 #   echo 'deb [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/experimental/deb/$(ARCH) /'                                   | ${SUDO} tee -a /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
 #   echo "deb [signed-by=/etc/apt/keyrings/com.nordvpn.gpg                           ] https://repo.nordvpn.com/deb/nordvpn/${ID}                            stable                      main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.nordvpn.list               > /dev/null
-#   echo "deb [signed-by=/etc/apt/keyrings/org.apache.bigtop.gpg                     ] http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH)       bigtop                      contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.apache.bigtop.list         > /dev/null # TODO: debian 12
+#   echo "deb [signed-by=/etc/apt/keyrings/org.apache.bigtop.gpg                     ] http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH)       bigtop                      contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.apache.bigtop.list         > /dev/null # ${VERSION_ID}
 #   echo "deb [signed-by=/etc/apt/keyrings/com.docker.download.gpg       arch=${arch}] https://download.docker.com/linux/${ID}                               ${VERSION_CODENAME}         stable"  | ${SUDO} tee    /etc/apt/sources.list.d/com.docker.download.list       > /dev/null
     echo 'deb [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 cloud-sdk                   main'    | ${SUDO} tee    /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
     echo "deb [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 gcsfuse-${VERSION_CODENAME} main"    | ${SUDO} tee -a /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
@@ -606,24 +609,14 @@ function _enc() {
         "${gpw_dir}" \
         "${enc_dir}"
 
-      # gpw
       gpw_file="${gpw_dir}/${fpr}"
-      if [[ ! -f "${gpw_file}" ]]; then
-        cat /dev/urandom | tr --complement --delete '[:graph:]' | head -c 2048 | gpg --encrypt --throw-keyids > "${gpw_file}" || true
-      fi
-
-      # init
       conf_file_org="${enc_dir}/gocryptfs.conf"
       conf_file_gpg="${conf_file_org}.gpg"
-      test ! -f "${conf_file_org}" &&   test -f "${conf_file_gpg}" && cat "${conf_file_gpg}" | gpg --decrypt                > "${conf_file_org}" || true
-      if [[ ! -f "${conf_file_org}" ]]; then
-        gocryptfs \
-          -extpass 'gpg' \
-          -extpass '--decrypt' \
-          -extpass "${gpw_file}" \
-          -init    "${enc_dir}"
-      fi
-      test   -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && cat "${conf_file_org}" | gpg --encrypt --throw-keyids > "${conf_file_gpg}" || true
+
+      test ! -f "${gpw_file}"                                      && cat /dev/urandom | tr --complement --delete '[:graph:]' | head -c 2048 | gpg --encrypt --throw-keyids > "${gpw_file}"      || true
+      test ! -f "${conf_file_org}" &&   test -f "${conf_file_gpg}" && cat "${conf_file_gpg}" |                                                 gpg --decrypt                > "${conf_file_org}" || true
+      test ! -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && gocryptfs -extpass 'gpg' -extpass '--decrypt' -extpass "${gpw_file}" -init "${enc_dir}"
+      test   -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && cat "${conf_file_org}" |                                                 gpg --encrypt --throw-keyids > "${conf_file_gpg}" || true
 
     done
 
@@ -701,7 +694,7 @@ function _mnt() {
       fi
 
       mnt_opts=''
-#     mnt_opts+='file_mode=0600'
+#     mnt_opts+=',file_mode=0600'
 #     mnt_opts+=',dir_mode=0700'
 #     mnt_opts+=",uid=$(id -u)"
 #     mnt_opts+=",gid=$(id -g)"
@@ -745,6 +738,11 @@ function _umnt() {
 }
 
 function _venv() {
+
+  if is_func 'deactivate'; then
+    return
+  fi
+
   (
 
     venv_dir='./.venv'
@@ -766,6 +764,7 @@ function _venv() {
 
   )
   source './.venv/bin/activate'
+
 }
 
 function _src() {
@@ -783,7 +782,7 @@ function _src() {
 
         git fetch --all --prune
 
-        # TODO: conflict
+        # conflict
         if ! git rebase --no-autostash 2> /dev/null; then
           git status
         fi
@@ -826,14 +825,10 @@ function _opt() {
           echo ---
           pwd
 
-          if [[ 'raw' == "${type}" ]]; then
-            curl -fsSLO "${url}" 2> /dev/null
-          elif [[ 'tgz' == "${type}" ]]; then
-            curl -fsSL  "${url}" 2> /dev/null | tar    zxf - --strip-components "${depth}" --no-same-permissions --no-same-owner
-          elif [[ 'zip' == "${type}" ]]; then
-            curl -fsSL  "${url}" 2> /dev/null | bsdtar  xf - --strip-components "${depth}"
-          else
-            echo "unsupported. ${type} ${url}"
+          if   [[ 'raw' == "${type}" ]]; then curl -fsSLO "${url}" 2> /dev/null
+          elif [[ 'tgz' == "${type}" ]]; then curl -fsSL  "${url}" 2> /dev/null | tar    zxf - --strip-components "${depth}" --no-same-permissions --no-same-owner
+          elif [[ 'zip' == "${type}" ]]; then curl -fsSL  "${url}" 2> /dev/null | bsdtar  xf - --strip-components "${depth}"
+          else                                echo "unsupported. ${type} ${url}"
           fi
 
         popd &> /dev/null
@@ -855,18 +850,26 @@ function _build() {
   fi
 
   (
+
+    if ping -c 1 -W 3 'container.0' &> /dev/null; then
+      is_push=
+    fi
+
     find ./src -name Makefile -or -name pom.xml -or -name build.xml -or -name Dockerfile | while read item; do
 
       type="${item##*/}"
       name="$(echo "${item}" | sed -r 's|^\./src/(.*)/[^/]+$|\1|g')"
 
-      if [[ "${name}" =~ ^com.github/ ]]; then
+      if [[ "${name}" =~ ^com\.github/.*$ ]]; then
         continue
       fi
-      if [[ "${name}" =~ ^com.gitlab/ ]]; then
+      if [[ "${name}" =~ ^com\.gitlab/.*$ ]]; then
         continue
       fi
-      if [[ "${name}" =~ ^org.golang/ ]]; then
+      if [[ "${name}" =~ ^org\.golang/.*$ ]]; then
+        continue
+      fi
+      if [[ "${name}" =~ ^0\.playground/.*$ ]]; then
         continue
       fi
 
@@ -874,6 +877,14 @@ function _build() {
 
         echo ---
         pwd
+
+        if [[ 'pom.xml' == "${type}" ]]; then
+          mvn \
+            --define version="${context}" \
+            clean \
+            package
+#           deploy || true
+        fi
 
         if [[ 'Dockerfile' == "${type}" ]]; then
 
@@ -886,7 +897,9 @@ function _build() {
             opts+=('--no-cache')
 
             podman build "${opts[@]}" --tag "${image}" .
-#           podman push --tls-verify=false "${image}" || true
+            if [[ -v is_push ]]; then
+              podman push --tls-verify=false "${image}" || true
+            fi
 
           fi
 
@@ -895,6 +908,7 @@ function _build() {
       popd &> /dev/null
 
     done
+
   )
 
 }
@@ -962,7 +976,6 @@ function _k8s() {
         echo ---
         pwd
 
-        # TODO: ImagePullBackOff
         yq -cr '.. | objects | select(.image != null) | .image' deploy.yml | env_replace | while read image; do
 
           if [[ -z "$(podman images --noheading "${image}")" ]]; then
@@ -989,47 +1002,6 @@ function _k8s() {
 
 }
 
-function _doc() {
-  (
-
-    doc_dir='./doc'
-    doc_uri="http://doc.${tld}/"
-
-    mkdir -p "${doc_dir}"
-
-    if is_cmd qrencode; then
-      echo -n "${doc_uri}"                    | qrencode -t png -o './doc/logo.png'
-      gpg --export --armor "0x${openpgp4fpr}" | qrencode -t png -o './doc/pub.png'
-    fi
-
-    # browser
-    if is_x11; then
-      cat << EOS | python3 &
-from selenium                           import webdriver
-from selenium.webdriver.firefox.options import Options
-
-def main():
-
-  opts = Options()
-  opts.set_preference('general.useragent.override',    'Mozilla/5.0')
-  opts.set_preference('browser.cache.memory.enable',   True)
-  opts.set_preference('browser.cache.disk.enable',     False)
-  opts.set_preference('browser.tabs.animate',          False)
-  opts.set_preference('browser.panorama.animate_zoom', False)
-  opts.set_preference('geo.enabled',                   False)
-
-  driver = webdriver.Firefox(opts)
-  driver.maximize_window();
-  driver.get('${doc_uri}')
-
-if __name__ == '__main__':
-  main()
-EOS
-    fi
-
-  )
-}
-
 function _clean() {
 
   ${SUDO} apt-get autoremove -y
@@ -1051,6 +1023,34 @@ function _clean() {
 
 }
 
+function _doc() {
+
+  source './.venv/bin/activate'
+
+  cat << EOS | python3 &
+from selenium                           import webdriver
+from selenium.webdriver.firefox.options import Options
+
+def main():
+
+  opts = Options()
+  opts.set_preference('general.useragent.override',    'Mozilla/5.0')
+  opts.set_preference('browser.cache.memory.enable',   True)
+  opts.set_preference('browser.cache.disk.enable',     False)
+  opts.set_preference('browser.tabs.animate',          False)
+  opts.set_preference('browser.panorama.animate_zoom', False)
+  opts.set_preference('geo.enabled',                   False)
+
+  driver = webdriver.Firefox(opts)
+  driver.maximize_window();
+  driver.get('http://doc.${tld}/')
+
+if __name__ == '__main__':
+  main()
+EOS
+
+}
+
 #----------------------------------------------------------------
 # main
 
@@ -1065,48 +1065,39 @@ function main() {
         arg1='setup'
       fi
 
-      if ! is_func 'deactivate' && [[ -f './.venv/bin/activate' ]]; then
-        source './.venv/bin/activate'
-      fi
-
-      if [[ -z "${arg1}" ]]; then
-        _fpr
-
-      elif [[ 'setup' == "${arg1}" ]]; then
+      # required
+      if [[ 'setup' == "${arg1}" ]]; then
         _etc
         _apt
-        _fpr
+      fi
+
+      # openpgp4fpr
+      _fpr
+
+      # handle
+      if [[ -z "${arg1}" ]]; then
+        true
+
+      elif [[ 'setup' == "${arg1}" ]]; then
         _home
+
+      elif [[ 'ext' == "${arg1}" ]]; then
         _apt_ext
         _enc
-        _mnt
         _venv
         _src
         _lib
         _opt
-        _build
-        _k8s
-        _doc
         _clean
 
       elif [[ '-' == "${arg1}" ]]; then
-        _fpr
         kind delete clusters --all
         _umnt
         _clean
 
-      elif is_func "_${arg1}"; then
-        _fpr
-        "_${arg1}" "${@}"
-
-      elif false && is_cmd "_${arg1}"; then
-        _fpr
-        "${arg1}" "${@}"
-
-      elif is_cmd java; then
-        _fpr
-        java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
-
+      elif true  && is_func "_${arg1}"; then "_${arg1}" "${@}"
+      elif false && is_cmd   "${arg1}"; then  "${arg1}" "${@}"
+      elif true  && is_cmd  java;       then java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
       else
         false
       fi
