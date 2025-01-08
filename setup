@@ -373,45 +373,53 @@ function _fpr() {
 }
 
 function _home() {
+  (
 
-  git config --global init.defaultBranch main
-  git config --global core.ignorecase    false
-  git config --global core.quotepath     false
-  git config --global core.autocrlf      false
-  git config --global core.safecrlf      true
-  git config --global core.filemode      true
-  git config --global gpg.program        "$(type -p gpg)"
-  git config --global commit.gpgsign     true
-  git config --global color.ui           auto
-  git config --global color.diff         auto
-  git config --global color.status       auto
-  git config --global color.branch       auto
-  git config --global rebase.autostash   true
-  git config --global merge.ff           false
-  git config --global pull.ff            only
-  git config --global pull.rebase        true
-  git config --global diff.sjis.textconv 'iconv -f sjis'
-  git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
-# git config --global user.name          "${USER:-}"
-# git config --global user.email         "${USER:-}@$(hostname -f)"
-  git config --global user.signingkey    "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+    hook_dir='.git-hooks'
 
-  git init # --object-format=sha256
+    git config --global init.defaultBranch main
+    git config --global core.ignorecase    false
+    git config --global core.quotepath     false
+    git config --global core.autocrlf      false
+    git config --global core.safecrlf      true
+    git config --global core.filemode      true
+    git config --global gpg.program        "$(type -p gpg)"
+    git config --global commit.gpgsign     true
+    git config --global color.ui           auto
+    git config --global color.diff         auto
+    git config --global color.status       auto
+    git config --global color.branch       auto
+    git config --global rebase.autostash   true
+    git config --global merge.ff           false
+    git config --global pull.ff            only
+    git config --global pull.rebase        true
+    git config --global diff.sjis.textconv 'iconv -f sjis'
+    git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+#   git config --global user.name          "${USER:-}"
+#   git config --global user.email         "${USER:-}@$(hostname -f)"
+    git config --global user.signingkey    "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
 
-  git config --local core.hooksPath '.git-hooks'
+    git init # --object-format=sha256
 
-# git_remote_set 'public'   'https://git.0/0.git'
-  git_remote_set 'public'   'https://github.com/tkyz/0.git'
-# git_remote_set 'upstream' 'ssh://git.0/0.git'
-  git_remote_set 'upstream' 'git://git.0/0.git'
-  git_remote_set 'github'   'ssh://git@github.com/tkyz/0.git'
-  git_remote_set 'origin'   "${HOME}/lib/0.git/0.git"
+    git config --local core.hooksPath "${hook_dir}"
 
-  git fetch --all --prune || true
-  git remote set-head 'public' 'main'
+#   git_remote_set 'public'   'https://git.0/0.git'
+    git_remote_set 'public'   'https://github.com/tkyz/0.git'
+#   git_remote_set 'upstream' 'ssh://git.0/0.git'
+    git_remote_set 'upstream' 'git://git.0/0.git'
+    git_remote_set 'github'   'ssh://git@github.com/tkyz/0.git'
+    git_remote_set 'origin'   "${HOME}/lib/0.git/0.git"
 
-  # merge...
+    git fetch --all --prune || true
+    git remote set-head 'public' 'main'
 
+    # merge...
+
+    if [[ ! -d "$(git remote get-url origin)/hooks" ]]; then
+      ln -fsn "../../../${hook_dir}" "$(git remote get-url origin)/hooks"
+    fi
+
+  )
 }
 
 function _apt_ext() {
@@ -1090,6 +1098,11 @@ function main() {
         _opt
         _clean
 
+      elif [[ 'ci' == "${arg1}" ]]; then
+        _build
+#       _k8s
+        _clean
+
       elif [[ '-' == "${arg1}" ]]; then
         kind delete clusters --all
         _umnt
@@ -1098,8 +1111,6 @@ function main() {
       elif true  && is_func "_${arg1}"; then "_${arg1}" "${@}"
       elif false && is_cmd   "${arg1}"; then  "${arg1}" "${@}"
       elif true  && is_cmd  java;       then java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
-      else
-        false
       fi
 
     popd &> /dev/null
