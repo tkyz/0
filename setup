@@ -1031,7 +1031,14 @@ function _clean() {
 
 }
 
+#----------------------------------------------------------------
+# ...
+
 function _doc() {
+
+  if ! is_x11; then
+    return
+  fi
 
   source './.venv/bin/activate'
 
@@ -1057,6 +1064,66 @@ if __name__ == '__main__':
   main()
 EOS
 
+}
+
+function _llm() {
+  (
+
+    source './.venv/bin/activate'
+#   python3 -m pip install --upgrade sentencepiece protobuf accelerate
+#   python3 -m pip install --upgrade diffusers invisible_watermark transformers accelerate safetensors optimum auto-gptq
+
+#   model='stabilityai/japanese-stablelm-base-beta-7b'
+#   model='stabilityai/japanese-stablelm-base-ja_vocab-beta-7b'
+#   model='stabilityai/japanese-stablelm-base-beta-70b'
+#   model='stabilityai/japanese-stablelm-instruct-beta-7b'
+    model='stabilityai/japanese-stablelm-instruct-ja_vocab-beta-7b'
+#   model='stabilityai/japanese-stablelm-instruct-beta-70b'
+
+    if [[ -p /dev/stdin ]]; then
+      prompt="$(cat /dev/stdin)"
+    else
+      prompt="$(echo "${@}")"
+    fi
+
+    cat << EOS | python3
+import torch
+from transformers import (
+  AutoTokenizer,
+  AutoModelForCausalLM
+)
+
+def main():
+
+  model_path = './lib/co.huggingface/${model}'
+
+  tokenizer = AutoTokenizer.from_pretrained(model_path)
+  model     = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16, low_cpu_mem_usage=True, device_map="auto")
+
+  input_ids = tokenizer.encode(
+    """${prompt}""",
+    add_special_tokens = True,
+    return_tensors     = "pt",
+  )
+
+# torch.manual_seed(xxx)
+
+  tokens = model.generate(
+    input_ids.to(device=model.device),
+    max_new_tokens = 4096,
+    temperature    = 0.99,
+    top_p          = 0.95,
+    do_sample      = True,
+  )
+
+  out = tokenizer.decode(tokens[0], skip_special_tokens=True)
+  print(out)
+
+if __name__ == '__main__':
+  main()
+EOS
+
+  )
 }
 
 #----------------------------------------------------------------
