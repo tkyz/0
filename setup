@@ -547,7 +547,10 @@ function _apt_ext() {
   if is_cmd ufw; then
     echo y | ${SUDO} ufw enable
     ${SUDO} ufw default deny
-#   ${SUDO} ufw allow 22
+#   ${SUDO} ufw allow                                 22
+#   ${SUDO} ufw allow from 10.0.0.0/8     to any port 22
+#   ${SUDO} ufw allow from 172.16.0.0/12  to any port 22
+#   ${SUDO} ufw allow from 192.168.0.0/16 to any port 22
     ${SUDO} ufw reload
   fi
 
@@ -863,7 +866,7 @@ function _build() {
       is_push=
     fi
 
-    find ./src -name Makefile -or -name pom.xml -or -name build.xml -or -name Dockerfile | while read item; do
+    find ./src -name Makefile -or -name pom.xml -or -name build.xml -or -name Dockerfile -or -name package.json | while read item; do
 
       type="${item##*/}"
       name="$(echo "${item}" | sed -r 's|^\./src/(.*)/[^/]+$|\1|g')"
@@ -887,11 +890,20 @@ function _build() {
         pwd
 
         if [[ 'pom.xml' == "${type}" ]]; then
+
+          MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData'
+
           mvn \
+            --threads 1C \
             --define version="${context}" \
+            --define checkstyle.skip=false \
+            --define maven.test.skip=false \
+            --define maven.javadoc.skip=false \
+            --define assembly.skipAssembly=true \
             clean \
             package
 #           deploy || true
+
         fi
 
         if [[ 'Dockerfile' == "${type}" ]]; then
@@ -1087,6 +1099,7 @@ function _llm() {
     fi
 
     cat << EOS | python3
+import os
 import torch
 from transformers import (
   AutoTokenizer,
@@ -1094,6 +1107,8 @@ from transformers import (
 )
 
 def main():
+
+  os.environ["TOKENIZERS_PARALLELISM"] = 'false'
 
   tokenizer = AutoTokenizer.from_pretrained('${model}')
   model     = AutoModelForCausalLM.from_pretrained('${model}', torch_dtype=torch.float16, low_cpu_mem_usage=True, device_map="auto")
@@ -1172,9 +1187,9 @@ function main() {
         _umnt
         _clean
 
-      elif true  && is_func "_${arg1}"; then "_${arg1}" "${@}"
-      elif false && is_cmd   "${arg1}"; then  "${arg1}" "${@}"
-      elif true  && is_cmd  java;       then java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
+      elif is_func "_${arg1}"; then "_${arg1}" "${@}"
+#     elif is_cmd   "${arg1}"; then  "${arg1}" "${@}"
+      elif is_cmd  java;       then java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
       fi
 
     popd &> /dev/null
