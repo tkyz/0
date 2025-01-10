@@ -7,8 +7,8 @@ set -o pipefail
 exit_status=0
 printf "\e[2m"
 
-  echo "---"
-  echo "gitenv:"
+  echo '---'
+  echo 'gitenv:'
   export | grep '^declare -x GIT_' | sed 's/declare -x /  - /g'
 
   echo "${0}:"
