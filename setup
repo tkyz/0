@@ -181,7 +181,7 @@ function fpr_list() {
   {
     echo "${openpgp4fpr}"
     find "./src/0.fpr" -mindepth 1 -maxdepth 1 -type d | sed 's#.*/##g' || true
-    find "./src/0.gpw" -mindepth 1 -maxdepth 1 -type f | sed 's#.*/##g' || true
+#   find "./src/0.gpw" -mindepth 1 -maxdepth 1 -type f | sed 's#.*/##g' || true
 #   gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10
     gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10
   } | grep -iE '^[0-9a-f]{40}$' | sort -u
@@ -633,9 +633,7 @@ function _enc() {
       test   -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && cat "${conf_file_org}" |                                                 gpg --encrypt --throw-keyids > "${conf_file_gpg}" || true
 
     done
-
   )
-
 }
 
 function _mnt() {
@@ -814,12 +812,12 @@ function _lib() {
 }
 
 function _opt() {
-
-  if is_container; then
-    return
-  fi
-
   (
+
+    if is_container; then
+      return
+    fi
+
     echo "${setup_yml}" | yq -cr '."0".opt | keys[]' | while read key; do
 
       opt_dir="./opt/${key}"
@@ -850,20 +848,19 @@ function _opt() {
       done
 
     done
-  )
 
+  )
 }
 
 function _build() {
-
-  if is_container; then
-    return
-  fi
-  if ! is_cmd podman; then
-    return
-  fi
-
   (
+
+    if is_container; then
+      return
+    fi
+    if ! is_cmd podman; then
+      return
+    fi
 
     if ping -c 1 -W 3 'container.0' &> /dev/null; then
       is_push=
@@ -933,31 +930,29 @@ function _build() {
     done
 
   )
-
 }
 
 function _k8s() {
-
-  if is_wsl; then
-    return
-  fi
-  if is_container; then
-    return
-  fi
-  if ! is_cmd containerd; then
-    return
-  fi
-  if ! is_cmd podman; then
-    return
-  fi
-  if ! is_cmd kubectl; then
-    return
-  fi
-  if ! is_cmd kind; then
-    return
-  fi
-
   (
+
+    if is_wsl; then
+      return
+    fi
+    if is_container; then
+      return
+    fi
+    if ! is_cmd containerd; then
+      return
+    fi
+    if ! is_cmd podman; then
+      return
+    fi
+    if ! is_cmd kubectl; then
+      return
+    fi
+    if ! is_cmd kind; then
+      return
+    fi
 
     kind delete cluster --name "${context}" || true
 
@@ -983,6 +978,31 @@ function _k8s() {
     # dashboard
 #   cat  './src/com.github/kubernetes/dashboard/aio/deploy/recommended.yaml'                         | kubectl apply -f -
     curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
+
+  )
+}
+
+function _deploy() {
+  (
+
+    if is_wsl; then
+      return
+    fi
+    if is_container; then
+      return
+    fi
+    if ! is_cmd containerd; then
+      return
+    fi
+    if ! is_cmd podman; then
+      return
+    fi
+    if ! is_cmd kubectl; then
+      return
+    fi
+    if ! is_cmd kind; then
+      return
+    fi
 
     kubectl delete namespace 0 2> /dev/null || true
     kubectl create namespace 0              || true
@@ -1022,7 +1042,6 @@ function _k8s() {
     done
 
   )
-
 }
 
 function _clean() {
@@ -1047,7 +1066,7 @@ function _clean() {
 }
 
 #----------------------------------------------------------------
-# ...
+# playground
 
 function _sandbox() {
   (
@@ -1213,8 +1232,10 @@ function main() {
         _clean
 
       elif [[ 'ci' == "${arg1}" ]]; then
-        _build
+#       _llm
 #       _k8s
+        _build
+#       _deploy
         _clean
 
       elif [[ '-' == "${arg1}" ]]; then
@@ -1222,9 +1243,10 @@ function main() {
         _umnt
         _clean
 
-      elif is_func "_${arg1}"; then "_${arg1}" "${@}"
-#     elif is_cmd   "${arg1}"; then  "${arg1}" "${@}"
-      elif is_cmd  java;       then java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
+      elif is_func "_${arg1}";                      then "_${arg1}"                     "${@}"
+      elif [[ -x "./mnt/${openpgp4fpr}/${arg1}" ]]; then "./mnt/${openpgp4fpr}/${arg1}" "${@}"
+#     elif is_cmd "${arg1}";                        then "${arg1}"                      "${@}"
+      elif is_cmd java;                             then java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
       fi
 
     popd &> /dev/null
