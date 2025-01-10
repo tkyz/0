@@ -8,10 +8,9 @@ exit_status=0
 printf "\e[2m"
 
   echo '---'
-  echo 'gitenv:'
-  export | grep '^declare -x GIT_' | sed 's/declare -x /  - /g'
-
   echo "${0}:"
+  echo '  env:'
+  export | grep '^declare -x GIT_' | sed 's/declare -x /    - /g'
   echo '  args:'
   for item in "${@}"; do
     echo "    - ${item}"

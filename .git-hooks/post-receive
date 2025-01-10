@@ -7,11 +7,7 @@ set -o pipefail
 stdin=($(cat /dev/stdin))
 
 printf "\e[2m"
-
   echo '---'
-  echo 'env:'
-  export | sed 's/declare -x /  - /g'
-
   echo "${0}:"
   echo '  args:'
   for item in "${@}"; do
@@ -21,7 +17,6 @@ printf "\e[2m"
   for item in "${stdin[@]}"; do
     echo "    - ${item}"
   done
-
 printf "\e[0m"
 
 exit 0

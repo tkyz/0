@@ -5,17 +5,12 @@ set -o nounset
 set -o pipefail
 
 printf "\e[2m"
-
   echo   '---'
-  echo   'env:'
-  export | sed 's/declare -x /  - /g'
-
   echo "${0}:"
   echo '  args:'
   for item in "${@}"; do
     echo "    - ${item}"
   done
-
 printf "\e[0m"
 
 fpr ci || true
