@@ -1071,8 +1071,11 @@ function _sandbox() {
       --volume  './src:/root/src:ro' \
       --volume  './tmp:/root/tmp' \
       "${ID}:${VERSION_CODENAME:-latest}"
-#     --volume  "${PWD}:/root/.pwd:ro" \
+#     --network host \
 #     --device  /dev/fuse \
+#     --volume  "${PWD}:/root/.pwd:ro" \
+#     --env     "UID=$(id -u)" \
+#     --env     "DISPLAY=${DISPLAY:-:0.0}" \
 
   )
 }
