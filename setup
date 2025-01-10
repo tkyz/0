@@ -57,7 +57,7 @@ readonly DEBIAN_FRONTEND
 readonly KIND_EXPERIMENTAL_PROVIDER
 readonly arch="$(dpkg --print-architecture)"
 readonly context='latest'
-readonly external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | sort | head -n 1)"
+readonly external_ip="$(type -p ip &> /dev/null && ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | sort | head -n 1 || true)"
 readonly resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
 readonly tld="$(cat "${HOME}/.tld" 2> /dev/null || hostname -d)"
 readonly setup_yml="$(cat << EOS
@@ -177,8 +177,8 @@ function git_remote_set() {
 function fpr_list() {
   {
     echo "${openpgp4fpr}"
-    find "./src/0.fpr" -mindepth 1 -maxdepth 1 -type d | sed 's#.*/##g'
-    find "./src/0.gpw" -mindepth 1 -maxdepth 1 -type f | sed 's#.*/##g'
+    find "./src/0.fpr" -mindepth 1 -maxdepth 1 -type d | sed 's#.*/##g' || true
+    find "./src/0.gpw" -mindepth 1 -maxdepth 1 -type f | sed 's#.*/##g' || true
 #   gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10
     gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10
   } | grep -iE '^[0-9a-f]{40}$' | sort -u
@@ -264,8 +264,10 @@ deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security 
 EOS
   fi
 
-  ${SUDO} sysctl --write fs.inotify.max_user_instances=1024 #  128
-  ${SUDO} sysctl --write fs.inotify.max_user_watches=65536  # 8192
+  if is_cmd sysctl; then
+    ${SUDO} sysctl --write fs.inotify.max_user_instances=1024 #  128
+    ${SUDO} sysctl --write fs.inotify.max_user_watches=65536  # 8192
+  fi
 
 }
 
@@ -415,7 +417,7 @@ function _home() {
 
     # merge...
 
-    if [[ ! -d "$(git remote get-url origin)/hooks" ]]; then
+    if ! is_container && [[ ! -d "$(git remote get-url origin)/hooks" ]]; then
       ln -fsn "../../../${hook_dir}" "$(git remote get-url origin)/hooks"
     fi
 
@@ -1045,6 +1047,35 @@ function _clean() {
 
 #----------------------------------------------------------------
 # ...
+
+function _sandbox() {
+  (
+
+    image="${ID}:${VERSION_CODENAME:-latest}"
+
+#   kubectl -n 0 run -it --rm --image="${image}" -- bash
+
+    podman run \
+      --interactive \
+      --tty \
+      --rm \
+      --name    "0.sandbox.$(uuidgen)" \
+      --workdir '/root' \
+      --volume  './.cache/pip:/root/.cache/pip' \
+      --volume  './.profile:/root/.profile:ro' \
+      --volume  './.bashrc:/root/.bashrc:ro' \
+      --volume  './setup:/root/setup:ro' \
+      --volume  './bin:/root/bin:ro' \
+      --volume  './lib:/root/lib:ro' \
+      --volume  './opt:/root/opt:ro' \
+      --volume  './src:/root/src:ro' \
+      --volume  './tmp:/root/tmp' \
+      "${ID}:${VERSION_CODENAME:-latest}"
+#     --volume  "${PWD}:/root/.pwd:ro" \
+#     --device  /dev/fuse \
+
+  )
+}
 
 function _doc() {
 
