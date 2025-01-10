@@ -4,9 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# debug
-if true; then
-  printf "\e[2m"
+printf "\e[2m"
   echo   '---'
   echo   'exec:'
   echo   "  pwd: ${PWD}"
@@ -18,10 +16,6 @@ if true; then
   # TODO: indent
   echo   '  export:'
   export
-  printf "\e[0m"
-fi
-
-#----------------------------------------------------------------
-# ci
+printf "\e[0m"
 
 fpr ci || true

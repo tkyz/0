@@ -4,13 +4,12 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-printf "\e[2m"
-  echo "gitenv:"
-  export | grep '^declare -x GIT_' | sed 's/declare -x /  - /g'
-printf "\e[0m"
-
 exit_status=0
 printf "\e[2m"
+
+  echo "---"
+  echo "gitenv:"
+  export | grep '^declare -x GIT_' | sed 's/declare -x /  - /g'
 
   echo "${0}:"
   echo "  args:"

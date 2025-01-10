@@ -5,13 +5,12 @@ set -o nounset
 set -o pipefail
 
 printf "\e[2m"
-
+  echo "---"
   echo "${0}:"
   echo "  args:"
   for item in "${@}"; do
     echo "    - ${item}"
   done
-
 printf "\e[0m"
 
 exit 0

@@ -377,8 +377,6 @@ function _fpr() {
 function _home() {
   (
 
-    hook_dir='.git-hooks'
-
     git config --global init.defaultBranch main
     git config --global core.ignorecase    false
     git config --global core.quotepath     false
@@ -403,8 +401,6 @@ function _home() {
 
     git init # --object-format=sha256
 
-    git config --local core.hooksPath "${hook_dir}"
-
 #   git_remote_set 'public'   'https://git.0/0.git'
     git_remote_set 'public'   'https://github.com/tkyz/0.git'
 #   git_remote_set 'upstream' 'ssh://git.0/0.git'
@@ -417,8 +413,10 @@ function _home() {
 
     # merge...
 
+    # hook
+    git config --local core.hooksPath '.git-hooks'
     if ! is_container && [[ ! -d "$(git remote get-url origin)/hooks" ]]; then
-      ln -fsn "../../../${hook_dir}" "$(git remote get-url origin)/hooks"
+      ln -fsn "../../../$(git config --local core.hooksPath)" "$(git remote get-url origin)/hooks"
     fi
 
   )
@@ -1142,7 +1140,7 @@ from transformers import (
 
 def main():
 
-  os.environ["TOKENIZERS_PARALLELISM"] = 'false'
+  os.environ["TOKENIZERS_PARALLELISM"] = 'true'
 
   tokenizer = AutoTokenizer.from_pretrained('${model}')
   model     = AutoModelForCausalLM.from_pretrained('${model}', torch_dtype=torch.float16, low_cpu_mem_usage=True, device_map="auto")
