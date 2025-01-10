@@ -1243,6 +1243,7 @@ function main() {
         _umnt
         _clean
 
+      # playground
       elif is_func "_${arg1}";                      then "_${arg1}"                     "${@}"
       elif [[ -x "./mnt/${openpgp4fpr}/${arg1}" ]]; then "./mnt/${openpgp4fpr}/${arg1}" "${@}"
 #     elif is_cmd "${arg1}";                        then "${arg1}"                      "${@}"
