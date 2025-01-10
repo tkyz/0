@@ -12,12 +12,12 @@ printf "\e[2m"
   export | grep '^declare -x GIT_' | sed 's/declare -x /  - /g'
 
   echo "${0}:"
-  echo "  args:"
+  echo '  args:'
   for item in "${@}"; do
     echo "    - ${item}"
   done
 
-  echo "  files:"
+  echo '  files:'
   shopt -s extglob lastpipe
   git diff --cached --name-only | while read staged_file; do
 

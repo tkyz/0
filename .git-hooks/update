@@ -10,10 +10,8 @@ printf "\e[2m"
   echo   'env:'
   export | sed 's/declare -x /  - /g'
 
-  echo   "${0}:"
-  echo   "  pwd: ${PWD}"
-  echo   "  cmd: ${BASH_SOURCE:-0}"
-  echo   '  args:'
+  echo "${0}:"
+  echo '  args:'
   for item in "${@}"; do
     echo "    - ${item}"
   done

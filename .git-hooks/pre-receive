@@ -4,19 +4,20 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# TODO: 引数ではなく標準入力からパラメータが渡ってくる
 stdin=($(cat /dev/stdin))
 
 printf "\e[2m"
 
-  echo   '---'
-  echo   'env:'
+  echo '---'
+  echo 'env:'
   export | sed 's/declare -x /  - /g'
 
-  echo   "${0}:"
-  echo   "  pwd: ${PWD}"
-  echo   "  cmd: ${BASH_SOURCE:-0}"
-  echo   '  stdin:'
+  echo "${0}:"
+  echo '  args:'
+  for item in "${@}"; do
+    echo "    - ${item}"
+  done
+  echo '  stdin:'
   for item in "${stdin[@]}"; do
     echo "    - ${item}"
   done

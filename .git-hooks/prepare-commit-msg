@@ -7,7 +7,7 @@ set -o pipefail
 printf "\e[2m"
   echo '---'
   echo "${0}:"
-  echo "  args:"
+  echo '  args:'
   for item in "${@}"; do
     echo "    - ${item}"
   done
