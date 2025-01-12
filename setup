@@ -1097,7 +1097,7 @@ function _sandbox() {
       --volume  './opt:/root/opt:ro' \
       --volume  './src:/root/src:ro' \
       --volume  './tmp:/root/tmp' \
-      "${ID}:${VERSION_CODENAME:-latest}"
+      "${image}"
 #     --network host \
 #     --device  /dev/fuse \
 #     --volume  "${PWD}:/root/.pwd:ro" \
