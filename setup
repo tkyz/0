@@ -428,6 +428,7 @@ function _home() {
 function _apt_ext() {
   (
 
+    # tor           https://support.torproject.org/apt/
     # nvidia        https://nvidia.github.io/nvidia-container-runtime/
     # k8s           https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
     # nordvpn       https://support.nordvpn.com/hc/ja/articles/20196094470929
@@ -440,33 +441,39 @@ function _apt_ext() {
     # unity         https://docs.unity3d.com/hub/manual/InstallHub.html
     # virtualbox    https://www.virtualbox.org/wiki/Linux_Downloads
 
-    # /etc/apt/keyrings/*
-    curl -fsSL 'https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key'           | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/io.k8s.pkgs.gpg
-    curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey'               | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.nvidia.gpg
-#   curl -fsSL 'https://repo.nordvpn.com/gpg/nordvpn_public.asc'                   | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.nordvpn.gpg
-#   curl -fsSL 'https://dlcdn.apache.org/bigtop/bigtop-3.3.0/repos/GPG-KEY-bigtop' | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.apache.bigtop.gpg
-#   curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                       | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.docker.download.gpg
-    curl -fsSL 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'             | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.google.cloud.packages.gpg
-#   curl -fsSL 'https://dl-ssl.google.com/linux/linux_signing_key.pub'             | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.google.gpg
-#   curl -fsSL 'https://bazel.build/bazel-release.pub.gpg'                         | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/build.bazel.gpg
-    curl -fsSL 'https://packages.microsoft.com/keys/microsoft.asc'                 | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.microsoft.gpg
-    curl -fsSL 'https://hub.unity3d.com/linux/keys/public'                         | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.unity.gpg
-    curl -fsSL 'https://www.virtualbox.org/download/oracle_vbox_2016.asc'          | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.virtualbox.gpg
+    curl -fsSL 'https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc' | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.torproject.gpg
+    curl -fsSL 'https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key'                                | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/io.k8s.pkgs.gpg
+    curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey'                                    | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.nvidia.gpg
+    curl -fsSL 'https://repo.nordvpn.com/gpg/nordvpn_public.asc'                                        | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.nordvpn.gpg
+#   curl -fsSL 'https://dlcdn.apache.org/bigtop/bigtop-3.3.0/repos/GPG-KEY-bigtop'                      | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.apache.bigtop.gpg
+#   curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                                            | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.docker.download.gpg
+    curl -fsSL 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'                                  | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.google.cloud.packages.gpg
+#   curl -fsSL 'https://dl-ssl.google.com/linux/linux_signing_key.pub'                                  | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.google.gpg
+#   curl -fsSL 'https://bazel.build/bazel-release.pub.gpg'                                              | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/build.bazel.gpg
+    curl -fsSL 'https://packages.microsoft.com/keys/microsoft.asc'                                      | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.microsoft.gpg
+    curl -fsSL 'https://hub.unity3d.com/linux/keys/public'                                              | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.unity.gpg
+    curl -fsSL 'https://www.virtualbox.org/download/oracle_vbox_2016.asc'                               | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.virtualbox.gpg
 
     # /etc/apt/sources.list.d/*
-    echo 'deb [signed-by=/etc/apt/keyrings/io.k8s.pkgs.gpg                           ] https://pkgs.k8s.io/core:/stable:/v1.32/deb/                          /'                                   | ${SUDO} tee    /etc/apt/sources.list.d/io.k8s.pkgs.list               > /dev/null
-    echo 'deb [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)       /'                                   | ${SUDO} tee    /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
-#   echo 'deb [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/experimental/deb/$(ARCH) /'                                   | ${SUDO} tee -a /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
-#   echo "deb [signed-by=/etc/apt/keyrings/com.nordvpn.gpg                           ] https://repo.nordvpn.com/deb/nordvpn/${ID}                            stable                      main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.nordvpn.list               > /dev/null
-#   echo "deb [signed-by=/etc/apt/keyrings/org.apache.bigtop.gpg                     ] http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH)       bigtop                      contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.apache.bigtop.list         > /dev/null # ${VERSION_ID}
-#   echo "deb [signed-by=/etc/apt/keyrings/com.docker.download.gpg       arch=${arch}] https://download.docker.com/linux/${ID}                               ${VERSION_CODENAME}         stable"  | ${SUDO} tee    /etc/apt/sources.list.d/com.docker.download.list       > /dev/null
-    echo 'deb [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 cloud-sdk                   main'    | ${SUDO} tee    /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
-    echo "deb [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 gcsfuse-${VERSION_CODENAME} main"    | ${SUDO} tee -a /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
-#   echo "deb [signed-by=/etc/apt/keyrings/com.google.gpg                arch=${arch}] https://dl.google.com/linux/chrome/deb                                stable                      main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.google.list                > /dev/null
-#   echo "deb [signed-by=/etc/apt/keyrings/build.bazel.gpg               arch=${arch}] http://storage.googleapis.com/bazel-apt                               stable                      jdk1.8"  | ${SUDO} tee    /etc/apt/sources.list.d/build.bazel.list               > /dev/null
-    echo "deb [signed-by=/etc/apt/keyrings/com.microsoft.gpg             arch=${arch}] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod               bookworm                    main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.microsoft.list             > /dev/null
-    echo 'deb [signed-by=/etc/apt/keyrings/com.unity.gpg                             ] https://hub.unity3d.com/linux/repos/deb                               stable                      main'    | ${SUDO} tee    /etc/apt/sources.list.d/com.unity.list                 > /dev/null
-    echo "deb [signed-by=/etc/apt/keyrings/org.virtualbox.gpg            arch=${arch}] https://download.virtualbox.org/virtualbox/${ID}                      ${VERSION_CODENAME}         contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.virtualbox.list            > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             ${VERSION_CODENAME}                  main"    | ${SUDO} tee    /etc/apt/sources.list.d/org.torproject.list            > /dev/null
+#   echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             ${VERSION_CODENAME}                  main"    | ${SUDO} tee -a /etc/apt/sources.list.d/org.torproject.list            > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-experimental-${VERSION_CODENAME} main"    | ${SUDO} tee -a /etc/apt/sources.list.d/org.torproject.list            > /dev/null
+#   echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-experimental-${VERSION_CODENAME} main"    | ${SUDO} tee -a /etc/apt/sources.list.d/org.torproject.list            > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-nightly-main-${VERSION_CODENAME} main"    | ${SUDO} tee -a /etc/apt/sources.list.d/org.torproject.list            > /dev/null
+#   echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-nightly-main-${VERSION_CODENAME} main"    | ${SUDO} tee -a /etc/apt/sources.list.d/org.torproject.list            > /dev/null
+    echo 'deb     [signed-by=/etc/apt/keyrings/io.k8s.pkgs.gpg                           ] https://pkgs.k8s.io/core:/stable:/v1.32/deb/                          /'                                            | ${SUDO} tee    /etc/apt/sources.list.d/io.k8s.pkgs.list               > /dev/null
+    echo 'deb     [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)       /'                                            | ${SUDO} tee    /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+#   echo 'deb     [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/experimental/deb/$(ARCH) /'                                            | ${SUDO} tee -a /etc/apt/sources.list.d/com.nvidia.list                > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/com.nordvpn.gpg                           ] https://repo.nordvpn.com/deb/nordvpn/${ID}                            stable                               main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.nordvpn.list               > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/org.apache.bigtop.gpg                     ] http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH)       bigtop                               contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.apache.bigtop.list         > /dev/null # ${VERSION_ID}
+#   echo "deb     [signed-by=/etc/apt/keyrings/com.docker.download.gpg       arch=${arch}] https://download.docker.com/linux/${ID}                               ${VERSION_CODENAME}                  stable"  | ${SUDO} tee    /etc/apt/sources.list.d/com.docker.download.list       > /dev/null
+    echo 'deb     [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 cloud-sdk                            main'    | ${SUDO} tee    /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 gcsfuse-${VERSION_CODENAME}          main"    | ${SUDO} tee -a /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/com.google.gpg                arch=${arch}] https://dl.google.com/linux/chrome/deb                                stable                               main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.google.list                > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/build.bazel.gpg               arch=${arch}] http://storage.googleapis.com/bazel-apt                               stable                               jdk1.8"  | ${SUDO} tee    /etc/apt/sources.list.d/build.bazel.list               > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/com.microsoft.gpg             arch=${arch}] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod               bookworm                             main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.microsoft.list             > /dev/null
+    echo 'deb     [signed-by=/etc/apt/keyrings/com.unity.gpg                             ] https://hub.unity3d.com/linux/repos/deb                               stable                               main'    | ${SUDO} tee    /etc/apt/sources.list.d/com.unity.list                 > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/org.virtualbox.gpg            arch=${arch}] https://download.virtualbox.org/virtualbox/${ID}                      ${VERSION_CODENAME}                  contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.virtualbox.list            > /dev/null
 
 #   arr+=('bash')
 #   arr+=('zsh')
