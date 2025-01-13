@@ -419,7 +419,7 @@ function _home() {
     # hook
     git config --local core.hooksPath '.git-hooks'
     if ! is_container && [[ ! -d "$(git remote get-url origin)/hooks" ]]; then
-      ln -fsn "../../../$(git config --local core.hooksPath)" "$(git remote get-url origin)/hooks"
+      ln -fsn "../../../$(git config --local core.hooksPath)" "$(git remote get-url origin)/hooks" || true
     fi
 
   )
@@ -537,6 +537,7 @@ function _apt_ext() {
     arr+=('podman')
     arr+=('nvidia-container-toolkit')
     arr+=('virt-manager')
+    arr+=('wine')
     if ! is_container; then
       arr+=('ufw')
       arr+=('rkhunter')
@@ -673,7 +674,7 @@ function _mnt() {
         -extpass '--decrypt' \
         -extpass "${gpw_file}" \
         "${enc_dir}" \
-        "${mnt_dir}"
+        "${mnt_dir}" || rm -d "${mnt_dir}"
 
     done
   )
