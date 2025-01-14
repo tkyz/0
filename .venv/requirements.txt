@@ -6,6 +6,7 @@ PyQt5
 PyQt5-Qt5
 PyQt5_sip
 PySocks
+PyWavelets
 PyYAML
 Pygments
 Werkzeug
@@ -23,6 +24,7 @@ antlr4-python3-runtime
 anyio
 argcomplete
 attrs
+auto_gptq
 beautifulsoup4
 bencodepy
 blendmodes
@@ -30,8 +32,12 @@ certifi
 charset-normalizer
 clean-fid
 click
+coloredlogs
 contourpy
 cycler
+datasets
+diffusers
+dill
 diskcache
 dnspython
 einops
@@ -48,6 +54,7 @@ fsspec
 ftfy
 future
 gdown
+gekko
 gitdb
 gradio
 gradio_client
@@ -57,11 +64,13 @@ httpcore
 httptools
 httpx
 huggingface-hub
+humanfriendly
 idna
 imageio
 importlib_metadata
 importlib_resources
 inflection
+invisible-watermark
 joblib
 jsonmerge
 jsonschema
@@ -80,6 +89,7 @@ matplotlib
 mdurl
 mpmath
 multidict
+multiprocess
 narwhals
 networkx
 numba
@@ -99,10 +109,12 @@ nvidia-nvtx-cu12
 omegaconf
 open_clip_torch
 opencv-python
+optimum
 orjson
 outcome
 packaging
 pandas
+peft
 piexif
 pillow
 pillow-avif-plugin
@@ -110,6 +122,7 @@ platformdirs
 propcache
 protobuf
 psutil
+pyarrow
 pydantic
 pydantic_core
 pydub
@@ -126,6 +139,7 @@ requests-unixsocket
 resize-right
 rich
 rich-toolkit
+rouge
 rpds-py
 ruff
 safehttpx
@@ -178,6 +192,7 @@ websocket-client
 websockets
 wsproto
 xmltodict
+xxhash
 yapf
 yarl
 yq

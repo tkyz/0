@@ -40,16 +40,6 @@ source /etc/os-release
 test 'debian' == "${ID_LIKE:-${ID}}"
 test 'bash'   == "${SHELL##*/}"
 
-# sudo
-if [[ '0' == "$(id -u)" ]]; then
-  readonly SUDO=
-elif type sudo &> /dev/null && sudo -v -n > /dev/null; then
-  readonly SUDO=sudo
-else
-  sudo -k
-  false
-fi
-
 export   DEBIAN_FRONTEND=noninteractive
 export   KIND_EXPERIMENTAL_PROVIDER=podman
 
@@ -104,6 +94,12 @@ readonly setup_yml="$(cat << EOS
 #     - {type: raw,           url: http://sourceforge.net/p/squirrel-sql/git/ci/cf32722c6974108e5fdddff1c53d519205347617/tree/sql12/squirrelsql-translations/src/main/resources/squirrel-sql_ja_JP.jar?format=raw}
     org.embulk:
       - {type: raw,           url: https://dl.embulk.org/embulk-latest.jar}
+    jp.co.maruo.hide/hidemaru:
+      - {type: zip, depth: 0, url: https://hide.maruo.co.jp/software/bin/hm939_x64_signed.exe}
+    jp.co.maruo.hide/hmfilerclassic:
+      - {type: 7z,  depth: 0, url: https://hide.maruo.co.jp/software/bin/hmfilerclassic196_x64_signed.exe}
+    io.github.sakura-editor:
+      - {type: zip, depth: 0, url: https://github.com/sakura-editor/sakura/releases/download/v2.4.2/sakura-tag-v2.4.2-build4203-a3e63915b-Win32-Release-Exe.zip}
 
   k8s:
     - 0.dns
@@ -125,6 +121,19 @@ EOS
 
 #----------------------------------------------------------------
 # func
+
+function is_sudoer() {
+  if [[ ! -v SUDO ]]; then
+    if [[ '0' == "$(id -u)" ]]; then
+      readonly SUDO=
+    elif type sudo &> /dev/null && sudo -v -n > /dev/null; then
+      readonly SUDO=sudo
+    else
+      sudo -k
+      false
+    fi
+  fi
+}
 
 function is_cmd() {
   test 'file' == "$(type -t "${1}" || ${SUDO} bash -c "type -t '${1}'" || true)"
@@ -218,6 +227,8 @@ EOS
 
 function _etc() {
 
+  is_sudoer
+
   # /etc/wsl.conf
   if is_wsl; then
     cat << EOS | ${SUDO} tee /etc/wsl.conf > /dev/null
@@ -275,6 +286,9 @@ EOS
 }
 
 function _apt() {
+
+  is_sudoer
+
   (
 
     arr=()
@@ -287,8 +301,10 @@ function _apt() {
     ${SUDO} apt-get update
     ${SUDO} apt-get upgrade -y
     ${SUDO} apt-get install -y "${arr[@]}"
+    ${SUDO} apt list --upgradable
 
   )
+
 }
 
 function _fpr() {
@@ -426,6 +442,9 @@ function _home() {
 }
 
 function _apt_ext() {
+
+  is_sudoer
+
   (
 
     # tor           https://support.torproject.org/apt/
@@ -440,6 +459,7 @@ function _apt_ext() {
     # dotnet        https://learn.microsoft.com/ja-jp/dotnet/core/install/linux-debian
     # unity         https://docs.unity3d.com/hub/manual/InstallHub.html
     # virtualbox    https://www.virtualbox.org/wiki/Linux_Downloads
+    # winehq        https://gitlab.winehq.org/wine/wine/-/wikis/Debian-Ubuntu
 
     curl -fsSL 'https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc' | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.torproject.gpg
     curl -fsSL 'https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key'                                | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/io.k8s.pkgs.gpg
@@ -453,6 +473,7 @@ function _apt_ext() {
     curl -fsSL 'https://packages.microsoft.com/keys/microsoft.asc'                                      | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.microsoft.gpg
     curl -fsSL 'https://hub.unity3d.com/linux/keys/public'                                              | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/com.unity.gpg
     curl -fsSL 'https://www.virtualbox.org/download/oracle_vbox_2016.asc'                               | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.virtualbox.gpg
+    curl -fsSL 'https://dl.winehq.org/wine-builds/winehq.key'                                           | ${SUDO} gpg --dearmor --yes --output /etc/apt/keyrings/org.winehq.gpg
 
     # /etc/apt/sources.list.d/*
     echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             ${VERSION_CODENAME}                  main"    | ${SUDO} tee    /etc/apt/sources.list.d/org.torproject.list            > /dev/null
@@ -471,9 +492,10 @@ function _apt_ext() {
     echo "deb     [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 gcsfuse-${VERSION_CODENAME}          main"    | ${SUDO} tee -a /etc/apt/sources.list.d/com.google.cloud.packages.list > /dev/null
 #   echo "deb     [signed-by=/etc/apt/keyrings/com.google.gpg                arch=${arch}] https://dl.google.com/linux/chrome/deb                                stable                               main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.google.list                > /dev/null
 #   echo "deb     [signed-by=/etc/apt/keyrings/build.bazel.gpg               arch=${arch}] http://storage.googleapis.com/bazel-apt                               stable                               jdk1.8"  | ${SUDO} tee    /etc/apt/sources.list.d/build.bazel.list               > /dev/null
-    echo "deb     [signed-by=/etc/apt/keyrings/com.microsoft.gpg             arch=${arch}] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod               bookworm                             main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.microsoft.list             > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/com.microsoft.gpg             arch=${arch}] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod               ${VERSION_CODENAME}                  main"    | ${SUDO} tee    /etc/apt/sources.list.d/com.microsoft.list             > /dev/null
     echo 'deb     [signed-by=/etc/apt/keyrings/com.unity.gpg                             ] https://hub.unity3d.com/linux/repos/deb                               stable                               main'    | ${SUDO} tee    /etc/apt/sources.list.d/com.unity.list                 > /dev/null
     echo "deb     [signed-by=/etc/apt/keyrings/org.virtualbox.gpg            arch=${arch}] https://download.virtualbox.org/virtualbox/${ID}                      ${VERSION_CODENAME}                  contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.virtualbox.list            > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/org.winehq.gpg                            ] https://dl.winehq.org/wine-builds/${ID}                               ${VERSION_CODENAME}                  main"    | ${SUDO} tee    /etc/apt/sources.list.d/org.winehq.list                > /dev/null
 
 #   arr+=('bash')
 #   arr+=('zsh')
@@ -537,7 +559,7 @@ function _apt_ext() {
     arr+=('podman')
     arr+=('nvidia-container-toolkit')
     arr+=('virt-manager')
-    arr+=('wine')
+#   arr+=('winehq-stable')
     if ! is_container; then
       arr+=('ufw')
       arr+=('rkhunter')
@@ -674,7 +696,7 @@ function _mnt() {
         -extpass '--decrypt' \
         -extpass "${gpw_file}" \
         "${enc_dir}" \
-        "${mnt_dir}" || rm -d "${mnt_dir}"
+        "${mnt_dir}" 2> /dev/null || rm -d "${mnt_dir}"
 
     done
   )
@@ -848,6 +870,7 @@ function _opt() {
           if   [[ 'raw' == "${type}" ]]; then curl -fsSLO "${url}" 2> /dev/null
           elif [[ 'tgz' == "${type}" ]]; then curl -fsSL  "${url}" 2> /dev/null | tar    zxf - --strip-components "${depth}" --no-same-permissions --no-same-owner
           elif [[ 'zip' == "${type}" ]]; then curl -fsSL  "${url}" 2> /dev/null | bsdtar  xf - --strip-components "${depth}"
+          elif [[ '7z'  == "${type}" ]]; then curl -fsSL  "${url}" 2> /dev/null > file && 7z x file && rm file
           else                                echo "unsupported. ${type} ${url}"
           fi
 
@@ -861,14 +884,12 @@ function _opt() {
 }
 
 function _build() {
-  (
 
-    if is_container; then
-      return
-    fi
-    if ! is_cmd podman; then
-      return
-    fi
+  if is_container; then
+    return
+  fi
+
+  (
 
     if ping -c 1 -W 3 'container.0' &> /dev/null; then
       is_push=
@@ -901,30 +922,29 @@ function _build() {
 
           MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData'
 
-          mvn \
-            --threads 1C \
-            --define version="${context}" \
-            --define checkstyle.skip=false \
-            --define maven.test.skip=false \
-            --define maven.javadoc.skip=false \
-            --define assembly.skipAssembly=true \
-            clean \
-            package
-#           deploy || true
+          opts=()
+          opts+=('--threads' '1C')
+          opts+=('--define'  "version=${context}")
+          opts+=('--define'  'checkstyle.skip=false')
+          opts+=('--define'  'maven.test.skip=false')
+          opts+=('--define'  'maven.javadoc.skip=false')
+          opts+=('--define'  'assembly.skipAssembly=true')
+
+          mvn "${opts[@]}" clean package # deploy
 
         fi
 
         if [[ 'Dockerfile' == "${type}" ]]; then
 
           image="container.0/${name}:${context}"
-
           if [[ -z "$(podman images --noheading "${image}")" ]]; then
 
             opts=()
             opts+=('--pull')
             opts+=('--no-cache')
+            opts+=('--tag' "${image}")
 
-            podman build "${opts[@]}" --tag "${image}" .
+            podman build "${opts[@]}" .
             if [[ -v is_push ]]; then
               podman push --tls-verify=false "${image}" || true
             fi
@@ -941,26 +961,12 @@ function _build() {
 }
 
 function _k8s() {
-  (
 
-    if is_wsl; then
-      return
-    fi
-    if is_container; then
-      return
-    fi
-    if ! is_cmd containerd; then
-      return
-    fi
-    if ! is_cmd podman; then
-      return
-    fi
-    if ! is_cmd kubectl; then
-      return
-    fi
-    if ! is_cmd kind; then
-      return
-    fi
+  is_sudoer
+  is_wsl
+  is_container
+
+  (
 
     kind delete cluster --name "${context}" || true
 
@@ -988,29 +994,15 @@ function _k8s() {
     curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
 
   )
+
 }
 
 function _deploy() {
-  (
 
-    if is_wsl; then
-      return
-    fi
-    if is_container; then
-      return
-    fi
-    if ! is_cmd containerd; then
-      return
-    fi
-    if ! is_cmd podman; then
-      return
-    fi
-    if ! is_cmd kubectl; then
-      return
-    fi
-    if ! is_cmd kind; then
-      return
-    fi
+  is_wsl
+  is_container
+
+  (
 
     kubectl delete namespace 0 2> /dev/null || true
     kubectl create namespace 0              || true
@@ -1050,12 +1042,15 @@ function _deploy() {
     done
 
   )
+
 }
 
 function _clean() {
 
-  ${SUDO} apt-get autoremove -y
-  ${SUDO} apt-get clean
+  if is_sudoer; then
+    ${SUDO} apt-get autoremove -y
+    ${SUDO} apt-get clean
+  fi
 
   if is_cmd podman; then
     podman system  prune --force || true
@@ -1076,34 +1071,60 @@ function _clean() {
 #----------------------------------------------------------------
 # playground
 
+function _playground() {
+  (
+
+    name="${1:-}"
+    shift || true
+
+    source './.venv/bin/activate'
+
+    if   is_func "_${name}";                      then "_${name}"                     "${@}"
+    elif [[ -x "./mnt/${openpgp4fpr}/${name}" ]]; then "./mnt/${openpgp4fpr}/${name}" "${@}"
+    elif is_cmd java;                             then java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${name}" "${@}"
+    fi
+
+  )
+}
+
+readonly ppwd="${PWD}"
 function _sandbox() {
   (
 
     image="${ID}:${VERSION_CODENAME:-latest}"
 
-#   kubectl -n 0 run -it --rm --image="${image}" -- bash
+    uuid="$(uuidgen)"
+    opts=()
+    opts+=('--interactive')
+    opts+=('--tty')
+    opts+=('--rm')
+    opts+=('--name'    "0.sandbox.${uuid}")
+#   opts+=('--device'  '/dev/fuse')
+#   opts+=('--network' 'host')
+#   opts+=('--env'     "UID=$(id -u)")
+    # cache
+    opts+=('--volume'  './.cache/pip:/root/.cache/pip')
+    opts+=('--volume'  './.m2:/root/.m2')
+    # x11
+    opts+=('--env'     "DISPLAY=${DISPLAY:-:0.0}")
+    opts+=('--volume'  '/tmp/.X11-unix/X0:/tmp/.X11-unix/X0')
+    # 0
+    opts+=('--volume'  './.profile:/root/.profile:ro')
+    opts+=('--volume'  './.bashrc:/root/.bashrc:ro')
+    opts+=('--volume'  './setup:/root/setup:ro')
+    opts+=('--volume'  './bin:/root/bin:ro')
+    opts+=('--volume'  './doc:/root/doc:ro')
+    opts+=('--volume'  './lib:/root/lib:ro')
+    opts+=('--volume'  './opt:/root/opt:ro')
+    opts+=('--volume'  './src:/root/src:ro')
+    opts+=('--volume'  './tmp:/root/tmp')
+    # pwd
+    opts+=('--workdir' "/root/.${uuid}")
+    opts+=('--volume'  "${ppwd}:/root/.${uuid}")
+    opts+=("${image}")
 
-    podman run \
-      --interactive \
-      --tty \
-      --rm \
-      --name    "0.sandbox.$(uuidgen)" \
-      --workdir '/root' \
-      --volume  './.cache/pip:/root/.cache/pip' \
-      --volume  './.profile:/root/.profile:ro' \
-      --volume  './.bashrc:/root/.bashrc:ro' \
-      --volume  './setup:/root/setup:ro' \
-      --volume  './bin:/root/bin:ro' \
-      --volume  './lib:/root/lib:ro' \
-      --volume  './opt:/root/opt:ro' \
-      --volume  './src:/root/src:ro' \
-      --volume  './tmp:/root/tmp' \
-      "${image}"
-#     --network host \
-#     --device  /dev/fuse \
-#     --volume  "${PWD}:/root/.pwd:ro" \
-#     --env     "UID=$(id -u)" \
-#     --env     "DISPLAY=${DISPLAY:-:0.0}" \
+    podman run "${opts[@]}"
+#   kubectl -n 0 run -it --rm --image="${image}" -- bash
 
   )
 }
@@ -1251,11 +1272,8 @@ function main() {
         _umnt
         _clean
 
-      # playground
-      elif is_func "_${arg1}";                      then "_${arg1}"                     "${@}"
-      elif [[ -x "./mnt/${openpgp4fpr}/${arg1}" ]]; then "./mnt/${openpgp4fpr}/${arg1}" "${@}"
-#     elif is_cmd "${arg1}";                        then "${arg1}"                      "${@}"
-      elif is_cmd java;                             then java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
+      else
+        _playground "${arg1}" "${@}"
       fi
 
     popd &> /dev/null
