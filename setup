@@ -1241,7 +1241,6 @@ function main() {
         _etc
         _apt
       fi
-
       _fpr
 
       # handle
@@ -1258,11 +1257,11 @@ function main() {
         _src
         _lib
         _opt
+        _k8s
         _clean
 
       elif [[ 'ci' == "${arg1}" ]]; then
 #       _llm
-#       _k8s
         _build
 #       _deploy
         _clean
