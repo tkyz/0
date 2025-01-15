@@ -668,6 +668,8 @@ function _enc() {
 
 function _mnt() {
 
+  is_sudoer
+
   # enc
   (
     fpr_list | while read fpr; do
@@ -750,6 +752,8 @@ function _mnt() {
 }
 
 function _umnt() {
+
+  is_sudoer
 
   (
     find ./mnt -mindepth 1 -maxdepth 1 -type d | while read item; do
@@ -963,8 +967,8 @@ function _build() {
 function _k8s() {
 
   is_sudoer
-  is_wsl
-  is_container
+  ! is_wsl
+  ! is_container
 
   (
 
@@ -999,8 +1003,8 @@ function _k8s() {
 
 function _deploy() {
 
-  is_wsl
-  is_container
+  ! is_wsl
+  ! is_container
 
   (
 
@@ -1070,22 +1074,6 @@ function _clean() {
 
 #----------------------------------------------------------------
 # playground
-
-function _playground() {
-  (
-
-    name="${1:-}"
-    shift || true
-
-    source './.venv/bin/activate'
-
-    if   is_func "_${name}";                      then "_${name}"                     "${@}"
-    elif [[ -x "./mnt/${openpgp4fpr}/${name}" ]]; then "./mnt/${openpgp4fpr}/${name}" "${@}"
-    elif is_cmd java;                             then java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${name}" "${@}"
-    fi
-
-  )
-}
 
 readonly ppwd="${PWD}"
 function _sandbox() {
@@ -1271,8 +1259,17 @@ function main() {
         _umnt
         _clean
 
-      else
-        _playground "${arg1}" "${@}"
+      elif is_func "_${arg1}"; then
+        "_${arg1}" "${@}"
+
+      elif [[ -x "./mnt/${openpgp4fpr}/${arg1}" ]]; then
+        "./mnt/${openpgp4fpr}/${arg1}" "${@}"
+
+      elif is_cmd wine && [[ -f "${arg1}" && "${arg1}" =~ ^.*\.exe$ ]]; then
+        wine "${arg1}" "${@}"
+
+      elif is_cmd java; then
+        java -cp ".:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*" Entrypoint "${arg1}" "${@}"
       fi
 
     popd &> /dev/null
