@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+git status
+git graph
+
+EDITOR='sed -i "2,\$s/^pick/fixup/"' git rebase --interactive --root
+git commit --no-verify --amend --no-edit --message 'rebase'
+
+#git push --no-verify --force
