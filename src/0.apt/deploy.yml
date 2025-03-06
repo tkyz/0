@@ -1,0 +1,70 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: "0"
+  name: apt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: apt
+  template:
+    metadata:
+      labels:
+        app: apt
+    spec:
+      volumes:
+        - {name: data-volume, hostPath: {path: /mnt/0.apt, type: Directory}}
+      containers:
+        - name: apt
+          image: container.0/org.debian/apt-cacher-ng:${tag}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {protocol: TCP, containerPort:  443}
+            - {protocol: TCP, containerPort: 3142}
+          volumeMounts:
+            - {name: data-volume, mountPath: /var/cache/apt-cacher-ng}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: "0"
+  name: apt
+spec:
+  type: LoadBalancer
+  selector:
+    app: apt
+  ports:
+#   - {protocol: TCP, port:  443}
+    - {protocol: TCP, port: 3142}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: "0"
+  name: apt
+spec:
+  rules:
+    - host: apt.0
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: apt
+                port:
+                  number: 3142
+    - host: apt.${tld}
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: apt
+                port:
+                  number: 3142

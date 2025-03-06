@@ -1,0 +1,39 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: "0"
+  name: btc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: btc
+  template:
+    metadata:
+      labels:
+        app: btc
+    spec:
+      volumes:
+        - {name: data-volume, hostPath: {path: /mnt/0.btc, type: Directory}}
+      containers:
+        - name: btc
+          image: container.0/org.bitcoin:${tag}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {protocol: TCP, containerPort: 8333}
+          volumeMounts:
+            - {name: data-volume, mountPath: /root/.bitcoin}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: "0"
+  name: btc
+spec:
+  type: LoadBalancer
+  selector:
+    app: btc
+  ports:
+    - {protocol: TCP, port: 8333, nodePort: 8333}

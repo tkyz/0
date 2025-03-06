@@ -1,0 +1,39 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: "0"
+  name: eth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eth
+  template:
+    metadata:
+      labels:
+        app: eth
+    spec:
+      volumes:
+        - {name: data-volume, hostPath: {path: /mnt/0.eth, type: Directory}}
+      containers:
+        - name: eth
+          image: container.0/org.ethereum:${tag}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {protocol: TCP, containerPort: 30303}
+          volumeMounts:
+            - {name: data-volume, mountPath: /root/.ethereum}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: "0"
+  name: eth
+spec:
+  type: LoadBalancer
+  selector:
+    app: eth
+  ports:
+    - {protocol: TCP, port: 30303, nodePort: 30303}

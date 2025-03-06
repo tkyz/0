@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: "0"
+  name: mariadb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      volumes:
+        - {name: data-volume, hostPath: {path: /mnt/0.mysql, type: Directory}}
+      containers:
+        - name: mariadb
+          image: mariadb:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {protocol: TCP, containerPort: 3306}
+          volumeMounts:
+            - {name: data-volume, mountPath: /var/lib/mysql}
+          env:
+            - {name: MARIADB_ROOT_PASSWORD, value: mariadb}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: "0"
+  name: mariadb
+spec:
+  type: LoadBalancer
+  selector:
+    app: mariadb
+  ports:
+    - {protocol: TCP, port: 3306, nodePort: 3306}

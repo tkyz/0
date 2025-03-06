@@ -1,0 +1,67 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+containerdConfigPatches:
+
+nodes:
+
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: ClusterConfiguration
+        apiServer:
+          extraArgs:
+            service-node-port-range: 53-65535
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraMounts:
+      - {hostPath: "${HOME}/.profile",                containerPath: /root/.profile,      readOnly: true}
+      - {hostPath: "${HOME}/.bashrc",                 containerPath: /root/.bashrc,       readOnly: true}
+    extraPortMappings:
+      - {hostPort:    53, containerPort:    53, listenAddress: "${external_ip}", protocol: UDP} # dns
+      - {hostPort:    80, containerPort:    80, listenAddress: "${external_ip}", protocol: TCP} # http
+      - {hostPort:   123, containerPort:   123, listenAddress: "${external_ip}", protocol: UDP} # ntp
+      - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: TCP} # https
+#     - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: UDP} # quic
+#     - {hostPort:  2181, containerPort:  2181, listenAddress: "${external_ip}", protocol: TCP} # zookeeper
+      - {hostPort:  3306, containerPort:  3306, listenAddress: "${external_ip}", protocol: TCP} # mysql,mariadb
+      - {hostPort:  5432, containerPort:  5432, listenAddress: "${external_ip}", protocol: TCP} # postgresql
+      - {hostPort:  6379, containerPort:  6379, listenAddress: "${external_ip}", protocol: TCP} # redis
+#     - {hostPort:  6969, containerPort:  6969, listenAddress: "${external_ip}", protocol: TCP} # bittorrent tracker
+#     - {hostPort:  8020, containerPort:  8020, listenAddress: "${external_ip}", protocol: TCP} # hdfs
+#     - {hostPort:  8080, containerPort:  8080, listenAddress: "${external_ip}", protocol: TCP}
+      - {hostPort:  8333, containerPort:  8333, listenAddress: "${external_ip}", protocol: TCP} # bitcoin
+#     - {hostPort:  8443, containerPort:  8443, listenAddress: "${external_ip}", protocol: TCP}
+      - {hostPort:  9418, containerPort:  9418, listenAddress: "${external_ip}", protocol: TCP} # git
+      - {hostPort: 25565, containerPort: 25565, listenAddress: "${external_ip}", protocol: TCP} # minecraft
+      - {hostPort: 30303, containerPort: 30303, listenAddress: "${external_ip}", protocol: TCP} # ethereum
+
+  - role: worker
+    extraMounts:
+      - {hostPath: "${HOME}/.profile",                containerPath: /root/.profile,      readOnly: true}
+      - {hostPath: "${HOME}/.bashrc",                 containerPath: /root/.bashrc,       readOnly: true}
+      - {hostPath: "${HOME}/tmp",                     containerPath: /root/tmp}
+      # lib
+      - {hostPath: "${HOME}/lib/0.pgsql",             containerPath: /mnt/0.pgsql}
+      - {hostPath: "${HOME}/lib/0.mariadb",           containerPath: /mnt/0.mysql}
+      - {hostPath: "${HOME}/lib/0.redis",             containerPath: /mnt/0.redis}
+      - {hostPath: "${HOME}/lib/0.git",               containerPath: /mnt/0.git,          readOnly: true}
+      - {hostPath: "${HOME}/lib/0.container",         containerPath: /mnt/0.container}
+      - {hostPath: "${HOME}/lib/0.mvn",               containerPath: /mnt/0.mvn}
+      - {hostPath: "${HOME}/lib/0.apt",               containerPath: /mnt/0.apt}
+      - {hostPath: "${HOME}/lib/0.minecraft",         containerPath: /mnt/0.minecraft}
+      - {hostPath: "${HOME}/lib/0.btc",               containerPath: /mnt/0.btc}
+      - {hostPath: "${HOME}/lib/0.eth",               containerPath: /mnt/0.eth}
+      - {hostPath: "${HOME}/lib/0.llm",               containerPath: /mnt/0.llm,          readOnly: true}
+      - {hostPath: "${HOME}/lib/co.huggingface",      containerPath: /mnt/co.huggingface, readOnly: true}
+      # src
+      - {hostPath: "${HOME}/src/com.github",          containerPath: /mnt/com.github}
+      - {hostPath: "${HOME}/src/com.gitlab",          containerPath: /mnt/com.gitlab}
+      - {hostPath: "${HOME}/src/org.golang",          containerPath: /mnt/org.golang}
+      - {hostPath: "${HOME}/src/0.doc/dokuwiki/conf", containerPath: /mnt/com.github/splitbrain/dokuwiki/conf}
+      # fs
+      - {hostPath: "${HOME}/mnt/0.dfs",               containerPath: /mnt/0.dfs}
+      - {hostPath: "${HOME}/tmp",                     containerPath: /mnt/0.pub,          readOnly: true}

@@ -1,0 +1,39 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: "0"
+  name: git
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: git
+  template:
+    metadata:
+      labels:
+        app: git
+    spec:
+      volumes:
+        - {name: data-volume, hostPath: {path: /mnt/0.git, type: Directory}}
+      containers:
+        - name: git
+          image: container.0/com.git-scm/git-daemon:${tag}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - {protocol: TCP, containerPort: 9418}
+          volumeMounts:
+            - {name: data-volume, mountPath: /var/git}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: "0"
+  name: git
+spec:
+  type: LoadBalancer
+  selector:
+    app: git
+  ports:
+    - {protocol: TCP, port: 9418, nodePort: 9418}
