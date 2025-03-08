@@ -355,6 +355,29 @@ function _fpr() {
   fi
 }
 
+function _enc() {
+
+  if [[ -n "${1:-}" ]]; then
+    echo -n "${@}" | _enc
+    return
+  fi
+
+  cat /dev/stdin | gpg --encrypt             2> /dev/null | base64 --wrap 0
+# cat /dev/stdin | gpg --encrypt --symmetric 2> /dev/null | base64 --wrap 0
+
+}
+
+function _dec() {
+
+  if [[ -n "${1:-}" ]]; then
+    echo -n "${@}" | _dec
+    return
+  fi
+
+  cat /dev/stdin | base64 --decode | gpg --decrypt 2> /dev/null
+
+}
+
 function _home() {
   (
 
@@ -919,7 +942,7 @@ function _sandbox() {
     opts+=('--volume'  './tmp:/root/tmp')
     opts+=('--volume'  "${ppwd}:/root/.${uuid}")
     opts+=('--workdir'         "/root/.${uuid}")
-    # enc
+    # fuse
     opts+=('--device'  '/dev/fuse')
     opts+=('--cap-add' 'SYS_ADMIN')
 
@@ -1196,6 +1219,9 @@ function main() {
 
       elif is_cmd wine && [[ -f "${arg1}" && "${arg1}" =~ ^.*\.exe$ ]]; then
         wine "${arg1}" "${@}"
+
+#     elif [[ -f "./fpr/${arg1}" ]]; then
+#       "./fpr/${arg1}" "${@}"
       fi
 
     popd &> /dev/null
