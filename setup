@@ -305,6 +305,70 @@ EOS
 
   fi
 
+  # ufw
+  if is_sudoer && is_cmd ufw; then
+    echo y | ${SUDO} ufw enable
+    ${SUDO} ufw default deny
+#   ${SUDO} ufw allow                                 22
+#   ${SUDO} ufw allow from 10.0.0.0/8     to any port 22
+#   ${SUDO} ufw allow from 172.16.0.0/12  to any port 22
+#   ${SUDO} ufw allow from 192.168.0.0/16 to any port 22
+    ${SUDO} ufw reload
+  fi
+
+  # rkhunter
+  if is_sudoer && [[ -f '/etc/rkhunter.conf' ]]; then
+    ${SUDO} sed -i -r \
+      -e 's/^#?LANGUAGE=.*$/LANGUAGE=ja/g' \
+      -e 's/^#?UPDATE_LANG=.*$/UPDATE_LANG=ja/g' \
+      -e 's/^#?WEB_CMD=.*$/WEB_CMD=""/g' \
+      -e 's/^#?UPDATE_MIRRORS=.*$/UPDATE_MIRRORS=1/g' \
+      -e 's/^#?MIRRORS_MODE=.*$/MIRRORS_MODE=0/g' \
+      -e 's/^#?PKGMGR=.*$/PKGMGR=DPKG/g' \
+      '/etc/rkhunter.conf'
+  fi
+  if is_sudoer && is_cmd rkhunter; then
+    set +e
+      ${SUDO} rkhunter --update
+      ${SUDO} rkhunter --propupd
+#     ${SUDO} rkhunter --versioncheck
+#     ${SUDO} rkhunter --check --skip-keypress
+    set -e
+  fi
+
+  # clamav
+  if is_sudoer && is_cmd freshclam; then
+    ${SUDO} systemctl stop  clamav-freshclam
+    ${SUDO} freshclam
+    ${SUDO} systemctl start clamav-freshclam
+  fi
+
+  # sshd
+  if is_sudoer && [[ -f '/etc/ssh/sshd_config' ]]; then
+    ${SUDO} sed -i -r \
+      -e 's/#?PermitRootLogin .*/PermitRootLogin no/g' \
+      -e 's/#?PermitEmptyPasswords .*/PermitEmptyPasswords no/g' \
+      -e 's/#?PasswordAuthentication .*/PasswordAuthentication no/g' \
+      -e 's/#?PubkeyAuthentication .*/PubkeyAuthentication yes/g' \
+      -e 's/#?StrictModes .*/StrictModes yes/g' \
+      '/etc/ssh/sshd_config'
+  fi
+  if ! is_container; then
+    ${SUDO} systemctl reload sshd
+  fi
+
+  # podman
+  if is_sudoer && [[ -f '/etc/containers/registries.conf' ]]; then
+    : # echo "unqualified-search-registries = ['container.0', 'docker.io']" | ${SUDO} tee '/etc/containers/registries.conf' > /dev/null
+  fi
+
+  # locale
+  if is_sudoer && is_cmd locale-gen; then
+    ${SUDO} locale-gen ja_JP.UTF-8
+    ${SUDO} localedef -f UTF-8 -i ja_JP ja_JP.utf8
+    ${SUDO} update-locale LANG='ja_JP.UTF-8'
+  fi
+
 }
 
 function _fpr() {
@@ -357,26 +421,26 @@ function _fpr() {
 
 function _enc() {
 
-  if [[ -n "${1:-}" ]]; then
+  if [[ ! -p '/dev/stdin' ]]; then
     echo -n "${@}" | _enc
     return
   fi
 
-  cat /dev/stdin | gpg --encrypt             2> /dev/null | base64 --wrap 0
-# cat /dev/stdin | gpg --encrypt --symmetric 2> /dev/null | base64 --wrap 0
+  cat '/dev/stdin' | gpg --encrypt             | base64 --wrap 0
+# cat '/dev/stdin' | gpg --encrypt --symmetric | base64 --wrap 0
 
-}
+} 2> /dev/null
 
 function _dec() {
 
-  if [[ -n "${1:-}" ]]; then
+  if [[ ! -p '/dev/stdin' ]]; then
     echo -n "${@}" | _dec
     return
   fi
 
-  cat /dev/stdin | base64 --decode | gpg --decrypt 2> /dev/null
+  cat '/dev/stdin' | base64 --decode | gpg --decrypt
 
-}
+} 2> /dev/null
 
 function _home() {
   (
@@ -566,27 +630,29 @@ function _apt() {
 
 function _venv() {
   (
+    if [[ ! -v VIRTUAL_ENV ]]; then
 
-    venv_dir='./.venv'
+      venv_dir='./.venv'
 
-    python3 -m venv "${venv_dir}"
+      python3 -m venv "${venv_dir}"
 
-    if ! is_func 'deactivate'; then
       source "${venv_dir}/bin/activate"
+
+      req_file="${venv_dir}/requirements.txt"
+      touch "${req_file}"
+
+      tmp_file="${req_file}.tmp"
+      {
+        echo pip
+        echo yq
+        cat "${req_file}"
+        pip freeze | sed -e 's/[!=<> #].*//g'
+      } 2> /dev/null | sort -u > "${tmp_file}"
+      mv "${tmp_file}" "${req_file}"
+
+      pip install --upgrade --requirement "${req_file}"
+
     fi
-
-    req_file="${venv_dir}/requirements.txt"
-    tmp_file="${req_file}.tmp"
-    {
-      echo pip
-      echo yq
-      touch "${req_file}" && cat "${req_file}"
-      pip freeze | sed -e 's/[!=<> #].*//g'
-    } 2> /dev/null | sort -u > "${tmp_file}"
-    mv "${tmp_file}" "${req_file}"
-
-    pip install --upgrade --requirement "${req_file}"
-
   )
 }
 
@@ -998,6 +1064,7 @@ import re
 import time
 import regex
 import torch
+
 from transformers import (
   AutoTokenizer,
   AutoModelForCausalLM,
@@ -1181,7 +1248,7 @@ function main() {
       fi
       _fpr
 
-      if ! is_func 'deactivate'; then
+      if [[ ! -v VIRTUAL_ENV ]]; then
         source './.venv/bin/activate'
       fi
 
