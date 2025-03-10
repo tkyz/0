@@ -27,6 +27,12 @@
   <version>${version}</version>
   <packaging>pom</packaging>
 
+  <modules>
+    <module>core</module>
+    <module>jdbc</module>
+    <module>main</module>
+  </modules>
+
   <distributionManagement>
 
     <repository>
