@@ -132,6 +132,10 @@ function is_tcp() {
   timeout 1 bash -c "cat /dev/null > /dev/tcp/${1}/${2}"
 } &> /dev/null
 
+function is_venv() {
+  test -v VIRTUAL_ENV
+} &> /dev/null
+
 #----------------------------------------------------------------
 # _...
 
@@ -630,7 +634,7 @@ function _apt() {
 
 function _venv() {
   (
-    if [[ ! -v VIRTUAL_ENV ]]; then
+    if ! is_venv; then
 
       venv_dir='./.venv'
 
@@ -1233,8 +1237,8 @@ function main() {
         chmod    go-rwx '.'        &> /dev/null || true
         chmod -R go-rwx './.gnupg' &> /dev/null || true
         chmod -R go-rwx './.ssh'   &> /dev/null || true
-#       find './src/0.fpr' -type f | xargs --no-run-if-empty chmod 600 || true
-#       find './src/0.fpr' -type d | xargs --no-run-if-empty chmod 700 || true
+#       find './fpr' -type f | xargs --no-run-if-empty chmod 600 || true
+#       find './fpr' -type d | xargs --no-run-if-empty chmod 700 || true
 
         _apt
         _venv
@@ -1248,7 +1252,7 @@ function main() {
       fi
       _fpr
 
-      if [[ ! -v VIRTUAL_ENV ]]; then
+      if ! is_venv; then
         source './.venv/bin/activate'
       fi
 
@@ -1289,6 +1293,9 @@ function main() {
 
 #     elif [[ -f "./fpr/${arg1}" ]]; then
 #       "./fpr/${arg1}" "${@}"
+
+      elif is_cmd java && [[ -d "./src/0.playground/main/src/main/java/_0/playground/cli/${arg1}" ]]; then
+        java -cp '.:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*' Entrypoint "${arg1}" "${@}"
       fi
 
     popd &> /dev/null
