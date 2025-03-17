@@ -21,5 +21,4 @@ printf "\e[2m"
   done
 printf "\e[0m"
 
-fpr validate
 exit 0
