@@ -29,6 +29,7 @@ beautifulsoup4
 bencodepy
 blendmodes
 certifi
+cffi
 charset-normalizer
 clean-fid
 click
@@ -133,6 +134,7 @@ protobuf
 psutil
 puremagic
 pyarrow
+pycparser
 pydantic
 pydantic_core
 pydub
@@ -166,6 +168,7 @@ six
 smmap
 sniffio
 sortedcontainers
+sounddevice
 soupsieve
 sqlite-fts4
 sqlite-migrate
