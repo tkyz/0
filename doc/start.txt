@@ -1,3 +1,10 @@
 <code bash>
 (curl https://setup.0 || curl https://raw.githubusercontent.com/tkyz/0/main/setup) | bash
 </code>
+
+<WRAP group>
+<WRAP box round column centeralign>{{blockchain:btc.png?nolink&0x20}} btc \\ {{blockchain:btc.svg?nolink}}</WRAP>
+<WRAP box round column centeralign>{{blockchain:eth.png?nolink&0x20}} eth \\ {{blockchain:eth.svg?nolink}}</WRAP>
+<WRAP box round column centeralign>{{blockchain:sol.png?nolink&0x20}} sol \\ {{blockchain:sol.svg?nolink}}</WRAP>
+<WRAP box round column centeralign>{{blockchain:xrp.png?nolink&0x20}} xrp \\ {{blockchain:xrp.svg?nolink}}</WRAP>
+</WRAP>
