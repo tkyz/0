@@ -35,6 +35,7 @@ clean-fid
 click
 click-default-group
 coloredlogs
+condense-json
 contourpy
 cycler
 datasets
@@ -198,6 +199,7 @@ trio
 trio-websocket
 triton
 typer
+typing-inspection
 typing_extensions
 tzdata
 ujson
