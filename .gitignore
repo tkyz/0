@@ -31,16 +31,7 @@
 
 # ${HOME}
 /.*
-/fpr/
-/lib/
-/mnt/
-/opt/
 /snap/
-/src/0.fpr/
-/src/com.github/
-/src/com.gitlab/
-/src/org.golang/
-/tmp/
 /ダウンロード/
 /テンプレート/
 /デスクトップ/
@@ -51,9 +42,25 @@
 /公開/
 
 #----------------------------------------------------------------
+# 0
+
+/fpr/
+/lib/
+/mnt/
+/opt/
+/src/0.playground/**/.settings/
+/src/0.playground/**/.classpath
+/src/0.playground/**/.project
+/src/0.playground/**/target/
+/src/0.fpr/
+/src/com.github/
+/src/com.gitlab/
+/src/org.golang/
+/tmp/
+
+#----------------------------------------------------------------
 # files
 
-# binary
 *.iso
 *.exe
 *.o
@@ -62,12 +69,11 @@
 *.war
 *.ear
 *.tar
-*.tar.gz
 *.tgz
+*.gz
 *.rar
 *.bz
 *.bz2
-*.gz
 *.zip
 *.7z
 *.lzh
