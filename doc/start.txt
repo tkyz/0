@@ -1,5 +1,5 @@
 <code bash>
-(curl https://setup.0 || curl https://raw.githubusercontent.com/tkyz/0/main/setup) | bash
+( curl "file://${HOME}/setup" || curl 'https://setup.0' || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 </code>
 
 <WRAP group>

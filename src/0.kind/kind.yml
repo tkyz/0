@@ -18,8 +18,8 @@ nodes:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
     extraMounts:
-      - {hostPath: "${HOME}/.profile",                containerPath: /root/.profile,      readOnly: true}
-      - {hostPath: "${HOME}/.bashrc",                 containerPath: /root/.bashrc,       readOnly: true}
+      - {hostPath: "${home}/.profile",                containerPath: /root/.profile,      readOnly: true}
+      - {hostPath: "${home}/.bashrc",                 containerPath: /root/.bashrc,       readOnly: true}
     extraPortMappings:
       - {hostPort:    53, containerPort:    53, listenAddress: "${external_ip}", protocol: UDP} # dns
       - {hostPort:    80, containerPort:    80, listenAddress: "${external_ip}", protocol: TCP} # http
@@ -41,27 +41,27 @@ nodes:
 
   - role: worker
     extraMounts:
-      - {hostPath: "${HOME}/.profile",                containerPath: /root/.profile,      readOnly: true}
-      - {hostPath: "${HOME}/.bashrc",                 containerPath: /root/.bashrc,       readOnly: true}
-      - {hostPath: "${HOME}/tmp",                     containerPath: /root/tmp}
+      - {hostPath: "${home}/.profile",                containerPath: /root/.profile,      readOnly: true}
+      - {hostPath: "${home}/.bashrc",                 containerPath: /root/.bashrc,       readOnly: true}
+      - {hostPath: "${home}/tmp",                     containerPath: /root/tmp}
       # lib
-      - {hostPath: "${HOME}/lib/0.pgsql",             containerPath: /mnt/0.pgsql}
-      - {hostPath: "${HOME}/lib/0.mariadb",           containerPath: /mnt/0.mysql}
-      - {hostPath: "${HOME}/lib/0.redis",             containerPath: /mnt/0.redis}
-      - {hostPath: "${HOME}/lib/0.git",               containerPath: /mnt/0.git,          readOnly: true}
-      - {hostPath: "${HOME}/lib/0.container",         containerPath: /mnt/0.container}
-      - {hostPath: "${HOME}/lib/0.mvn",               containerPath: /mnt/0.mvn}
-      - {hostPath: "${HOME}/lib/0.apt",               containerPath: /mnt/0.apt}
-      - {hostPath: "${HOME}/lib/0.minecraft",         containerPath: /mnt/0.minecraft}
-      - {hostPath: "${HOME}/lib/0.btc",               containerPath: /mnt/0.btc}
-      - {hostPath: "${HOME}/lib/0.eth",               containerPath: /mnt/0.eth}
-      - {hostPath: "${HOME}/lib/0.llm",               containerPath: /mnt/0.llm,          readOnly: true}
-      - {hostPath: "${HOME}/lib/co.huggingface",      containerPath: /mnt/co.huggingface, readOnly: true}
+      - {hostPath: "${home}/lib/0.pgsql",             containerPath: /mnt/0.pgsql}
+      - {hostPath: "${home}/lib/0.mariadb",           containerPath: /mnt/0.mysql}
+      - {hostPath: "${home}/lib/0.redis",             containerPath: /mnt/0.redis}
+      - {hostPath: "${home}/lib/0.git",               containerPath: /mnt/0.git,          readOnly: true}
+      - {hostPath: "${home}/lib/0.container",         containerPath: /mnt/0.container}
+      - {hostPath: "${home}/lib/0.mvn",               containerPath: /mnt/0.mvn}
+      - {hostPath: "${home}/lib/0.apt",               containerPath: /mnt/0.apt}
+      - {hostPath: "${home}/lib/0.minecraft",         containerPath: /mnt/0.minecraft}
+      - {hostPath: "${home}/lib/0.btc",               containerPath: /mnt/0.btc}
+      - {hostPath: "${home}/lib/0.eth",               containerPath: /mnt/0.eth}
+      - {hostPath: "${home}/lib/0.llm",               containerPath: /mnt/0.llm,          readOnly: true}
+      - {hostPath: "${home}/lib/co.huggingface",      containerPath: /mnt/co.huggingface, readOnly: true}
       # src
-      - {hostPath: "${HOME}/src/com.github",          containerPath: /mnt/com.github}
-      - {hostPath: "${HOME}/src/com.gitlab",          containerPath: /mnt/com.gitlab}
-      - {hostPath: "${HOME}/src/org.golang",          containerPath: /mnt/org.golang}
-      - {hostPath: "${HOME}/src/0.doc/dokuwiki/conf", containerPath: /mnt/com.github/splitbrain/dokuwiki/conf}
+      - {hostPath: "${home}/src/com.github",          containerPath: /mnt/com.github}
+      - {hostPath: "${home}/src/com.gitlab",          containerPath: /mnt/com.gitlab}
+      - {hostPath: "${home}/src/org.golang",          containerPath: /mnt/org.golang}
+      - {hostPath: "${home}/src/0.doc/dokuwiki/conf", containerPath: /mnt/com.github/splitbrain/dokuwiki/conf}
       # fs
-      - {hostPath: "${HOME}/mnt/0.dfs",               containerPath: /mnt/0.dfs}
-      - {hostPath: "${HOME}/tmp",                     containerPath: /mnt/0.pub,          readOnly: true}
+      - {hostPath: "${home}/mnt/0.dfs",               containerPath: /mnt/0.dfs}
+      - {hostPath: "${home}/tmp",                     containerPath: /mnt/0.pub,          readOnly: true}
