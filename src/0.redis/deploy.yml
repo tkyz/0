@@ -15,7 +15,7 @@ spec:
         app: redis
     spec:
       volumes:
-        - {name: data-volume, hostPath: {path: /mnt/0.redis, type: Directory}}
+        - {name: data-volume, hostPath: {path: /root/lib/0.redis, type: Directory}}
       containers:
         - name: redis
           image: redis:alpine

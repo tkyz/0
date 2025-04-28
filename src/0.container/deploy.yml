@@ -15,7 +15,7 @@ spec:
         app: container
     spec:
       volumes:
-        - {name: data-volume, hostPath: {path: /mnt/0.container, type: Directory}}
+        - {name: data-volume, hostPath: {path: /root/lib/0.container, type: Directory}}
       containers:
         - name: container
           image: registry:latest

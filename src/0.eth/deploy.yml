@@ -15,7 +15,7 @@ spec:
         app: eth
     spec:
       volumes:
-        - {name: data-volume, hostPath: {path: /mnt/0.eth, type: Directory}}
+        - {name: data-volume, hostPath: {path: /root/lib/0.eth, type: Directory}}
       containers:
         - name: eth
           image: container.0/org.ethereum:${tag}

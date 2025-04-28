@@ -15,7 +15,7 @@ spec:
         app: mariadb
     spec:
       volumes:
-        - {name: data-volume, hostPath: {path: /mnt/0.mysql, type: Directory}}
+        - {name: data-volume, hostPath: {path: /root/lib/0.mariadb, type: Directory}}
       containers:
         - name: mariadb
           image: mariadb:latest

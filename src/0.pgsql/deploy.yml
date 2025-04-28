@@ -15,7 +15,7 @@ spec:
         app: pgsql
     spec:
       volumes:
-        - {name: data-volume, hostPath: {path: /mnt/0.pgsql, type: Directory}}
+        - {name: data-volume, hostPath: {path: /root/lib/0.pgsql, type: Directory}}
       containers:
         - name: pgsql
           image: postgres:alpine

@@ -15,7 +15,7 @@ spec:
         app: mvn
     spec:
       volumes:
-        - {name: data-volume, hostPath: {path: /mnt/0.mvn, type: Directory}}
+        - {name: data-volume, hostPath: {path: /root/lib/0.mvn, type: Directory}}
       containers:
         - name: mvn
           image: container.0/org.apache.archiva:${tag}

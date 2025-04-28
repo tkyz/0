@@ -15,7 +15,7 @@ spec:
         app: git
     spec:
       volumes:
-        - {name: data-volume, hostPath: {path: /mnt/0.git, type: Directory}}
+        - {name: data-volume, hostPath: {path: /root/lib/0.git, type: Directory}}
       containers:
         - name: git
           image: container.0/com.git-scm/git-daemon:${tag}

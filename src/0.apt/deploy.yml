@@ -15,7 +15,7 @@ spec:
         app: apt
     spec:
       volumes:
-        - {name: data-volume, hostPath: {path: /mnt/0.apt, type: Directory}}
+        - {name: data-volume, hostPath: {path: /root/lib/0.apt, type: Directory}}
       containers:
         - name: apt
           image: container.0/org.debian/apt-cacher-ng:${tag}
