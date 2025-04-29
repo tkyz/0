@@ -1,5 +1,5 @@
 <?php
-$conf['title'] = '0.doc';
+$conf['title'] = 'doc';
 $conf['lang'] = 'ja';
 $conf['breadcrumbs'] = 0;
 $conf['template'] = 'bootstrap3';

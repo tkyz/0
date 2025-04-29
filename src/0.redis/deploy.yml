@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: redis
 spec:
   replicas: 1
@@ -29,7 +29,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: redis
 spec:
   type: LoadBalancer

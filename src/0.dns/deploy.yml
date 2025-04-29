@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: dns
 data:
   Corefile: |
@@ -11,22 +11,22 @@ data:
       ready
       health
       hosts {
-        ${external_ip}       dns.0       dns.${tld}
-        ${external_ip}       ntp.0       ntp.${tld}
-        ${external_ip}       git.0       git.${tld}
-        ${external_ip} container.0 container.${tld}
-        ${external_ip}       apt.0       apt.${tld}
-        ${external_ip}       mvn.0       mvn.${tld}
-        ${external_ip}     pgsql.0     pgsql.${tld}
-        ${external_ip}     mysql.0     mysql.${tld}
-        ${external_ip}   mariadb.0   mariadb.${tld}
-        ${external_ip}     redis.0     redis.${tld}
-        ${external_ip}       doc.0       doc.${tld}
-        ${external_ip}       pub.0       pub.${tld}
-        ${external_ip} minecraft.0 minecraft.${tld}
-        ${external_ip}       btc.0       btc.${tld}
-        ${external_ip}       eth.0       eth.${tld}
-        ${external_ip}       ltc.0       ltc.${tld}
+        ${external_ip}       dns.${domain}
+        ${external_ip}       ntp.${domain}
+        ${external_ip}       git.${domain}
+        ${external_ip} container.${domain}
+        ${external_ip}       apt.${domain}
+        ${external_ip}       mvn.${domain}
+        ${external_ip}     pgsql.${domain}
+        ${external_ip}     mysql.${domain}
+        ${external_ip}   mariadb.${domain}
+        ${external_ip}     redis.${domain}
+        ${external_ip}       doc.${domain}
+        ${external_ip}       pub.${domain}
+        ${external_ip} minecraft.${domain}
+        ${external_ip}       btc.${domain}
+        ${external_ip}       eth.${domain}
+        ${external_ip}       ltc.${domain}
         fallthrough
       }
       forward . ${resolve}
@@ -39,7 +39,7 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: dns
 spec:
   replicas: 2
@@ -69,7 +69,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: dns
 spec:
   type: LoadBalancer

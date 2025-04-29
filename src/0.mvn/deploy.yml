@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: mvn
 spec:
   replicas: 1
@@ -18,7 +18,7 @@ spec:
         - {name: data-volume, hostPath: {path: /root/lib/0.mvn, type: Directory}}
       containers:
         - name: mvn
-          image: container.0/org.apache.archiva:${tag}
+          image: container.${domain}/org.apache.archiva:${tag}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort: 8080}
@@ -30,7 +30,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: mvn
 spec:
   type: LoadBalancer
@@ -43,21 +43,11 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: mvn
 spec:
   rules:
-    - host: mvn.0
-      http:
-        paths:
-          - pathType: Prefix
-            path: /
-            backend:
-              service:
-                name: mvn
-                port:
-                  number: 8080
-    - host: mvn.${tld}
+    - host: mvn.${domain}
       http:
         paths:
           - pathType: Prefix

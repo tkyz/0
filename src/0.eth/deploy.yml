@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: eth
 spec:
   replicas: 1
@@ -18,7 +18,7 @@ spec:
         - {name: data-volume, hostPath: {path: /root/lib/0.eth, type: Directory}}
       containers:
         - name: eth
-          image: container.0/org.ethereum:${tag}
+          image: container.${domain}/org.ethereum:${tag}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort: 30303}
@@ -29,7 +29,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: eth
 spec:
   type: LoadBalancer

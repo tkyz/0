@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: btc
 spec:
   replicas: 1
@@ -15,21 +15,23 @@ spec:
         app: btc
     spec:
       volumes:
-        - {name: data-volume, hostPath:  {path: /root/lib/0.btc, type: Directory}}
+        - {name: conf-volume, hostPath: {path: /root/src/0.btc/bitcoin/conf, type: Directory}}
+        - {name: data-volume, hostPath: {path: /root/lib/0.btc,              type: Directory}}
       containers:
         - name: btc
-          image: container.0/org.bitcoin:${tag}
+          image: container.${domain}/org.bitcoin:${tag}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort: 8333}
           volumeMounts:
-            - {name: data-volume, mountPath: /root/.bitcoin}
+            - {name: data-volume,                        mountPath: /root/.bitcoin}
+            - {name: conf-volume, subPath: bitcoin.conf, mountPath: /root/.bitcoin/bitcoin.conf, readOnly: true}
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: btc
 spec:
   type: LoadBalancer

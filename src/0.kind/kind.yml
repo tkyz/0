@@ -18,7 +18,7 @@ nodes:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
     extraMounts:
-      - {hostPath: "${home}/", containerPath: /root}
+      - {hostPath: "${home}", containerPath: /root}
     extraPortMappings:
       - {hostPort:    53, containerPort:    53, listenAddress: "${external_ip}", protocol: UDP} # dns
       - {hostPort:    80, containerPort:    80, listenAddress: "${external_ip}", protocol: TCP} # http
@@ -40,4 +40,4 @@ nodes:
 
   - role: worker
     extraMounts:
-      - {hostPath: "${home}/", containerPath: /root}
+      - {hostPath: "${home}", containerPath: /root}

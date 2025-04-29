@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: doc
 spec:
   replicas: 1
@@ -41,7 +41,7 @@ spec:
             - {name: gitlab-volume, subPath: MatthiasLohr/dokuwiki-barcodes,          mountPath: /usr/share/nginx/html/lib/plugins/Barcodes,    readOnly: true}
             - {name: github-volume, subPath: giterlizzi/dokuwiki-template-bootstrap3, mountPath: /usr/share/nginx/html/lib/tpl/bootstrap3,      readOnly: true}
         - name: phpfpm
-          image: container.0/net.php/fpm:${tag}
+          image: container.${domain}/net.php/fpm:${tag}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort: 9000}
@@ -73,7 +73,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: doc
 spec:
   type: LoadBalancer
@@ -86,21 +86,11 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: doc
 spec:
   rules:
-    - host: doc.0
-      http:
-        paths:
-          - pathType: Prefix
-            path: /
-            backend:
-              service:
-                name: doc
-                port:
-                  number: 80
-    - host: doc.${tld}
+    - host: doc.${domain}
       http:
         paths:
           - pathType: Prefix

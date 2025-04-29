@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: git
 spec:
   replicas: 1
@@ -18,7 +18,7 @@ spec:
         - {name: data-volume, hostPath: {path: /root/lib/0.git, type: Directory}}
       containers:
         - name: git
-          image: container.0/com.git-scm/git-daemon:${tag}
+          image: container.${domain}/com.git-scm/git-daemon:${tag}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort: 9418}
@@ -29,7 +29,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: git
 spec:
   type: LoadBalancer

@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: apt
 spec:
   replicas: 1
@@ -18,7 +18,7 @@ spec:
         - {name: data-volume, hostPath: {path: /root/lib/0.apt, type: Directory}}
       containers:
         - name: apt
-          image: container.0/org.debian/apt-cacher-ng:${tag}
+          image: container.${domain}/org.debian/apt-cacher-ng:${tag}
           imagePullPolicy: IfNotPresent
           ports:
             - {protocol: TCP, containerPort:  443}
@@ -30,7 +30,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: apt
 spec:
   type: LoadBalancer
@@ -44,21 +44,11 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  namespace: "0"
+  namespace: ${hostname}
   name: apt
 spec:
   rules:
-    - host: apt.0
-      http:
-        paths:
-          - pathType: Prefix
-            path: /
-            backend:
-              service:
-                name: apt
-                port:
-                  number: 3142
-    - host: apt.${tld}
+    - host: apt.${domain}
       http:
         paths:
           - pathType: Prefix
