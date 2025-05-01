@@ -15,7 +15,7 @@ setlocal
   wsl --terminate    %dist%
   wsl --set-version  %dist% 2
   wsl --distribution %dist% -- sed -i 's#:/root:#:/mnt/c/Users/%USERNAME%:#' /etc/passwd
-  wsl --distribution %dist% -- $^(wslpath -u %~0^)
+  wsl --distribution %dist% -- $^( wslpath -u %~0 ^)
   wsl --terminate    %dist%
 
 endlocal
@@ -26,53 +26,32 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-source /etc/os-release
+source <(cat /etc/os-release | sed 's/^/readonly /g')
 test 'debian' == "${ID_LIKE:-${ID}}"
 test 'bash'   == "${SHELL##*/}"
 
 readonly unix_epoch='1970-01-01 00:00:00'
 readonly arch="$(dpkg --print-architecture)"
+
 readonly user="${USER:-root}"
 readonly home="${HOME:-/root}"
 readonly ppwd="${PWD}"
 
-readonly external_ip="$(type -p ip &> /dev/null && ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | sort | head -n 1 || true)"
-readonly resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
-
-# env
+# .env
 if true; then
 
-  readonly tag="${tag:-latest}"
-  readonly context="${context:-${tag}}"
-  readonly tld="${tld:-$(hostname -f)}"
+  source <(cat "${home}/setup.env" 2> /dev/null)
+
+  readonly domain="${domain:-$(hostname -d)}"
+  readonly hostname="${hostname:-$(hostname)}"
 
   readonly github_user="${github_user:-${user}}"
+  readonly tag="${tag:-latest}"
+
+  readonly resolve="${resolve:-$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)}"
+  readonly external_ip="${external_ip:-$(type -p ip &> /dev/null && ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | sort | head -n 1 || echo 127.0.0.1)}"
 
 fi
-
-# envsubst
-function env_replace() {
-  (
-    sed \
-      -e "s|\${HOME}|${home}|g" \
-      -e "s|\${external_ip}|${external_ip}|g" \
-      -e "s|\${resolve}|${resolve}|g" \
-      -e "s|\${tag}|${tag}|g" \
-      -e "s|\${tld}|${tld}|g"
-  )
-}
-
-function keys() {
-  {
-    echo '0000000000000000000000000000000000000000'
-    echo '00000000-0000-0000-0000-000000000000'
-    echo "${openpgp4fpr}"
-    gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10
-    gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10
-    lsblk --all --fs --paths --json | jq -cr '.. | objects | .uuid | select(. != null)'
-    find './src/0.fpr' -mindepth 1 -maxdepth 1 -type d | sed 's#.*/##g' 2> /dev/null || true
-  } | sort -u
-}
 
 #----------------------------------------------------------------
 # is_...
@@ -141,13 +120,13 @@ function is_venv() {
 } &> /dev/null
 
 #----------------------------------------------------------------
-# _...
+# ...
 
 function _license() {
   cat << EOS > './LICENSE'
 MIT License
 
-Copyright (c) $(date +'%Y') fpr:${openpgp4fpr}
+Copyright (c) $(date +'%Y') openpgp4fpr:${openpgp4fpr}
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -169,12 +148,27 @@ SOFTWARE.
 EOS
 }
 
-function _deps() {
-  (
+function _keys() {
+  {
+    echo '0'
+    echo '0000000000000000000000000000000000000000'
+    echo '00000000-0000-0000-0000-000000000000'
+    echo "${openpgp4fpr}"
+    gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10
+    gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10
+    lsblk --all --fs --paths --json | jq -cr '.. | objects | .uuid | select(. != null)'
+    find './mnt'       -mindepth 1 -maxdepth 1 -type d             | sed 's#.*/##g' 2> /dev/null || true
+    find './lib'       -mindepth 1 -maxdepth 1 -type d -name '0.*' | sed 's#.*/##g' 2> /dev/null || true
+    find './src'       -mindepth 1 -maxdepth 1 -type d -name '0.*' | sed 's#.*/##g' 2> /dev/null || true
+    find './src/0.fpr' -mindepth 1 -maxdepth 1 -type d             | sed 's#.*/##g' 2> /dev/null || true
+  } | sort -u
+}
 
-    # /etc/wsl.conf
-    if is_sudoer && is_wsl; then
-      cat << EOS | ${SUDO} tee /etc/wsl.conf > /dev/null
+function _deps() {
+
+  # /etc/wsl.conf
+  if is_sudoer && is_wsl; then
+    cat << EOS | ${SUDO} tee /etc/wsl.conf > /dev/null
 [automount]
 options            = "uid=0,gid=0,umask=0077,fmask=0177,metadata"
 [network]
@@ -185,26 +179,53 @@ appendWindowsPath  = false
 [user]
 default            = root
 EOS
-    fi
+  fi
 
-    # /etc/default/keyboard
-    if is_sudoer; then
-      cat << EOS | ${SUDO} tee /etc/default/keyboard > /dev/null
+  # /etc/default/keyboard
+  if is_sudoer; then
+    cat << EOS | ${SUDO} tee /etc/default/keyboard > /dev/null
 XKBMODEL=pc105
 XKBLAYOUT=jp
 XKBVARIANT=
 XKBOPTIONS=ctrl:nocaps
 BACKSPACE=guess
 EOS
-    fi
+  fi
 
-    # apt
-    if is_sudoer && is_deb; then
+  # /etc/hosts
+  if is_sudoer; then
+    cat << EOS | ${SUDO} tee /etc/hosts > /dev/null
+127.0.0.1 localhost
+127.0.0.1 ${hostname}.${domain} ${hostname}
+::1       localhost ip6-localhost ip6-loopback
+ff02::1   ip6-allnodes
+ff02::2   ip6-allrouters
 
-      # /etc/apt/apt.conf.d/00default
+${external_ip}       dns.${domain}
+${external_ip}       ntp.${domain}
+${external_ip}       git.${domain}
+${external_ip} container.${domain}
+${external_ip}       apt.${domain}
+${external_ip}       mvn.${domain}
+${external_ip}     pgsql.${domain}
+${external_ip}     mysql.${domain}
+${external_ip}   mariadb.${domain}
+${external_ip}     redis.${domain}
+${external_ip}     setup.${domain}
+${external_ip}       doc.${domain}
+${external_ip}       btc.${domain}
+${external_ip}       eth.${domain}
+#${external_ip}      hdfs.${domain}
+#${external_ip}     hbase.${domain}
+EOS
+  fi
+
+  # /etc/apt/*
+  if is_sudoer && is_deb; then
+    (
+
       echo 'APT::Default-Release "stable";' | ${SUDO} tee /etc/apt/apt.conf.d/00default > /dev/null
 
-      # /etc/apt/sources.list
       cat << EOS | ${SUDO} tee /etc/apt/sources.list > /dev/null
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
@@ -223,327 +244,13 @@ deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security 
 EOS
 
       arr=()
-      # shell
       arr+=('bash')
-      arr+=('bash-completion')
-#     arr+=('zsh')
-#     arr+=('fish')
-      # hw
-      if ! is_container; then
-        arr+=('lshw')
-        arr+=('lsscsi')
-        arr+=('usbutils')
-      fi
-      # fw
-      if ! is_container; then
-        arr+=('firmware-linux')
-        arr+=('firmware-realtek')
-        arr+=('firmware-iwlwifi')
-      fi
-      # vol
-      if ! is_container; then
-        arr+=('parted')
-        arr+=('cryptsetup')
-        arr+=('lvm2')
-      fi
-      # fuse
-      arr+=('fuse')
-      arr+=('archivemount')
-      arr+=('cifs-utils')
-      arr+=('gocryptfs')
-      # archive
-      arr+=('libarchive-tools')
-      arr+=('unar')
-      arr+=('zip')
-      # print
-      arr+=('cups')
-      # git
-      arr+=('git')
-      arr+=('git-crypt')
-      arr+=('git-lfs')
-      # python
-      arr+=('python3')
-      arr+=('python3-pip')
-      arr+=('python3-venv')
-      # container
-      if ! is_container; then
-        arr+=('podman')
-        arr+=('containerd.io')
-      fi
-
-      arr+=('uuid-runtime')
-      arr+=('faketime')
       arr+=('gnupg2')
-      arr+=('openssl')
-      arr+=('openssh-client')
-      arr+=('openssh-server')
-      if ! is_container; then
-        arr+=('ufw')
-        arr+=('rkhunter')
-        arr+=('clamav')
-      fi
-
-      arr+=('util-linux')
-      arr+=('procps')
-      arr+=('rsync')
-      arr+=('xsel')
-      arr+=('pkg-config')
-      arr+=('parallel')
-      arr+=('gettext-base')
-      arr+=('nkf')
-      arr+=('jq')
-      arr+=('htop')
       arr+=('curl')
-      arr+=('tmux')
-      arr+=('qrencode')
-
-      arr+=('vim')
-#     arr+=('emacs')
-
-      arr+=('nmap')
-      arr+=('tcpdump')
 
       ${SUDO} apt-get update
       ${SUDO} apt-get upgrade -y
       ${SUDO} apt-get install -y "${arr[@]}"
-#     ${SUDO} apt list --upgradable
-
-    fi
-
-    # ufw
-    if is_sudoer && is_cmd ufw; then
-      echo y | ${SUDO} ufw enable
-      ${SUDO} ufw default deny
-#     ${SUDO} ufw allow                                 22
-#     ${SUDO} ufw allow from 10.0.0.0/8     to any port 22
-#     ${SUDO} ufw allow from 172.16.0.0/12  to any port 22
-#     ${SUDO} ufw allow from 192.168.0.0/16 to any port 22
-      ${SUDO} ufw reload
-    fi
-
-    # rkhunter
-    if is_sudoer && [[ -f '/etc/rkhunter.conf' ]]; then
-      ${SUDO} sed -i -r \
-        -e 's/^#?LANGUAGE=.*$/LANGUAGE=ja/g' \
-        -e 's/^#?UPDATE_LANG=.*$/UPDATE_LANG=ja/g' \
-        -e 's/^#?WEB_CMD=.*$/WEB_CMD=""/g' \
-        -e 's/^#?UPDATE_MIRRORS=.*$/UPDATE_MIRRORS=1/g' \
-        -e 's/^#?MIRRORS_MODE=.*$/MIRRORS_MODE=0/g' \
-        -e 's/^#?PKGMGR=.*$/PKGMGR=DPKG/g' \
-        '/etc/rkhunter.conf'
-    fi
-    if is_sudoer && is_cmd rkhunter; then
-      set +e
-        ${SUDO} rkhunter --update
-        ${SUDO} rkhunter --propupd
-#       ${SUDO} rkhunter --versioncheck
-#       ${SUDO} rkhunter --check --skip-keypress
-      set -e
-    fi
-
-    # clamav
-    if is_sudoer && is_cmd freshclam; then
-      ${SUDO} systemctl stop  clamav-freshclam
-      ${SUDO} freshclam
-      ${SUDO} systemctl start clamav-freshclam
-    fi
-
-    # sshd
-    if is_sudoer && [[ -f '/etc/ssh/sshd_config' ]]; then
-      ${SUDO} sed -i -r \
-        -e 's/#?PermitRootLogin .*/PermitRootLogin no/g' \
-        -e 's/#?PermitEmptyPasswords .*/PermitEmptyPasswords no/g' \
-        -e 's/#?PasswordAuthentication .*/PasswordAuthentication no/g' \
-        -e 's/#?PubkeyAuthentication .*/PubkeyAuthentication yes/g' \
-        -e 's/#?StrictModes .*/StrictModes yes/g' \
-        '/etc/ssh/sshd_config'
-    fi
-    if ! is_container; then
-      ${SUDO} systemctl reload sshd
-    fi
-
-    # podman
-    if is_sudoer && [[ -f '/etc/containers/registries.conf' ]]; then
-      : # echo "unqualified-search-registries = ['container.0', 'docker.io']" | ${SUDO} tee '/etc/containers/registries.conf' > /dev/null
-    fi
-
-    # locale
-    if is_sudoer && is_cmd locale-gen; then
-      ${SUDO} locale-gen ja_JP.UTF-8
-      ${SUDO} localedef -f UTF-8 -i ja_JP ja_JP.utf8
-      ${SUDO} update-locale LANG='ja_JP.UTF-8'
-    fi
-
-  )
-}
-
-function _fpr() {
-  if unset openpgp4fpr 2> /dev/null; then
-
-    (
-
-      fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
-      if [[ -z "${fpr}" ]]; then
-        fpr="$(gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | sort | head -n 1 || true)"
-      fi
-      if [[ -z "${fpr}" ]]; then
-
-        uuid="$(uuidgen)"
-        passphrase=''
-
-        export TZ='utc'
-
-        cmds=()
-        cmds+=('faketime' '-f' "${unix_epoch}")
-        cmds+=('gpg' '--no-tty' '--pinentry-mode' 'loopback' '--passphrase' "${passphrase}")
-
-        "${cmds[@]}" --quick-generate-key "${uuid}" ed25519 sign,cert 0
-
-        fpr="$(gpg --with-colons --list-secret-keys "=${uuid}" 2> /dev/null | grep ^fpr | cut -d ':' -f 10)"
-
-        "${cmds[@]}" --quick-add-key    "0x${fpr}" ed25519 sign 0
-#       "${cmds[@]}" --quick-add-key    "0x${fpr}" ed25519 cert 0
-        "${cmds[@]}" --quick-add-key    "0x${fpr}" cv25519 encr 0
-        "${cmds[@]}" --quick-add-key    "0x${fpr}" ed25519 auth 0
-
-        "${cmds[@]}" --quick-add-uid    "0x${fpr}" "${fpr}"
-#       "${cmds[@]}" --quick-add-uid    "0x${fpr}" "${user}@$(hostname -f)"
-        "${cmds[@]}" --quick-revoke-uid "0x${fpr}" "${uuid}"
-
-      fi
-
-      conf_file="${GNUPGHOME:-${home}/.gnupg}/gpg.conf"
-      grep -q default-key       "${conf_file}" && sed -i -r -e "s/^(default-key).*/\1       0x${fpr}/g" "${conf_file}" || echo "default-key       0x${fpr}" >> "${conf_file}"
-      grep -q default-recipient "${conf_file}" && sed -i -r -e "s/^(default-recipient).*/\1 0x${fpr}/g" "${conf_file}" || echo "default-recipient 0x${fpr}" >> "${conf_file}"
-
-    )
-
-    openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
-    readonly openpgp4fpr
-    export   openpgp4fpr
-
-  fi
-}
-
-function _enc() {
-
-  if [[ ! -p '/dev/stdin' ]]; then
-    echo -n "${@}" | _enc
-    return
-  fi
-
-  cat '/dev/stdin' | gpg --encrypt             | base64 --wrap 0
-# cat '/dev/stdin' | gpg --encrypt --symmetric | base64 --wrap 0
-
-} 2> /dev/null
-
-function _dec() {
-
-  if [[ ! -p '/dev/stdin' ]]; then
-    echo -n "${@}" | _dec
-    return
-  fi
-
-  cat '/dev/stdin' | base64 --decode | gpg --decrypt
-
-} 2> /dev/null
-
-function _home() {
-  (
-
-    git config --global init.defaultBranch main
-    git config --global core.ignorecase    false
-    git config --global core.quotepath     false
-    git config --global core.autocrlf      false
-    git config --global core.safecrlf      true
-    git config --global core.filemode      true
-    git config --global core.hooksPath     '~/.git-hooks'
-    git config --global gpg.program        "$(type -p gpg)"
-    git config --global commit.gpgsign     true
-    git config --global color.ui           auto
-    git config --global color.diff         auto
-    git config --global color.status       auto
-    git config --global color.branch       auto
-    git config --global pull.ff            only
-    git config --global pull.rebase        true
-    git config --global pull.autostash     false
-    git config --global rebase.autostash   false
-    git config --global merge.ff           false
-    git config --global diff.sjis.textconv 'iconv -f sjis'
-    git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
-#   git config --global user.name          "${user}"
-#   git config --global user.email         "${user}@$(hostname -f)"
-    git config --global user.signingkey    "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
-
-    repos=()
-    repos+=('0')
-    repos+=('0.fpr')
-
-    for repo in "${repos[@]}"; do
-
-      src_dir="./src/${repo}"
-      if [[ '0' == "${repo}" ]]; then
-        src_dir="${home}"
-      fi
-
-      mkdir -p "${src_dir}"
-      pushd "${src_dir}" &> /dev/null
-
-        echo '---'
-        pwd
-
-#       git init --object-format=sha256
-        git init
-
-        git remote add 'origin'   "${home}/lib/0.git/${repo}.git"                   2> /dev/null || git remote set-url 'origin'   "${home}/lib/0.git/${repo}.git"
-        git remote add 'upstream' "git://git.0/${repo}.git"                         2> /dev/null || git remote set-url 'upstream' "git://git.0/${repo}.git"
-#       git remote add 'upstream' "ssh://${user}@git.0/${repo}.git"                 2> /dev/null || git remote set-url 'upstream' "ssh://${user}@git.0/${repo}.git"
-        git remote add 'github'   "https://github.com/${github_user}/${repo}.git"   2> /dev/null || git remote set-url 'github'   "https://github.com/${github_user}/${repo}.git"
-#       git remote add 'github'   "ssh://git@github.com/${github_user}/${repo}.git" 2> /dev/null || git remote set-url 'github'   "ssh://git@github.com/${github_user}/${repo}.git"
-        git fetch --all --prune || true
-        git remote | while read remote; do
-          git remote set-head "${remote}" 'main' || true
-        done
-
-#       git init --bare --object-format=sha256 "$(git remote get-url 'origin')" || true
-        git init --bare                        "$(git remote get-url 'origin')" || true
-
-        git checkout --orphan 'main' || true
-
-        # origin/main
-        if git rev-parse --verify 'origin/main' &> /dev/null; then
-          git reset  --mixed           'origin/main'
-          git branch --set-upstream-to='origin/main'
-        fi
-
-        # root-commit
-        if ! git rev-parse --verify HEAD 2> /dev/null; then
-
-          date="${unix_epoch} +0000"
-
-          GIT_COMMITTER_DATE="${date}" \
-          GIT_AUTHOR_DATE="${date}" \
-            git \
-              -c user.name="${openpgp4fpr}" \
-              -c user.email="${openpgp4fpr}" \
-              commit \
-                --allow-empty \
-                --message 'root-commit'
-
-        fi
-
-        git gc
-
-      popd &> /dev/null
-
-    done
-
-  )
-}
-
-function _apt() {
-  (
-    if is_sudoer; then
 
       # tor           https://support.torproject.org/apt/
       # nvidia        https://nvidia.github.io/nvidia-container-runtime/
@@ -595,10 +302,121 @@ function _apt() {
       echo "deb     [signed-by=/etc/apt/keyrings/org.virtualbox.gpg            arch=${arch}] https://download.virtualbox.org/virtualbox/${ID}                      ${VERSION_CODENAME}                  contrib" | ${SUDO} tee    /etc/apt/sources.list.d/org.virtualbox.list            > /dev/null
       echo "deb     [signed-by=/etc/apt/keyrings/org.winehq.gpg                            ] https://dl.winehq.org/wine-builds/${ID}                               ${VERSION_CODENAME}                  main"    | ${SUDO} tee    /etc/apt/sources.list.d/org.winehq.list                > /dev/null
 
+    )
+  fi
+
+  # apt
+  if is_sudoer && is_deb; then
+    (
+
       arr=()
+
+      # shell
+      arr+=('bash-completion')
+#     arr+=('zsh')
+#     arr+=('fish')
+
+      # hw
+      if ! is_container; then
+        arr+=('lshw')
+        arr+=('lsscsi')
+        arr+=('usbutils')
+      fi
+
+      # fw
+      if ! is_container; then
+        arr+=('firmware-linux')
+        arr+=('firmware-realtek')
+        arr+=('firmware-iwlwifi')
+      fi
+
+      # vol
+      if ! is_container; then
+        arr+=('parted')
+        arr+=('cryptsetup')
+        arr+=('lvm2')
+      fi
+
+      # fuse
+      arr+=('fuse')
+      arr+=('archivemount')
+      arr+=('cifs-utils')
+      arr+=('gocryptfs')
+
+      # gpu
+      arr+=('nvidia-container-toolkit')
+      if ! is_container; then
+        arr+=('nvidia-kernel-dkms')
+        arr+=('nvidia-driver')
+        arr+=('nvidia-detect')
+        arr+=('nvidia-smi')
+      fi
+
+      # archive
+      arr+=('libarchive-tools')
+      arr+=('unar')
+      arr+=('zip')
+
+      # print
+      arr+=('cups')
+
+      # git
+      arr+=('git')
+      arr+=('git-crypt')
+      arr+=('git-lfs')
+
+      # python
+      arr+=('python3')
+      arr+=('python3-pip')
+      arr+=('python3-venv')
+
+      # container
+      if ! is_container; then
+        arr+=('podman')
+        arr+=('containerd.io')
+      fi
+
+      # k8s
+#     arr+=('kubeadm')
+#     arr+=('kubelet')
+      arr+=('kubectl')
+
+      # locale
       arr+=('locales-all')
       arr+=('task-japanese')
       arr+=('fonts-dejavu-core')
+
+      arr+=('util-linux')
+      arr+=('procps')
+      arr+=('uuid-runtime')
+      arr+=('faketime')
+      arr+=('openssl')
+      arr+=('openssh-client')
+      arr+=('openssh-server')
+      arr+=('pkg-config')
+      arr+=('gettext-base')
+
+      if ! is_container; then
+        arr+=('ufw')
+        arr+=('rkhunter')
+        arr+=('clamav')
+      fi
+
+      arr+=('rsync')
+      arr+=('xsel')
+      arr+=('parallel')
+      arr+=('nkf')
+      arr+=('jq')
+      arr+=('htop')
+      arr+=('tmux')
+      arr+=('qrencode')
+
+      arr+=('vim')
+#     arr+=('emacs')
+
+      arr+=('nmap')
+      arr+=('tcpdump')
+
       arr+=('moreutils')
       arr+=('aria2')
       arr+=('ffmpeg')
@@ -610,29 +428,82 @@ function _apt() {
       arr+=('libcairo2-dev')
       arr+=('virt-manager')
 #     arr+=('winehq-stable')
-      # k8s
-#     arr+=('kubeadm')
-#     arr+=('kubelet')
-      arr+=('kubectl')
-      # gpu
-      arr+=('nvidia-container-toolkit')
-      if ! is_container; then
-        arr+=('nvidia-kernel-dkms')
-        arr+=('nvidia-driver')
-        arr+=('nvidia-detect')
-        arr+=('nvidia-smi')
-      fi
 
       ${SUDO} apt-get update
+      ${SUDO} apt-get upgrade -y
       ${SUDO} apt-get install -y "${arr[@]}"
 
-    fi
-  )
-}
+    )
+  fi
 
-function _venv() {
-  (
-    if ! is_venv; then
+  # ufw
+  if is_sudoer && is_cmd ufw; then
+    echo y | ${SUDO} ufw enable
+    ${SUDO} ufw default deny
+#   ${SUDO} ufw allow                                 22
+#   ${SUDO} ufw allow from 10.0.0.0/8     to any port 22
+#   ${SUDO} ufw allow from 172.16.0.0/12  to any port 22
+#   ${SUDO} ufw allow from 192.168.0.0/16 to any port 22
+    ${SUDO} ufw reload
+    ${SUDO} ufw status verbose
+  fi
+
+  # rkhunter
+  if is_sudoer && [[ -f '/etc/rkhunter.conf' ]]; then
+    ${SUDO} sed -i -r \
+      -e 's/^#?LANGUAGE=.*$/LANGUAGE=ja/g' \
+      -e 's/^#?UPDATE_LANG=.*$/UPDATE_LANG=ja/g' \
+      -e 's/^#?WEB_CMD=.*$/WEB_CMD=""/g' \
+      -e 's/^#?UPDATE_MIRRORS=.*$/UPDATE_MIRRORS=1/g' \
+      -e 's/^#?MIRRORS_MODE=.*$/MIRRORS_MODE=0/g' \
+      -e 's/^#?PKGMGR=.*$/PKGMGR=DPKG/g' \
+      '/etc/rkhunter.conf'
+  fi
+  if is_sudoer && is_cmd rkhunter; then
+    set +e
+      ${SUDO} rkhunter --update
+      ${SUDO} rkhunter --propupd
+#     ${SUDO} rkhunter --versioncheck
+#     ${SUDO} rkhunter --check --skip-keypress
+    set -e
+  fi
+
+  # clamav
+  if is_sudoer && is_cmd freshclam; then
+    ${SUDO} systemctl stop  clamav-freshclam
+    ${SUDO} freshclam
+    ${SUDO} systemctl start clamav-freshclam
+  fi
+
+  # sshd
+  if is_sudoer && [[ -f '/etc/ssh/sshd_config' ]]; then
+    ${SUDO} sed -i -r \
+      -e 's/#?PermitRootLogin .*/PermitRootLogin no/g' \
+      -e 's/#?PermitEmptyPasswords .*/PermitEmptyPasswords no/g' \
+      -e 's/#?PasswordAuthentication .*/PasswordAuthentication no/g' \
+      -e 's/#?PubkeyAuthentication .*/PubkeyAuthentication yes/g' \
+      -e 's/#?StrictModes .*/StrictModes yes/g' \
+      '/etc/ssh/sshd_config'
+  fi
+  if ! is_container; then
+    ${SUDO} systemctl reload sshd
+  fi
+
+  # podman
+  if is_sudoer && [[ -f '/etc/containers/registries.conf' ]]; then
+    : # echo "unqualified-search-registries = ['container.${domain}', 'docker.io']" | ${SUDO} tee '/etc/containers/registries.conf' > /dev/null
+  fi
+
+  # locale
+  if is_sudoer && is_cmd locale-gen; then
+    ${SUDO} locale-gen ja_JP.UTF-8
+    ${SUDO} localedef -f UTF-8 -i ja_JP ja_JP.utf8
+    ${SUDO} update-locale LANG='ja_JP.UTF-8'
+  fi
+
+  # venv
+  if true; then
+    (
 
       venv_dir='./.venv'
 
@@ -654,7 +525,176 @@ function _venv() {
 
       pip install --upgrade --requirement "${req_file}"
 
+    )
+  fi
+
+}
+
+function _fpr() {
+
+  if unset openpgp4fpr 2> /dev/null; then
+
+    (
+
+      fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
+      if [[ -z "${fpr}" ]]; then
+        fpr="$(gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | sort | head -n 1 || true)"
+      fi
+      if [[ -z "${fpr}" ]]; then
+
+        uuid="$(uuidgen)"
+        passphrase=''
+
+        export TZ='utc'
+
+        cmds=()
+        cmds+=('faketime' '-f' "${unix_epoch}")
+        cmds+=('gpg' '--no-tty' '--pinentry-mode' 'loopback' '--passphrase' "${passphrase}")
+
+        "${cmds[@]}" --quick-generate-key "${uuid}" ed25519 sign,cert 0
+
+        fpr="$(gpg --with-colons --list-secret-keys "=${uuid}" 2> /dev/null | grep ^fpr | cut -d ':' -f 10)"
+
+        "${cmds[@]}" --quick-add-key    "0x${fpr}" ed25519 sign 0
+#       "${cmds[@]}" --quick-add-key    "0x${fpr}" ed25519 cert 0
+        "${cmds[@]}" --quick-add-key    "0x${fpr}" cv25519 encr 0
+        "${cmds[@]}" --quick-add-key    "0x${fpr}" ed25519 auth 0
+
+        "${cmds[@]}" --quick-add-uid    "0x${fpr}" "${fpr}"
+#       "${cmds[@]}" --quick-add-uid    "0x${fpr}" "${user}@$(hostname -f)"
+        "${cmds[@]}" --quick-revoke-uid "0x${fpr}" "${uuid}"
+
+      fi
+
+      conf_file="${GNUPGHOME:-${home}/.gnupg}/gpg.conf"
+      grep -q default-key       "${conf_file}" && sed -i -r -e "s/^(default-key).*/\1       0x${fpr}/g" "${conf_file}" || echo "default-key       0x${fpr}" >> "${conf_file}"
+      grep -q default-recipient "${conf_file}" && sed -i -r -e "s/^(default-recipient).*/\1 0x${fpr}/g" "${conf_file}" || echo "default-recipient 0x${fpr}" >> "${conf_file}"
+
+    )
+
+    openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
+    readonly openpgp4fpr
+    export   openpgp4fpr
+
+  fi
+
+  if ! is_venv; then
+    source './.venv/bin/activate'
+  fi
+
+}
+
+function _enc() {
+
+  if [[ ! -p '/dev/stdin' ]]; then
+    echo -n "${@}" | _enc
+    return
+  fi
+
+# cat '/dev/stdin' | gpg --symmetric | base64 --wrap 0
+  cat '/dev/stdin' | gpg --encrypt   | base64 --wrap 0
+
+} 2> /dev/null
+
+function _dec() {
+
+  if [[ ! -p '/dev/stdin' ]]; then
+    echo -n "${@}" | _dec
+    return
+  fi
+
+  cat '/dev/stdin' | base64 --decode | gpg --decrypt
+
+} 2> /dev/null
+
+function _pull() {
+  (
+
+    type="${1}"
+    depth="${2}"
+    key="${3}"
+
+    # list...
+    if [[ -z "${type}" || -z "${depth}" || -z "${key}" ]]; then
+      _pull git - '0'
+      _pull git - '0.fpr'
+      return
     fi
+
+    # 0.*
+    if [[ "${key}" =~ ^0(\..*)?$ ]]; then
+
+      test 'git' == "${type}"
+      test '-'   == "${depth}"
+
+      base_dir="${home}"
+      if [[ "${key}" =~ ^0\..*$ ]]; then
+        base_dir+="/src/${key}"
+      fi
+      if [[ ! -d "${base_dir}" ]]; then
+        return
+      fi
+
+      pushd "${base_dir}" &> /dev/null
+
+        echo '---'
+        pwd
+
+#       git init --object-format=sha256
+        git init
+
+        git remote add 'origin'   "${home}/lib/0.git/${key}.git"                   2> /dev/null || git remote set-url 'origin'   "${home}/lib/0.git/${key}.git"
+        git remote add 'upstream' "git://git.${domain}/${key}.git"                 2> /dev/null || git remote set-url 'upstream' "git://git.${domain}/${key}.git"
+#       git remote add 'upstream' "ssh://${user}@git.${domain}/${key}.git"         2> /dev/null || git remote set-url 'upstream' "ssh://${user}@git.${domain}/${key}.git"
+        git remote add 'github'   "https://github.com/${github_user}/${key}.git"   2> /dev/null || git remote set-url 'github'   "https://github.com/${github_user}/${key}.git"
+#       git remote add 'github'   "ssh://git@github.com/${github_user}/${key}.git" 2> /dev/null || git remote set-url 'github'   "ssh://git@github.com/${github_user}/${key}.git"
+
+#       git init --bare --object-format=sha256 "$(git remote get-url 'origin')" || true
+        git init --bare                        "$(git remote get-url 'origin')" || true
+
+#       git fetch --prune --all || true
+        git fetch --prune origin
+        git remote | while read remote; do
+          git remote set-head "${remote}" 'main' || true
+        done
+
+        git checkout --orphan 'main' || true
+
+        # origin/main
+        if git rev-parse --verify 'origin/main' &> /dev/null; then
+          git reset  --mixed           'origin/main'
+          git branch --set-upstream-to='origin/main'
+        fi
+
+        # root-commit
+        if ! git rev-parse --verify HEAD 2> /dev/null; then
+
+          date="${unix_epoch} +0000"
+
+          GIT_COMMITTER_DATE="${date}" \
+          GIT_AUTHOR_DATE="${date}" \
+            git \
+              -c user.name="${openpgp4fpr}" \
+              -c user.email="${openpgp4fpr}" \
+              commit \
+                --allow-empty \
+                --message 'root-commit'
+
+        fi
+
+        git gc
+
+      popd &> /dev/null
+
+    elif [[ "${key}" =~ ^https?://.+$ ]]; then
+#     if [[ 'git' == "${type}" ]]; then
+#     if [[ 'raw' == "${type}" ]]; then
+#     if [[ 'tgz' == "${type}" ]]; then
+#     if [[ 'zip' == "${type}" ]]; then
+#     if [[ '7z'  == "${type}" ]]; then
+      true
+    fi
+
   )
 }
 
@@ -666,79 +706,92 @@ function _mnt() {
 
     # list...
     if [[ -z "${mnt_key}" || -z "${mnt_dir}" ]]; then
-      keys | while read key; do
+      _keys | while read key; do
         _mnt "${key}"
       done
       return
     fi
 
-    if ! is_mnt "${mnt_dir}"; then
+    if is_mnt "${mnt_dir}"; then
+      return
+    fi
 
-      base_dir="./src/0.fpr/${mnt_key}"
-      mkdir -p "${base_dir}"
+    base_dir="./src/0.fpr/${mnt_key}"
+    enc_dir="${base_dir}/enc"
+    gpw_file="${base_dir}/gpw"
 
-      enc_dir="${base_dir}/enc"
-      gpw_file="${base_dir}/gpw"
+    # uuid
+    if [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] && is_sudoer; then
 
-      # uuid
-      if [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] && is_sudoer; then
+      uuid="${mnt_key}"
+      blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${uuid}\")")"
+      name="$(  echo "${blk_info}" | jq -cr '.name')"
+      fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
 
-        uuid="${mnt_key}"
-        blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${uuid}\")")"
-        name="$(  echo "${blk_info}" | jq -cr '.name')"
-        fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
-
-        if [[ 'crypto_LUKS' == "${fstype}" ]]; then
+      if [[ 'crypto_LUKS' == "${fstype}" ]]; then
  
-          if [[ ! -f "${gpw_file}" ]]; then
-            return
-          fi
-
-          map_dir="/dev/mapper/${uuid}"
-          if [[ -e "${map_dir}" ]]; then
-            return
-          fi
-
-          gpg --decrypt "${gpw_file}" | ${SUDO} cryptsetup open --type luks "${name}" "${uuid}" || true
-
-        elif [[ -n "${fstype}" ]]; then
-
-          mnt_opts=''
-#         mnt_opts+=',file_mode=0600'
-#         mnt_opts+=',dir_mode=0700'
-#         mnt_opts+=",uid=$(id -u)"
-#         mnt_opts+=",gid=$(id -g)"
-
-          mkdir -p "${mnt_dir}"
-          ${SUDO} mount --options "${mnt_opts}" UUID="${uuid}" "${mnt_dir}" || rm -d "${mnt_dir}"
-
+        if [[ ! -f "${gpw_file}" ]]; then
+          return
         fi
 
-      # fpr
-      elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+        map_dir="/dev/mapper/${uuid}"
+        if [[ -e "${map_dir}" ]]; then
+          return
+        fi
 
-        mkdir -p \
-          "${enc_dir}" \
-          "${mnt_dir}"
+        gpg --decrypt "${gpw_file}" | ${SUDO} cryptsetup open --type luks "${name}" "${uuid}" || true
 
-        # init
-        conf_file_org="${enc_dir}/gocryptfs.conf"
-        conf_file_gpg="${conf_file_org}.gpg"
-        test ! -f "${gpw_file}"                                      && cat /dev/urandom | tr --complement --delete '[:graph:]' | head -c 2048 | gpg --encrypt --throw-keyids > "${gpw_file}"      || true
-        test ! -f "${conf_file_org}" &&   test -f "${conf_file_gpg}" && cat "${conf_file_gpg}"                                                 | gpg --decrypt                > "${conf_file_org}" || true
-        test ! -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && gocryptfs -extpass 'gpg' -extpass '--decrypt' -extpass "${gpw_file}" -init "${enc_dir}"
-        test   -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && cat "${conf_file_org}"                                                 | gpg --encrypt --throw-keyids > "${conf_file_gpg}" || true
+      elif [[ -n "${fstype}" ]]; then
 
-        gocryptfs \
-          -extpass 'gpg' \
-          -extpass '--decrypt' \
-          -extpass "${gpw_file}" \
-          "${enc_dir}" \
-          "${mnt_dir}" || rm -d "${mnt_dir}"
+        mnt_opts=''
+#       mnt_opts+='vers=2.0'
+#       mnt_opts+=',defaults'
+#       mnt_opts+=',iocharset=utf8'
+#       mnt_opts+=',nounix'
+#       mnt_opts+=',dir_mode=0700'
+#       mnt_opts+=',file_mode=0600'
+#       mnt_opts+=",uid=$(id -u)"
+#       mnt_opts+=",gid=$(id -g)"
+#       mnt_opts+=',ro'
+#       if [[ -n "${user}" && -n "${pass}" ]]; then
+#
+#         credentials="$(mktemp)"
+#         echo "username=${user}" >> "${credentials}"
+#         echo "password=${pass}" >> "${credentials}"
+#
+#         mnt_opts+=",credentials=${credentials}"
+#
+#       fi
+
+        mkdir -p "${mnt_dir}"
+        ${SUDO} mount --options "${mnt_opts}" UUID="${uuid}" "${mnt_dir}" || rm -d "${mnt_dir}"
 
       fi
 
+    # fpr
+    elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+
+      mkdir -p \
+        "${enc_dir}" \
+        "${mnt_dir}"
+
+      # init
+      conf_file_org="${enc_dir}/gocryptfs.conf"
+      conf_file_gpg="${conf_file_org}.gpg"
+      test ! -f "${gpw_file}"                                      && cat /dev/urandom | tr --complement --delete '[:graph:]' | head -c 2048 | gpg --encrypt --throw-keyids > "${gpw_file}"      || true
+      test ! -f "${conf_file_org}" &&   test -f "${conf_file_gpg}" && cat "${conf_file_gpg}"                                                 | gpg --decrypt                > "${conf_file_org}" || true
+      test ! -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && gocryptfs -extpass 'gpg' -extpass '--decrypt' -extpass "${gpw_file}" -init "${enc_dir}"
+      test   -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && cat "${conf_file_org}"                                                 | gpg --encrypt --throw-keyids > "${conf_file_gpg}" || true
+
+      gocryptfs \
+        -extpass 'gpg' \
+        -extpass '--decrypt' \
+        -extpass "${gpw_file}" \
+        "${enc_dir}" \
+        "${mnt_dir}" || rm -d "${mnt_dir}"
+
     fi
+
   )
 }
 
@@ -750,34 +803,35 @@ function _umnt() {
 
     # list...
     if [[ -z "${mnt_key}" ]]; then
-      keys | while read key; do
+      _keys | while read key; do
         _umnt "${key}"
       done
       return
     fi
 
-    if is_mnt "${mnt_dir}"; then
+    if ! is_mnt "${mnt_dir}"; then
+      return
+    fi
 
-      # uuid
-      if [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] && is_sudoer; then
+    # uuid
+    if [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] && is_sudoer; then
 
-        uuid="${mnt_key}"
-        blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${uuid}\")")"
-        fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
+      uuid="${mnt_key}"
+      blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${uuid}\")")"
+      fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
 
-        if [[ 'crypto_LUKS' == "${fstype}" ]]; then
-          ${SUDO} cryptsetup close "${uuid}" || true
+      if [[ 'crypto_LUKS' == "${fstype}" ]]; then
+        ${SUDO} cryptsetup close "${uuid}" || true
 
-        else
-          ${SUDO} fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
-        fi
-
-      # fpr
-      elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{40}$ ]]; then
-        fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
+      else
+        ${SUDO} fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
       fi
 
+    # fpr
+    elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+      fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
     fi
+
   )
 }
 
@@ -785,33 +839,33 @@ function _k8s() {
   (
     if ! is_wsl && ! is_container && is_sudoer && is_cmd kind && is_cmd kubectl; then
 
-      kind delete cluster --name "${context}" || true
+      kind delete cluster --name "${domain}" || true
 
       ${SUDO} sysctl --write fs.inotify.max_user_instances=1024     #  128
       ${SUDO} sysctl --write fs.inotify.max_user_watches=65536      # 8192
       ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53 # 1024
-      cat './src/0.kind/kind.yml' | env_replace | KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --name "${context}" --config -
+      cat './src/0.kind/kind.yml' | env_replace | KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --name "${domain}" --config -
       ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
-      kubectl config set-context     "kind-${context}"
-      kubectl cluster-info --context "kind-${context}"
+      kubectl config set-context     "kind-${domain}"
+      kubectl cluster-info --context "kind-${domain}"
 
       kubectl get configmap kube-proxy --namespace kube-system --output yaml | sed 's/strictARP: false/strictARP: true/' | kubectl apply -f -
 
       # loadbalancer
-#     cat  './src/com.github/metallb/metallb/config/manifests/metallb-native.yaml'                          | kubectl apply -f -
+#     cat                   './src/com.github/metallb/metallb/config/manifests/metallb-native.yaml'         | kubectl apply -f -
       curl 'https://raw.githubusercontent.com/metallb/metallb/v0.14.9/config/manifests/metallb-native.yaml' | kubectl apply -f -
 
       # ingress
-#     cat  './src/com.github/kubernetes/ingress-nginx/deploy/static/provider/kind/deploy.yaml'                                     | kubectl apply -f -
-      curl 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/kind/deploy.yaml' | kubectl apply -f -
+#     cat                   './src/com.github/kubernetes/ingress-nginx/deploy/static/provider/kind/deploy.yaml'                    | kubectl apply -f -
+      curl 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.1/deploy/static/provider/kind/deploy.yaml' | kubectl apply -f -
 
       # dashboard
-#     cat  './src/com.github/kubernetes/dashboard/aio/deploy/recommended.yaml'                         | kubectl apply -f -
-      curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
+#     cat                   './src/com.github/kubernetes/dashboard/aio/deploy/recommended.yaml'        | kubectl apply -f -
+#     curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
 
-      kubectl delete namespace 0 2> /dev/null || true
-      kubectl create namespace 0              || true
+      kubectl delete namespace "${hostname}" 2> /dev/null || true
+      kubectl create namespace "${hostname}"              || true
 
     fi
   )
@@ -820,10 +874,13 @@ function _k8s() {
 function _validate() {
   (
     git grep --cached -n \
-      -e "${openpgp4fpr}"                        --or \
-      -e "${external_ip}"                        --or \
       -e "${user}"                               --or \
       -e "${home}"                               --or \
+      -e "${domain}"                             --or \
+      -e "${hostname}"                           --or \
+      -e "${openpgp4fpr}"                        --or \
+      -e "${resolve}"                            --or \
+      -e "${external_ip}"                        --or \
       -e '-----BEGIN PGP PRIVATE KEY BLOCK-----' --or \
       -e '-----BEGIN OPENSSH PRIVATE KEY-----'   --or \
       -e '-----BEGIN RSA PRIVATE KEY-----'       --or \
@@ -884,7 +941,7 @@ function _build() {
 
       if [[ -f './Dockerfile' ]]; then
 
-        image="container.0/${src_key}:${tag}"
+        image="container.${domain}/${src_key}:${tag}"
         if [[ -z "$(podman images --noheading "${image}")" ]]; then
 
           opts=()
@@ -930,18 +987,19 @@ function _deploy() {
         if [[ -z "$(podman images --noheading "${image}")" ]]; then
           continue
         fi
-        if podman exec "${context}-control-plane" crictl images | awk -F ' ' '{print $1":"$2}' | grep -q "${image}"; then
+        if podman exec "${domain}-control-plane" crictl images | awk -F ' ' '{print $1":"$2}' | grep -q "${image}"; then
           continue
         fi
 
         tmpfile="$(mktemp)"
         podman save --format oci-archive "${image}" --output "${tmpfile}"
-        kind load image-archive --name "${context}" "${tmpfile}" || true
+        kind load image-archive --name "${domain}" "${tmpfile}" || true
         rm "${tmpfile}"
 
       done
 
-      cat './deploy.yml' | env_replace | kubectl apply -f -
+#     kubectl -n "${hostname}" rollout restart deploy "${src_key##*.}" || \
+      ( cat './deploy.yml' | env_replace | kubectl apply -f - )
 
     popd &> /dev/null
 
@@ -971,44 +1029,40 @@ function _clean() {
 
 }
 
+
+function _mkqr() {
+
+  echo    "openpgp4fpr:${openpgp4fpr}"
+  echo -n "openpgp4fpr:${openpgp4fpr}" | qrencode --type ansi
+
+  echo    "http://doc.${domain}/"
+  echo -n "http://doc.${domain}/"      | qrencode --type ansi
+  echo -n "http://doc.${domain}/"      | qrencode --type png --output './doc/logo.png'
+
+}
+
 function _sandbox() {
   (
 
     image="${ID}:${VERSION_CODENAME:-latest}"
-
     uuid="$(uuidgen)"
+
     opts=()
     opts+=('--interactive')
     opts+=('--tty')
     opts+=('--rm')
-    opts+=('--name'    "0.sandbox.${uuid}")
-#   opts+=('--network' 'host')
-#   opts+=('--env'     "UID=$(id -u)")
-    # cache
-    opts+=('--volume'  './.cache/pip:/root/.cache/pip')
-    opts+=('--volume'  './.m2:/root/.m2')
-    # x11
-    opts+=('--env'     "DISPLAY=${DISPLAY:-:0.0}")
-    opts+=('--volume'  '/tmp/.X11-unix/X0:/tmp/.X11-unix/X0')
-    # home
-    opts+=('--volume'  './.local/bin:/root/.local/bin:ro')
-    opts+=('--volume'  './.profile:/root/.profile:ro')
-    opts+=('--volume'  './.bashrc:/root/.bashrc:ro')
-    opts+=('--volume'  './setup:/root/setup:ro')
-    opts+=('--volume'  './bin:/root/bin:ro')
-    opts+=('--volume'  './doc:/root/doc:ro')
-    opts+=('--volume'  './lib:/root/lib:ro')
-    opts+=('--volume'  './opt:/root/opt:ro')
-    opts+=('--volume'  './src:/root/src:ro')
-#   opts+=('--volume'  './mnt/0.dfs:/root/mnt/0.dfs:ro')
-    # workdir
-    opts+=('--volume'  "./tmp:/root/src/0.fpr")
-    opts+=('--volume'  './tmp:/root/tmp')
-    opts+=('--volume'  "${ppwd}:/root/.${uuid}")
-    opts+=('--workdir'         "/root/.${uuid}")
+    opts+=('--name'     "${domain}.sandbox.${uuid}")
+    opts+=('--hostname' "${uuid}.sandbox.${domain}")
+#   opts+=('--network'  'host')
+#   opts+=('--env'      "UID=$(id -u)")
+    opts+=('--workdir'  '/root')
+    opts+=('--volume'   "${home}:/root")
     # fuse
-    opts+=('--device'  '/dev/fuse')
-    opts+=('--cap-add' 'SYS_ADMIN')
+    opts+=('--device'   '/dev/fuse')
+    opts+=('--cap-add'  'SYS_ADMIN')
+    # x11
+    opts+=('--env'      "DISPLAY=${DISPLAY:-:0.0}")
+    opts+=('--volume'   '/tmp/.X11-unix/X0:/tmp/.X11-unix/X0')
 
     podman run "${opts[@]}" "${image}"
 #   kubectl -n 0 run -it --rm --image="${image}" -- bash
@@ -1017,10 +1071,12 @@ function _sandbox() {
 }
 
 function _browse() {
-  (
-    if is_x11; then
 
-      cat << EOS | python3 &
+  if ! is_x11; then
+    return
+  fi
+
+  cat << EOS | python3 &
 from selenium                           import webdriver
 from selenium.webdriver.firefox.options import Options
 
@@ -1042,8 +1098,6 @@ if __name__ == '__main__':
   main()
 EOS
 
-    fi
-  )
 }
 
 function _llm() {
@@ -1073,11 +1127,8 @@ from transformers import (
 )
 from datasets import Dataset
 
-token_file = './doc/token.txt'
+token_file = './doc/tag/token.txt'
 model_path = './lib/0.llm/7b'
-if not os.path.isdir(model_path):
-  # find './lib' -type f -name 'tokenizer.*' 2> /dev/null | dirname | sort -u
-  model_path = './lib/co.huggingface/stabilityai/japanese-stablelm-base-gamma-7b'
 
 def gen(tokenizer, model, prompt, max=4096):
 
@@ -1087,83 +1138,34 @@ def gen(tokenizer, model, prompt, max=4096):
   input_ids  = tokenizer.encode(prompt, add_special_tokens=False, return_tensors='pt')
   output_ids = model.generate(input_ids.to(device=model.device), max_new_tokens=max, temperature=1.0, top_p=1.0, do_sample=True, streamer=streamer)
 
-# print(tokenizer.convert_ids_to_tokens(input_ids[0]))
-# print(tokenizer.convert_ids_to_tokens(output_ids[0]))
-# embed_tokens(tokenizer, model, tokenizer.decode(input_ids[0]))
   embed_tokens(tokenizer, model, tokenizer.decode(output_ids[0]))
 
 def embed_tokens(tokenizer, model, prompt):
 
-  with open('./setup', 'r', encoding="UTF-8") as f:
-    source = f.read()
-
-  tokens = set()
+  tokens  = set()
+  tokens |= {os.environ.get('openpgp4fpr')}
   if os.path.isfile(token_file):
     with open(token_file, 'r', encoding="UTF-8") as f:
       tokens |= set(f.read().splitlines())
-  tokens |= set(regex.findall(r'\X', source))
-  tokens |= set(regex.findall(r'\X', prompt))
-  tokens  = map(lambda s: s.strip(), tokens)
-  tokens  = filter(lambda s: '' != s, tokens)
-  tokens  = set(tokens)
+
+  split_regex = r'[\s\t\r\n\+\-\*/=%_\.:,;\"\'\^\~\(\)\[\]\{\}<>\`\?$&\|#@!0-9\\\\、。！？：；（）「」＜＞＿]+'
+
+  tokens |= {'\s', '\t', '\r', '\n', ' '}
+  tokens |= set(re.split(split_regex, prompt))
+  if os.path.isfile('./.bash_history'):
+    with open('./.bash_history', 'r', encoding="UTF-8") as f:
+      tokens |= set(re.split(split_regex, f.read()))
+  if os.path.isfile('./setup'):
+    with open('./setup', 'r', encoding="UTF-8") as f:
+      tokens |= set(re.split(split_regex, f.read()))
+  tokens |= set(filter(lambda s: '' != s, tokens))
+# tokens |= set(regex.findall(r'\X', tokens))
   tokens  = list(tokens)
   tokens  = sorted(tokens)
   tokens  = sorted(tokens, key=len, reverse=True)
 
-  lines = map(lambda s: s + '\n', tokens)
-  lines = list(lines)
-  with open(token_file, 'w', encoding="UTF-8") as f:
-    f.writelines(lines)
-
-  embed  = set()
-  embed |= {os.environ.get('openpgp4fpr')}
-  embed |= {' ', '\t', '\r', '\n'}
-  embed |= set(tokens)
-  embed |= remaind_tokens(embed, source)
-# embed |= remaind_tokens(embed, prompt)
-  # find './doc/ref' -type d -name '*.txt' 2> /dev/null
-  embed  = list(embed)
-
-  vocab_len = len(tokenizer.get_vocab())
-  if 0 < tokenizer.add_tokens(embed):
+  if 0 < tokenizer.add_tokens(tokens):
     model.resize_token_embeddings(len(tokenizer), mean_resizing=True)
-
-def remaind_tokens(tokens, text):
-
-  tokens = list(tokens)
-  tokens = filter(lambda s: 1 < len(s), tokens)
-  tokens = sorted(tokens, key=len, reverse=True)
-  tokens.insert(0, r'[\s\t\r\n\+\-\*/=%_\.:,;\"\'\^\~\(\)\[\]\{\}<>\`\?$&\|#@!\\\\、。！？：；（）「」＜＞＿]+')
-
-  i = 0
-  queue = [text]
-  while i < len(queue):
-
-    item = queue[i]
-
-    cnt = 0
-    for j, token in enumerate(tokens):
-
-      if 0 == j:
-        items = re.split(token, item)
-      else:
-        items = item.split(token)
-
-      cnt = len(items)
-
-      if 0 == cnt:
-        queue.pop(i)
-        break
-
-      if 1 < cnt:
-        queue.pop(i)
-        queue += items
-        break
-
-    if 1 == cnt:
-      i += 1
-
-  return set(queue)
 
 def main():
 
@@ -1182,20 +1184,6 @@ def main():
       print(e)
       continue
 
-    # train
-    if False:
-
-      def tokenize_function(dataset):
-        return tokenizer(dataset["text"], truncation=True) # max_length=tokenizer.model_max_length
-
-      dataset           = Dataset.from_list([{"text": prompt}])
-      tokenized_dataset = dataset.map(tokenize_function, batched=False)
-      data_collator     = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False)
-
-  # save
-# tokenizer.save_pretrained(model)
-# model.save_pretrained(model)
-
 if __name__ == '__main__':
   main()
 EOS
@@ -1209,46 +1197,34 @@ EOS
 #----------------------------------------------------------------
 # main
 
+# envsubst
+function env_replace() {
+  sed \
+    -e "s|\${user}|${user}|g" \
+    -e "s|\${home}|${home}|g" \
+    -e "s|\${domain}|${domain}|g" \
+    -e "s|\${hostname}|${hostname}|g" \
+    -e "s|\${tag}|${tag}|g" \
+    -e "s|\${resolve}|${resolve}|g" \
+    -e "s|\${external_ip}|${external_ip}|g"
+}
+
 function main() {
   (
     pushd "${home}" &> /dev/null
 
-      arg1=''
-      if [[ "${BASH_SOURCE:-}" =~ ^.*/fpr$ ]]; then
-        arg1="${1:-}"
-        shift || true
-      fi
-
-      # .fprrc
-      if [[ -z "${arg1}" ]] && ! is_mnt './fpr'; then
-
+      # fpr
+      if ! is_mnt './fpr'; then
         _deps
         _fpr
 #       _mnt
         _mnt "${openpgp4fpr}" './fpr'
-        _home
-        _license
-        chmod    go-rwx '.'        &> /dev/null || true
-        chmod -R go-rwx './.gnupg' &> /dev/null || true
-        chmod -R go-rwx './.ssh'   &> /dev/null || true
-#       find './fpr' -type f | xargs --no-run-if-empty chmod 600 || true
-#       find './fpr' -type d | xargs --no-run-if-empty chmod 700 || true
-
-        _apt
-        _venv
-
-        main .
-        main -
-        _k8s
-        main ci
-        main cd
-
+        arg1="${openpgp4fpr}"
+      else
+        arg1="${1:-}"
+        shift || true
       fi
       _fpr
-
-      if ! is_venv; then
-        source './.venv/bin/activate'
-      fi
 
       # handle
       if [[ -z "${arg1}" ]]; then
@@ -1256,37 +1232,75 @@ function main() {
 
       elif [[ '.' == "${arg1}" ]]; then
 
-        echo    "openpgp4fpr:${openpgp4fpr}"
-        echo -n "openpgp4fpr:${openpgp4fpr}" | qrencode --type ansi
-
 #       gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do gpg --export-secret-keys         "0x${fpr}" > "./${fpr}.key";           done
         gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do gpg --export             --armor "0x${fpr}" > "./src/0.fpr/${fpr}/pub"; done
 
-        gpg --export --armor "0x${openpgp4fpr}"                              > './doc/pub'
-        gpg --export --armor "0x${openpgp4fpr}" | qrencode --type svg --output './doc/pub.svg'
-        echo -n "http://doc.${tld}/"            | qrencode --type png --output './doc/logo.png'
-#       _browse "http://doc.${tld}/"
+        chmod    go-rwx '.'        &> /dev/null || true
+        chmod -R go-rwx './.gnupg' &> /dev/null || true
+        chmod -R go-rwx './.ssh'   &> /dev/null || true
+
+        git config --global init.defaultBranch main
+        git config --global core.ignorecase    false
+        git config --global core.quotepath     false
+        git config --global core.autocrlf      false
+        git config --global core.safecrlf      true
+        git config --global core.filemode      true
+        git config --global core.hooksPath     '~/.git-hooks'
+        git config --global color.ui           auto
+        git config --global color.diff         auto
+        git config --global color.status       auto
+        git config --global color.branch       auto
+        git config --global pull.ff            only
+        git config --global pull.rebase        true
+        git config --global pull.autostash     false
+        git config --global rebase.autostash   false
+        git config --global merge.ff           false
+        git config --global diff.sjis.textconv 'iconv -f sjis'
+        git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+#       git config --global user.name          "${user}"
+#       git config --global user.email         "${user}@$(hostname -f)"
+        git config --global user.signingkey    "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+        git config --global gpg.program        "$(type -p gpg)"
+        git config --global commit.gpgsign     true
+
+        main license
+        main mkqr
+
+        main pull git - '0'
+        main pull git - '0.fpr'
+
+      elif [[ 'ci' == "${arg1}" ]]; then
+        main validate
+        main build
+#       main push
+#       main test
+
+      elif [[ 'cd' == "${arg1}" ]]; then
+        main deploy
 
       elif [[ '-' == "${arg1}" ]]; then
         kind delete clusters --all
-        _umnt
-        _clean
-
-      elif [[ 'ci' == "${arg1}" ]]; then
-        _validate
-        _build
-
-      elif [[ 'cd' == "${arg1}" ]]; then
-        _deploy
+        main umnt
+        main clean
 
       elif is_func "_${arg1}"; then
         "_${arg1}" "${@}"
 
+      elif [[ "${#arg1}" -ge 4 && "${openpgp4fpr}" =~ ^${arg1} ]]; then
+        main "fpr_${openpgp4fpr}" "${@}"
+        main .
+#       main k8s
+#       main ci
+#       main cd
+
+      elif [[ -n "$(podman images --noheading "container.${domain}/${arg1}:${tag}")" ]]; then
+        podman run -it --rm "container.${domain}/${arg1}:${tag}" "${@}"
+
       elif is_cmd wine && [[ -f "${arg1}" && "${arg1}" =~ ^.*\.exe$ ]]; then
         wine "${arg1}" "${@}"
 
-#     elif [[ -f "./fpr/${arg1}" ]]; then
-#       "./fpr/${arg1}" "${@}"
+      elif [[ 'java' == "${arg1}" ]]; then
+        java -cp '.:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*' Main "${arg1}" "${@}"
       fi
 
     popd &> /dev/null

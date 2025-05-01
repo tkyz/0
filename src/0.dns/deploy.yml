@@ -21,12 +21,10 @@ data:
         ${external_ip}     mysql.${domain}
         ${external_ip}   mariadb.${domain}
         ${external_ip}     redis.${domain}
+        ${external_ip}     setup.${domain}
         ${external_ip}       doc.${domain}
-        ${external_ip}       pub.${domain}
-        ${external_ip} minecraft.${domain}
         ${external_ip}       btc.${domain}
         ${external_ip}       eth.${domain}
-        ${external_ip}       ltc.${domain}
         fallthrough
       }
       forward . ${resolve}
