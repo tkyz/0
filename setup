@@ -1134,6 +1134,8 @@ model_path = './lib/0.llm/7b'
 
 def gen(tokenizer, model, prompt, max=4096):
 
+  prompt = """${llm_prompt:-}""" + prompt
+
   embed_tokens(tokenizer, model, prompt)
 
   streamer   = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
@@ -1154,6 +1156,7 @@ def embed_tokens(tokenizer, model, prompt):
 
   tokens |= {'\s', '\t', '\r', '\n', ' '}
   tokens |= set(re.split(split_regex, prompt))
+  tokens |= set(regex.findall(r'\X', prompt))
   if os.path.isfile('./.bash_history'):
     with open('./.bash_history', 'r', encoding="UTF-8") as f:
       data   = f.read()
@@ -1236,6 +1239,9 @@ function main() {
         true
 
       elif [[ '.' == "${arg1}" ]]; then
+
+#       curl "https://github.com/${github_user}.keys" >> './.ssh/authorized_keys'
+#       curl "https://github.com/${github_user}.gpg"  |  gpg --import
 
 #       gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do gpg --export-secret-keys         "0x${fpr}" > "./${fpr}.key";           done
         gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do gpg --export             --armor "0x${fpr}" > "./src/0.fpr/${fpr}/pub"; done
