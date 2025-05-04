@@ -49,7 +49,7 @@ if true; then
   readonly tag="${tag:-latest}"
 
   readonly resolve="${resolve:-$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)}"
-  readonly external_ip="${external_ip:-$(type -p ip &> /dev/null && ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | sort | head -n 1 || echo 127.0.0.1)}"
+  readonly external_ip="${external_ip:-$(type -p ip &> /dev/null && ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)}"
 
 fi
 
@@ -591,8 +591,9 @@ function _enc() {
     return
   fi
 
-# cat '/dev/stdin' | gpg --symmetric | base64 --wrap 0
-  cat '/dev/stdin' | gpg --encrypt   | base64 --wrap 0
+# cat '/dev/stdin' | openssl enc -aes-256-cbc -pbkdf2 -salt | base64 --wapp 0
+# cat '/dev/stdin' | gpg --symmetric                        | base64 --wrap 0
+  cat '/dev/stdin' | gpg --encrypt                          | base64 --wrap 0
 
 } 2> /dev/null
 
@@ -881,9 +882,10 @@ function _validate() {
       -e "${openpgp4fpr}"                        --or \
       -e "${resolve}"                            --or \
       -e "${external_ip}"                        --or \
+      -e '-----BEGIN PRIVATE KEY-----'           --or \
+      -e '-----BEGIN RSA PRIVATE KEY-----'       --or \
       -e '-----BEGIN PGP PRIVATE KEY BLOCK-----' --or \
       -e '-----BEGIN OPENSSH PRIVATE KEY-----'   --or \
-      -e '-----BEGIN RSA PRIVATE KEY-----'       --or \
       -e 'TODO:' || true
   )
 }
@@ -1154,12 +1156,15 @@ def embed_tokens(tokenizer, model, prompt):
   tokens |= set(re.split(split_regex, prompt))
   if os.path.isfile('./.bash_history'):
     with open('./.bash_history', 'r', encoding="UTF-8") as f:
-      tokens |= set(re.split(split_regex, f.read()))
+      data   = f.read()
+      tokens |= set(re.split(split_regex, data))
+      tokens |= set(regex.findall(r'\X', data))
   if os.path.isfile('./setup'):
     with open('./setup', 'r', encoding="UTF-8") as f:
-      tokens |= set(re.split(split_regex, f.read()))
+      data   = f.read()
+      tokens |= set(re.split(split_regex, data))
+      tokens |= set(regex.findall(r'\X', data))
   tokens |= set(filter(lambda s: '' != s, tokens))
-# tokens |= set(regex.findall(r'\X', tokens))
   tokens  = list(tokens)
   tokens  = sorted(tokens)
   tokens  = sorted(tokens, key=len, reverse=True)
