@@ -38,7 +38,6 @@ readonly home="${HOME:-/root}"
 readonly ppwd="${PWD}"
 readonly uuid="$(uuidgen 2> /dev/null || echo '00000000-0000-0000-0000-000000000000')"
 
-# .env
 if true; then
 
   source "${home}/setup.env" 2> /dev/null || true
@@ -1217,6 +1216,10 @@ function env_replace() {
     -e "s|\${external_ip}|${external_ip}|g"
 }
 
+function fork() {
+  cat "/proc/$$/fd/255" | bash -s -- "${@}"
+}
+
 function main() {
   (
     pushd "${home}" &> /dev/null
@@ -1228,7 +1231,7 @@ function main() {
 #       _mnt
         _mnt "${openpgp4fpr}" './fpr'
 
-#       cat "/proc/$$/fd/255" | bash -s -- "${openpgp4fpr}"
+        fork "${openpgp4fpr}"
         exit
 
       fi
