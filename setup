@@ -36,11 +36,12 @@ readonly arch="$(dpkg --print-architecture)"
 readonly user="${USER:-root}"
 readonly home="${HOME:-/root}"
 readonly ppwd="${PWD}"
+readonly uuid="$(uuidgen 2> /dev/null || echo '00000000-0000-0000-0000-000000000000')"
 
 # .env
 if true; then
 
-  source <(cat "${home}/setup.env" 2> /dev/null)
+  source "${home}/setup.env" 2> /dev/null || true
 
   readonly domain="${domain:-$(hostname -d)}"
   readonly hostname="${hostname:-$(hostname)}"
@@ -542,7 +543,6 @@ function _fpr() {
       fi
       if [[ -z "${fpr}" ]]; then
 
-        uuid="$(uuidgen)"
         passphrase=''
 
         export TZ='utc'
@@ -724,8 +724,8 @@ function _mnt() {
     # uuid
     if [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] && is_sudoer; then
 
-      uuid="${mnt_key}"
-      blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${uuid}\")")"
+      dev_uuid="${mnt_key}"
+      blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${dev_uuid}\")")"
       name="$(  echo "${blk_info}" | jq -cr '.name')"
       fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
 
@@ -735,37 +735,38 @@ function _mnt() {
           return
         fi
 
-        map_dir="/dev/mapper/${uuid}"
+        map_dir="/dev/mapper/${dev_uuid}"
         if [[ -e "${map_dir}" ]]; then
           return
         fi
 
-        gpg --decrypt "${gpw_file}" | ${SUDO} cryptsetup open --type luks "${name}" "${uuid}" || true
+        gpg --decrypt "${gpw_file}" | ${SUDO} cryptsetup open --type luks "${name}" "${dev_uuid}" || true
 
       elif [[ -n "${fstype}" ]]; then
 
-        mnt_opts=''
-#       mnt_opts+='vers=2.0'
-#       mnt_opts+=',defaults'
-#       mnt_opts+=',iocharset=utf8'
-#       mnt_opts+=',nounix'
-#       mnt_opts+=',dir_mode=0700'
-#       mnt_opts+=',file_mode=0600'
-#       mnt_opts+=",uid=$(id -u)"
-#       mnt_opts+=",gid=$(id -g)"
-#       mnt_opts+=',ro'
+        mnt_opts=()
+#       mnt_opts+=('vers=2.0')
+#       mnt_opts+=('defaults')
+#       mnt_opts+=('iocharset=utf8')
+#       mnt_opts+=('nounix')
+#       mnt_opts+=('dir_mode=0700')
+#       mnt_opts+=('file_mode=0600')
+#       mnt_opts+=("uid=$(id -u)")
+#       mnt_opts+=("gid=$(id -g)")
+#       mnt_opts+=('ro')
 #       if [[ -n "${user}" && -n "${pass}" ]]; then
 #
 #         credentials="$(mktemp)"
 #         echo "username=${user}" >> "${credentials}"
 #         echo "password=${pass}" >> "${credentials}"
 #
-#         mnt_opts+=",credentials=${credentials}"
+#         mnt_opts+=("credentials=${credentials}")
 #
 #       fi
+        mnt_opts="$(IFS=,; echo "${mnt_opts[*]}")"
 
         mkdir -p "${mnt_dir}"
-        ${SUDO} mount --options "${mnt_opts}" UUID="${uuid}" "${mnt_dir}" || rm -d "${mnt_dir}"
+        ${SUDO} mount --options "${mnt_opts}" UUID="${dev_uuid}" "${mnt_dir}" || rm -d "${mnt_dir}"
 
       fi
 
@@ -817,12 +818,12 @@ function _umnt() {
     # uuid
     if [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] && is_sudoer; then
 
-      uuid="${mnt_key}"
-      blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${uuid}\")")"
+      dev_uuid="${mnt_key}"
+      blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${dev_uuid}\")")"
       fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
 
       if [[ 'crypto_LUKS' == "${fstype}" ]]; then
-        ${SUDO} cryptsetup close "${uuid}" || true
+        ${SUDO} cryptsetup close "${dev_uuid}" || true
 
       else
         ${SUDO} fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
@@ -1047,7 +1048,6 @@ function _sandbox() {
   (
 
     image="${ID}:${VERSION_CODENAME:-latest}"
-    uuid="$(uuidgen)"
 
     opts=()
     opts+=('--interactive')
@@ -1221,30 +1221,45 @@ function main() {
   (
     pushd "${home}" &> /dev/null
 
-      # fpr
       if ! is_mnt './fpr'; then
+
         _deps
         _fpr
 #       _mnt
         _mnt "${openpgp4fpr}" './fpr'
-        arg1="${openpgp4fpr}"
-      else
-        arg1="${1:-}"
-        shift || true
+
+#       cat "/proc/$$/fd/255" | bash -s -- "${openpgp4fpr}"
+        exit
+
       fi
       _fpr
+
+      arg1="${1:-}"
+      shift || true
 
       # handle
       if [[ -z "${arg1}" ]]; then
         true
 
+      elif [[ "${#arg1}" -ge 4 && "${openpgp4fpr}" =~ ^${arg1} ]]; then
+        main "fpr_${openpgp4fpr}"
+        main .
+        main k8s
+#       main ci
+#       main cd
+
       elif [[ '.' == "${arg1}" ]]; then
 
-#       curl "https://github.com/${github_user}.keys" >> './.ssh/authorized_keys'
-#       curl "https://github.com/${github_user}.gpg"  |  gpg --import
-
+        # exp
 #       gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do gpg --export-secret-keys         "0x${fpr}" > "./${fpr}.key";           done
         gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do gpg --export             --armor "0x${fpr}" > "./src/0.fpr/${fpr}/pub"; done
+
+        # imp
+        {
+          cat './.ssh/authorized_keys'
+          curl -fsSL "https://github.com/${github_user}.keys"
+        } | sort -u | tee './.ssh/authorized_keys' &> /dev/null
+#       curl -fsSL "https://github.com/${github_user}.gpg" | gpg --import
 
         chmod    go-rwx '.'        &> /dev/null || true
         chmod -R go-rwx './.gnupg' &> /dev/null || true
@@ -1296,13 +1311,6 @@ function main() {
 
       elif is_func "_${arg1}"; then
         "_${arg1}" "${@}"
-
-      elif [[ "${#arg1}" -ge 4 && "${openpgp4fpr}" =~ ^${arg1} ]]; then
-        main "fpr_${openpgp4fpr}" "${@}"
-        main .
-#       main k8s
-#       main ci
-#       main cd
 
       elif [[ -n "$(podman images --noheading "container.${domain}/${arg1}:${tag}")" ]]; then
         podman run -it --rm "container.${domain}/${arg1}:${tag}" "${@}"
