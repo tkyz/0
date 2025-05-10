@@ -65,6 +65,7 @@ gradio_client
 groovy
 grpcio
 h11
+hf-xet
 httpcore
 httptools
 httpx

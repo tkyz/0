@@ -36,7 +36,8 @@ readonly arch="$(dpkg --print-architecture)"
 readonly user="${USER:-root}"
 readonly home="${HOME:-/root}"
 readonly ppwd="${PWD}"
-readonly uuid="$(uuidgen 2> /dev/null || echo '00000000-0000-0000-0000-000000000000')"
+readonly hash="$(cat "/proc/$$/fd/255" | sha256sum | cut -b 1-64 || echo '0000000000000000000000000000000000000000000000000000000000000000')"
+readonly uuid="$(uuidgen 2> /dev/null                            || echo '00000000-0000-0000-0000-000000000000')"
 
 if true; then
 
@@ -54,7 +55,7 @@ if true; then
 fi
 
 #----------------------------------------------------------------
-# is_...
+# private
 
 function is_sudoer() {
   if unset SUDO 2> /dev/null; then
@@ -119,8 +120,64 @@ function is_venv() {
   test -v VIRTUAL_ENV
 } &> /dev/null
 
+function fork() {
+  cat "/proc/$$/fd/255" | bash -s -- "${@}"
+}
+
+# envsubst
+function env_replace() {
+  sed \
+    -e "s|\${user}|${user}|g" \
+    -e "s|\${home}|${home}|g" \
+    -e "s|\${domain}|${domain}|g" \
+    -e "s|\${hostname}|${hostname}|g" \
+    -e "s|\${tag}|${tag}|g" \
+    -e "s|\${resolve}|${resolve}|g" \
+    -e "s|\${external_ip}|${external_ip}|g"
+}
+
+function type_git() {
+  (
+
+    git_dir="${1:-}"
+    remote="${2:-}"
+    uri="${3:-}"
+
+    mkdir -p "${git_dir}"
+    pushd "${git_dir}" &> /dev/null
+
+      echo '---'
+      pwd
+
+#     git init --object-format=sha256
+      git init
+
+      git remote add     "${remote}" "${uri}" 2> /dev/null || \
+      git remote set-url "${remote}" "${uri}"
+
+      if git fetch --prune "${remote}"; then
+
+        git remote set-head "${remote}" 'main' 2> /dev/null || \
+        git remote set-head "${remote}" 'master'
+
+        git branch --set-upstream-to="${remote}/main" 2> /dev/null || \
+        git branch --set-upstream-to="${remote}/master"
+
+        # conflict
+#       if ! git rebase --no-autostash 2> /dev/null; then
+#         git status
+#       fi
+
+      fi
+
+      git gc
+
+    popd &> /dev/null
+  )
+}
+
 #----------------------------------------------------------------
-# ...
+# public
 
 function _license() {
   cat << EOS > './LICENSE'
@@ -148,20 +205,35 @@ SOFTWARE.
 EOS
 }
 
-function _keys() {
+function _list() {
   {
+
     echo '0'
-    echo '0000000000000000000000000000000000000000'
-    echo '00000000-0000-0000-0000-000000000000'
-    echo "${openpgp4fpr}"
-    gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10
-    gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10
-    lsblk --all --fs --paths --json | jq -cr '.. | objects | .uuid | select(. != null)'
+    cat  './list'
     find './mnt'       -mindepth 1 -maxdepth 1 -type d             | sed 's#.*/##g' 2> /dev/null || true
     find './lib'       -mindepth 1 -maxdepth 1 -type d -name '0.*' | sed 's#.*/##g' 2> /dev/null || true
     find './src'       -mindepth 1 -maxdepth 1 -type d -name '0.*' | sed 's#.*/##g' 2> /dev/null || true
-    find './src/0.fpr' -mindepth 1 -maxdepth 1 -type d             | sed 's#.*/##g' 2> /dev/null || true
-  } | sort -u
+#   find './src/0.fpr' -mindepth 1 -maxdepth 1 -type d             | sed 's#.*/##g' 2> /dev/null || true
+
+    echo '0000000000000000000000000000000000000000'
+    echo "${openpgp4fpr}"
+    gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10
+    gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10
+
+    echo '00000000-0000-0000-0000-000000000000'
+    lsblk --all --fs --paths --json | jq -cr '.. | objects | .uuid | select(. != null)'
+
+    echo 127.0.0.1
+    ip a | grep inet | awk '{ print $2 }'
+
+    find './lib' './src' -type d -name '.git' 2> /dev/null | while read base_dir; do
+      git -C "${base_dir}/.." remote -v | awk '{ print $2 }'
+    done
+    echo "https://github.com/${github_user}.keys"
+    echo "https://github.com/${github_user}.gpg"
+    echo "https://doc.${domain}/"
+
+  } | sort -u | tee './list' || true
 }
 
 function _deps() {
@@ -369,6 +441,18 @@ EOS
       arr+=('python3')
       arr+=('python3-pip')
       arr+=('python3-venv')
+
+      # vm
+      if ! is_container; then
+        arr+=('qemu-system')
+        arr+=('qemu-kvm')
+        arr+=('libvirt-daemon-system')
+        arr+=('libvirt-daemon')
+        arr+=('virtinst')
+        arr+=('virt-manager')
+        arr+=('bridge-utils')
+        arr+=('libosinfo-bin')
+      fi
 
       # container
       if ! is_container; then
@@ -607,97 +691,6 @@ function _dec() {
 
 } 2> /dev/null
 
-function _pull() {
-  (
-
-    type="${1}"
-    depth="${2}"
-    key="${3}"
-
-    # list...
-    if [[ -z "${type}" || -z "${depth}" || -z "${key}" ]]; then
-      _pull git - '0'
-      _pull git - '0.fpr'
-      return
-    fi
-
-    # 0.*
-    if [[ "${key}" =~ ^0(\..*)?$ ]]; then
-
-      test 'git' == "${type}"
-      test '-'   == "${depth}"
-
-      base_dir="${home}"
-      if [[ "${key}" =~ ^0\..*$ ]]; then
-        base_dir+="/src/${key}"
-      fi
-      if [[ ! -d "${base_dir}" ]]; then
-        return
-      fi
-
-      pushd "${base_dir}" &> /dev/null
-
-        echo '---'
-        pwd
-
-#       git init --object-format=sha256
-        git init
-
-        git remote add 'origin'   "${home}/lib/0.git/${key}.git"                   2> /dev/null || git remote set-url 'origin'   "${home}/lib/0.git/${key}.git"
-        git remote add 'upstream' "git://git.${domain}/${key}.git"                 2> /dev/null || git remote set-url 'upstream' "git://git.${domain}/${key}.git"
-#       git remote add 'upstream' "ssh://${user}@git.${domain}/${key}.git"         2> /dev/null || git remote set-url 'upstream' "ssh://${user}@git.${domain}/${key}.git"
-        git remote add 'github'   "https://github.com/${github_user}/${key}.git"   2> /dev/null || git remote set-url 'github'   "https://github.com/${github_user}/${key}.git"
-#       git remote add 'github'   "ssh://git@github.com/${github_user}/${key}.git" 2> /dev/null || git remote set-url 'github'   "ssh://git@github.com/${github_user}/${key}.git"
-
-#       git init --bare --object-format=sha256 "$(git remote get-url 'origin')" || true
-        git init --bare                        "$(git remote get-url 'origin')" || true
-
-#       git fetch --prune --all || true
-        git fetch --prune origin
-        git remote | while read remote; do
-          git remote set-head "${remote}" 'main' || true
-        done
-
-        git checkout --orphan 'main' || true
-
-        # origin/main
-        if git rev-parse --verify 'origin/main' &> /dev/null; then
-          git reset  --mixed           'origin/main'
-          git branch --set-upstream-to='origin/main'
-        fi
-
-        # root-commit
-        if ! git rev-parse --verify HEAD 2> /dev/null; then
-
-          date="${unix_epoch} +0000"
-
-          GIT_COMMITTER_DATE="${date}" \
-          GIT_AUTHOR_DATE="${date}" \
-            git \
-              -c user.name="${openpgp4fpr}" \
-              -c user.email="${openpgp4fpr}" \
-              commit \
-                --allow-empty \
-                --message 'root-commit'
-
-        fi
-
-        git gc
-
-      popd &> /dev/null
-
-    elif [[ "${key}" =~ ^https?://.+$ ]]; then
-#     if [[ 'git' == "${type}" ]]; then
-#     if [[ 'raw' == "${type}" ]]; then
-#     if [[ 'tgz' == "${type}" ]]; then
-#     if [[ 'zip' == "${type}" ]]; then
-#     if [[ '7z'  == "${type}" ]]; then
-      true
-    fi
-
-  )
-}
-
 function _mnt() {
   (
 
@@ -706,7 +699,7 @@ function _mnt() {
 
     # list...
     if [[ -z "${mnt_key}" || -z "${mnt_dir}" ]]; then
-      _keys | while read key; do
+      _list | while read key; do
         _mnt "${key}"
       done
       return
@@ -804,7 +797,7 @@ function _umnt() {
 
     # list...
     if [[ -z "${mnt_key}" ]]; then
-      _keys | while read key; do
+      _list | while read key; do
         _umnt "${key}"
       done
       return
@@ -1033,14 +1026,13 @@ function _clean() {
 
 
 function _mkqr() {
-
+  echo '---'
   echo    "openpgp4fpr:${openpgp4fpr}"
   echo -n "openpgp4fpr:${openpgp4fpr}" | qrencode --type ansi
-
+  echo '---'
   echo    "http://doc.${domain}/"
   echo -n "http://doc.${domain}/"      | qrencode --type ansi
   echo -n "http://doc.${domain}/"      | qrencode --type png --output './doc/logo.png'
-
 }
 
 function _sandbox() {
@@ -1128,7 +1120,7 @@ from transformers import (
 )
 from datasets import Dataset
 
-token_file = './doc/tag/token.txt'
+list_file  = './list'
 model_path = './lib/0.llm/7b'
 
 def gen(tokenizer, model, prompt, max=4096):
@@ -1141,32 +1133,40 @@ def gen(tokenizer, model, prompt, max=4096):
   input_ids  = tokenizer.encode(prompt, add_special_tokens=False, return_tensors='pt')
   output_ids = model.generate(input_ids.to(device=model.device), max_new_tokens=max, temperature=1.0, top_p=1.0, do_sample=True, streamer=streamer)
 
+# print(tokenizer.convert_ids_to_tokens(input_ids[0]))
+# print(tokenizer.convert_ids_to_tokens(output_ids[0]))
+# embed_tokens(tokenizer, model, tokenizer.decode(input_ids[0]))
   embed_tokens(tokenizer, model, tokenizer.decode(output_ids[0]))
 
 def embed_tokens(tokenizer, model, prompt):
 
-  tokens  = set()
-  tokens |= {os.environ.get('openpgp4fpr')}
-  if os.path.isfile(token_file):
-    with open(token_file, 'r', encoding="UTF-8") as f:
-      tokens |= set(f.read().splitlines())
-
   split_regex = r'[\s\t\r\n\+\-\*/=%_\.:,;\"\'\^\~\(\)\[\]\{\}<>\`\?$&\|#@!0-9\\\\、。！？：；（）「」＜＞＿]+'
 
-  tokens |= {'\s', '\t', '\r', '\n', ' '}
+  tokens  = set()
+  tokens |= {os.environ.get('openpgp4fpr')}
   tokens |= set(re.split(split_regex, prompt))
   tokens |= set(regex.findall(r'\X', prompt))
+  if os.path.isfile(list_file):
+    with open(list_file, 'r', encoding="UTF-8") as f:
+      data    = f.read()
+#     tokens |= set(data.splitlines())
+      tokens |= set(re.split(split_regex, data))
+      tokens |= set(regex.findall(r'\X', data))
   if os.path.isfile('./.bash_history'):
     with open('./.bash_history', 'r', encoding="UTF-8") as f:
-      data   = f.read()
+      data    = f.read()
+#     tokens |= set(data.splitlines())
       tokens |= set(re.split(split_regex, data))
       tokens |= set(regex.findall(r'\X', data))
   if os.path.isfile('./setup'):
     with open('./setup', 'r', encoding="UTF-8") as f:
-      data   = f.read()
+      data    = f.read()
+#     tokens |= set(data.splitlines())
       tokens |= set(re.split(split_regex, data))
       tokens |= set(regex.findall(r'\X', data))
+
   tokens |= set(filter(lambda s: '' != s, tokens))
+  tokens |= {'\s', '\t', '\r', '\n', ' '}
   tokens  = list(tokens)
   tokens  = sorted(tokens)
   tokens  = sorted(tokens, key=len, reverse=True)
@@ -1204,22 +1204,6 @@ EOS
 #----------------------------------------------------------------
 # main
 
-# envsubst
-function env_replace() {
-  sed \
-    -e "s|\${user}|${user}|g" \
-    -e "s|\${home}|${home}|g" \
-    -e "s|\${domain}|${domain}|g" \
-    -e "s|\${hostname}|${hostname}|g" \
-    -e "s|\${tag}|${tag}|g" \
-    -e "s|\${resolve}|${resolve}|g" \
-    -e "s|\${external_ip}|${external_ip}|g"
-}
-
-function fork() {
-  cat "/proc/$$/fd/255" | bash -s -- "${@}"
-}
-
 function main() {
   (
     pushd "${home}" &> /dev/null
@@ -1231,7 +1215,7 @@ function main() {
 #       _mnt
         _mnt "${openpgp4fpr}" './fpr'
 
-        fork "${openpgp4fpr}"
+        fork "${hash}"
         exit
 
       fi
@@ -1245,24 +1229,20 @@ function main() {
         true
 
       elif [[ "${#arg1}" -ge 4 && "${openpgp4fpr}" =~ ^${arg1} ]]; then
-        main "fpr_${openpgp4fpr}"
-        main .
-        main k8s
-#       main ci
-#       main cd
+        main "${hash}"
 
-      elif [[ '.' == "${arg1}" ]]; then
-
-        # exp
-#       gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do gpg --export-secret-keys         "0x${fpr}" > "./${fpr}.key";           done
-        gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do gpg --export             --armor "0x${fpr}" > "./src/0.fpr/${fpr}/pub"; done
+      elif [[ "${arg1}" == "${hash}" ]]; then
 
         # imp
-        {
-          cat './.ssh/authorized_keys'
-          curl -fsSL "https://github.com/${github_user}.keys"
-        } | sort -u | tee './.ssh/authorized_keys' &> /dev/null
-#       curl -fsSL "https://github.com/${github_user}.gpg" | gpg --import
+        main "fpr_${openpgp4fpr}"
+        main "https://github.com/${github_user}.keys"
+        main "https://github.com/${github_user}.gpg"
+
+        # exp
+        gpg --with-colons --list-keys | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
+#         gpg               --export-secret-keys         --output "./${fpr}.key"           "0x${fpr}"
+          gpg --batch --yes --export             --armor --output "./src/0.fpr/${fpr}/pub" "0x${fpr}"
+        done
 
         chmod    go-rwx '.'        &> /dev/null || true
         chmod -R go-rwx './.gnupg' &> /dev/null || true
@@ -1293,10 +1273,38 @@ function main() {
         git config --global commit.gpgsign     true
 
         main license
-        main mkqr
+        main .
 
-        main pull git - '0'
-        main pull git - '0.fpr'
+        main list | grep -E -e '^(https?|git)://.*\.git$' | while read uri; do
+          main "${uri}"
+        done
+
+        main k8s
+#       main ci
+#       main cd
+
+      elif [[ '.' == "${arg1}" ]]; then
+        main mkqr
+        main '0'
+        main '0.fpr'
+
+      elif [[ "${arg1}" == '0' ]]; then
+
+        git_dir="${home}/lib/0.git/${arg1}.git"
+
+#       git init --bare --object-format=sha256 "${git_dir}" || true
+        git init --bare                        "${git_dir}" || true
+
+        type_git '.' 'origin' "${git_dir}"
+
+      elif [[ "${arg1}" == '0.fpr' ]]; then
+
+        git_dir="${home}/lib/0.git/${arg1}.git"
+
+#       git init --bare --object-format=sha256 "${git_dir}" || true
+        git init --bare                        "${git_dir}" || true
+
+        type_git "./src/${arg1}" 'origin' "${git_dir}"
 
       elif [[ 'ci' == "${arg1}" ]]; then
         main validate
@@ -1321,8 +1329,47 @@ function main() {
       elif is_cmd wine && [[ -f "${arg1}" && "${arg1}" =~ ^.*\.exe$ ]]; then
         wine "${arg1}" "${@}"
 
-      elif [[ 'java' == "${arg1}" ]]; then
-        java -cp '.:./src/0.playground/main/target/classes:./src/0.playground/main/target/dependency/*' Main "${arg1}" "${@}"
+#     elif [[ "${arg1}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+#     elif [[ "${arg1}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+
+      elif [[ "${arg1}" =~ ^https://github\.com/.+\.keys$ ]]; then
+        {
+          cat './.ssh/authorized_keys'
+          curl -fsSL "${arg1}"
+        } | sort -u | tee './.ssh/authorized_keys' #&> /dev/null
+
+      elif [[ "${arg1}" =~ ^https://github\.com/.+\.gpg$ ]]; then
+        curl -fsSL "${arg1}" | gpg --import || true
+
+      elif [[ "${arg1}" =~ ^git://.+\.git$ ]]; then
+        true
+
+      elif [[ "${arg1}" =~ ^https://github\.com/.+\.git$ ]]; then
+
+        git_dir='./src'
+        git_dir+="/$(echo "${arg1}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+        git_dir+="/$(echo "${arg1}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+        type_git "${git_dir}" 'github' "${arg1}"
+
+      elif [[ "${arg1}" =~ ^https://gitlab\.com/.+\.git$ ]]; then
+
+        git_dir='./src'
+        git_dir+="/$(echo "${arg1}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+        git_dir+="/$(echo "${arg1}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+        type_git "${git_dir}" 'gitlab' "${arg1}"
+
+      elif [[ "${arg1}" =~ ^https://huggingface\.co/.+\.git$ ]]; then
+
+        git_dir='./lib'
+        git_dir+="/$(echo "${arg1}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+        git_dir+="/$(echo "${arg1}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+        type_git "${git_dir}" 'huggingface' "${arg1}"
+
+      else
+        false
       fi
 
     popd &> /dev/null
