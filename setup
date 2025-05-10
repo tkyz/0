@@ -1376,6 +1376,9 @@ function main() {
 
         type_git "${git_dir}" 'huggingface' "${arg1}"
 
+      elif [[ "${arg1}" =~ ^https?://.+$ ]]; then
+        main browse "${arg1}"
+
       else
         false
       fi
