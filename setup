@@ -1295,7 +1295,11 @@ function main() {
 #       git init --bare --object-format=sha256 "${git_dir}" || true
         git init --bare                        "${git_dir}" || true
 
-        type_git '.' 'origin' "${git_dir}"
+        type_git '.' 'origin'   "${git_dir}"
+        type_git '.' 'upstream' "git://git.${domain}/${arg1}.git"
+#       type_git '.' 'upstream' "ssh://${user}@git.${domain}/${arg1}.git"
+        type_git '.' 'github'   "https://github.com/${github_user}/${arg1}.git"
+#       type_git '.' 'github'   "ssh://git@github.com/${github_user}/${arg1}.git"
 
       elif [[ "${arg1}" == '0.fpr' ]]; then
 
@@ -1304,7 +1308,11 @@ function main() {
 #       git init --bare --object-format=sha256 "${git_dir}" || true
         git init --bare                        "${git_dir}" || true
 
-        type_git "./src/${arg1}" 'origin' "${git_dir}"
+        type_git "./src/${arg1}" 'origin'   "${git_dir}"
+        type_git "./src/${arg1}" 'upstream' "git://git.${domain}/${arg1}.git"
+#       type_git "./src/${arg1}" 'upstream' "ssh://${user}@git.${domain}/${arg1}.git"
+        type_git "./src/${arg1}" 'github'   "https://github.com/${github_user}/${arg1}.git"
+#       type_git "./src/${arg1}" 'github'   "ssh://git@github.com/${github_user}/${arg1}.git"
 
       elif [[ 'ci' == "${arg1}" ]]; then
         main validate
