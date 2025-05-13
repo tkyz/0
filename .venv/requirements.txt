@@ -59,6 +59,7 @@ ftfy
 future
 gdown
 gekko
+gguf
 gitdb
 gradio
 gradio_client
@@ -88,6 +89,7 @@ kornia_rs
 lark
 lazy_loader
 lightning-utilities
+llama_cpp_python
 llm
 llvmlite
 lmdb
