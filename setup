@@ -596,7 +596,7 @@ EOS
       -e 's/#?StrictModes .*/StrictModes yes/g' \
       '/etc/ssh/sshd_config'
   fi
-  if ! is_container; then
+  if is_sudoer && ! is_container; then
     ${SUDO} systemctl reload sshd
   fi
 
@@ -1234,12 +1234,12 @@ function main() {
 
       if ! is_mnt './fpr'; then
 
-#       _deps
+        _deps
         _fpr
 #       _mnt
         _mnt "${openpgp4fpr}" './fpr'
 
-#       fork "${hash}"
+        fork "${hash}"
         exit
 
       fi
@@ -1253,10 +1253,13 @@ function main() {
         true
 
       elif [[ "${hash}" == "${arg1}" ]]; then
+
         main .
         main license
 #       main imp
         main exp
+
+        main auth
         main pull
         main up
         main doc

@@ -67,14 +67,14 @@ https://github.com/tensorflow/tensorflow.git
 https://github.com/toriato/stable-diffusion-webui-wd14-tagger.git
 https://github.com/xinntao/Real-ESRGAN.git
 https://gitlab.com/MatthiasLohr/dokuwiki-barcodes.git
-https://huggingface.co/runwayml/stable-diffusion-inpainting.git
-https://huggingface.co/runwayml/stable-diffusion-v1-5.git
-https://huggingface.co/soramikaduki/Antler-RP-ja-westlake-chatvector.git
 https://huggingface.co/stabilityai/japanese-stablelm-base-gamma-7b.git
 https://huggingface.co/stabilityai/sd-vae-ft-mse-original.git
 https://huggingface.co/stabilityai/sdxl-vae.git
+https://huggingface.co/stabilityai/stable-diffusion-2-inpainting.git
 https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0.git
 https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0.git
+https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting.git
+https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5.git
 https://huggingface.co/webui/ControlNet-modules-safetensors.git
 none
 null
