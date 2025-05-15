@@ -1246,6 +1246,7 @@ function main() {
 
       # handle
       if [[ -z "${arg1}" ]]; then
+#       main "${user}@${host}.${domain}"
         true
 
       elif [[ "${user}@${host}.${domain}" == "${arg1}" ]]; then
@@ -1255,6 +1256,12 @@ function main() {
           key="$(echo "${entry}" | yq -cr '.key')"
           val="$(echo "${entry}" | yq -cr '.value')"
           main mnt "${key}" "${val}"
+        done
+
+        main config '.blockchain | to_entries[]' | while read entry; do
+          key="$(echo "${entry}" | yq -cr '.key')"
+          val="$(echo "${entry}" | yq -cr '.value')"
+          echo -n "${val}" | qrencode --type svg --output "./doc/blockchain/${key}.svg"
         done
 
         main .
