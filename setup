@@ -36,22 +36,22 @@ readonly arch="$(dpkg --print-architecture)"
 readonly user="${USER:-root}"
 readonly home="${HOME:-/root}"
 readonly ppwd="${PWD}"
-readonly hash="$(test -f "/proc/$$/fd/255" && cat "/proc/$$/fd/255" | sha256sum | cut -b 1-64 || echo '0000000000000000000000000000000000000000000000000000000000000000')"
-readonly uuid="$(uuidgen 2> /dev/null                                                         || echo '00000000-0000-0000-0000-000000000000')"
 
+readonly domain="$(hostname -d)"
+readonly hostname="$(hostname)"
+
+readonly tag='latest'
+readonly hash="$(test -f "/proc/$$/fd/255" && cat "/proc/$$/fd/255" | sha256sum | cut -b 1-64 || printf '%064d')"
+readonly uuid="$(uuidgen 2> /dev/null                                                         || printf '%08d-%04d-%04d-%04d-%012d')"
+
+source "${home}/.fprrc" 2> /dev/null || true
 if true; then
 
-  source "${home}/setup.env" 2> /dev/null || true
-
-  readonly domain="${domain:-$(hostname -d)}"
-  readonly hostname="${hostname:-$(hostname)}"
+  readonly resolve="${resolve:-$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)}"
+  readonly external_ip="${external_ip:-$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)}"
 
   readonly github_user="${github_user:-${user}}"
   readonly huggingface_user="${huggingface_user:-${user}}"
-  readonly tag="${tag:-latest}"
-
-  readonly resolve="${resolve:-$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)}"
-  readonly external_ip="${external_ip:-$(type -p ip &> /dev/null && ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)}"
 
 fi
 
@@ -225,9 +225,9 @@ function _list() {
 #   find './src/0.fpr' -mindepth 1 -maxdepth 1 -type d             | sed 's#.*/##g' 2> /dev/null || true
 
     echo "${user}"
-    echo "$(hostname)"
+    echo "${hostname}"
+    echo "${domain}"
     echo "$(hostname -f)"
-    echo "$(hostname -d)"
 
     echo '0000000000000000000000000000000000000000'
     echo "${openpgp4fpr}"
@@ -242,8 +242,7 @@ function _list() {
     echo '10.0.0.0/8'
     echo '10.0.0.1'
     echo '172.16.0.0/12'
-#   echo '172.16.0.1'
-#   echo '172.31.0.1'
+    echo '172.16.0.1'
     echo '192.168.0.0/16'
     echo '192.168.0.0/24'
     echo '192.168.0.1'
@@ -902,8 +901,6 @@ function _validate() {
       -e "${openpgp4fpr}"                        --or \
       -e "${resolve}"                            --or \
       -e "${external_ip}"                        --or \
-      -e "${github_user}"                        --or \
-      -e "${huggingface_user}"                   --or \
       -e '-----BEGIN PRIVATE KEY-----'           --or \
       -e '-----BEGIN RSA PRIVATE KEY-----'       --or \
       -e '-----BEGIN PGP PRIVATE KEY BLOCK-----' --or \
@@ -1160,7 +1157,14 @@ def add_tokens(tokenizer, model, prompt):
 
   split_regex = r'[\s\t\r\n\+\-\*/=%_\.:,;\"\'\^\~\(\)\[\]\{\}<>\`\?$&\|#@!0-9\\\\、。！？：；（）「」＜＞＿]+'
 
-  tokens  = set()
+  tokens = set()
+  if os.path.isfile('${llm_token_file:-}'):
+    with open('${llm_token_file:-}', 'r', encoding="UTF-8") as f:
+      data    = f.read()
+      tokens |= set(data.splitlines())
+      tokens |= set(re.split(split_regex, data))
+      tokens |= set(regex.findall(r'\X', data))
+
   tokens |= {os.environ.get('openpgp4fpr')}
   tokens |= {'${hash}'}
 # tokens |= set(prompt.splitlines())
@@ -1306,7 +1310,7 @@ function main() {
         type_git '.'             'upstream' "git://git.${domain}/${arg1}.git"
 #       type_git '.'             'upstream' "ssh://${user}@git.${domain}/${arg1}.git"
         type_git '.'             'github'   "https://github.com/${github_user}/${arg1}.git"
-        type_git '.'             'github'   "ssh://git@github.com/${github_user}/${arg1}.git"
+#       type_git '.'             'github'   "ssh://git@github.com/${github_user}/${arg1}.git"
 
       elif [[ '0.fpr' == "${arg1}" ]]; then
         type_git "./src/${arg1}" 'origin'   "${home}/lib/0.git/${arg1}.git"
@@ -1413,7 +1417,17 @@ function main() {
         main    "http://doc.${domain}/"
 
       else
-        echo "unsupported. ${arg1} ${@}"
+        cat << EOS | python3 - "${arg1}" "${@}"
+import sys
+
+def main():
+# arg0 = sys.argv[0]
+  arg1 = sys.argv[1]
+  print('unsupported. ' + arg1)
+
+if __name__ == '__main__':
+  main()
+EOS
       fi
 
     popd &> /dev/null
