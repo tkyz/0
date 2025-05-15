@@ -33,25 +33,22 @@ test 'bash'   == "${SHELL##*/}"
 readonly unix_epoch='1970-01-01 00:00:00'
 readonly arch="$(dpkg --print-architecture)"
 
+readonly domain="$(hostname -d)"
+readonly host="$(hostname)"
 readonly user="${USER:-root}"
 readonly home="${HOME:-/root}"
 readonly ppwd="${PWD}"
 
-readonly domain="$(hostname -d)"
-readonly hostname="$(hostname)"
-
+readonly uuid="$(uuidgen 2> /dev/null || printf '%08d-%04d-%04d-%04d-%012d')"
 readonly tag='latest'
-readonly hash="$(test -f "/proc/$$/fd/255" && cat "/proc/$$/fd/255" | sha256sum | cut -b 1-64 || printf '%064d')"
-readonly uuid="$(uuidgen 2> /dev/null                                                         || printf '%08d-%04d-%04d-%04d-%012d')"
 
-source "${home}/.fprrc" 2> /dev/null || true
 if true; then
 
-  readonly resolve="${resolve:-$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)}"
-  readonly external_ip="${external_ip:-$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)}"
+  resolve="${resolve:-$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)}"
+  external_ip="${external_ip:-$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)}"
 
-  readonly github_user="${github_user:-${user}}"
-  readonly huggingface_user="${huggingface_user:-${user}}"
+  github_user="${github_user:-${user}}"
+  huggingface_user="${huggingface_user:-${user}}"
 
 fi
 
@@ -121,17 +118,13 @@ function is_venv() {
   test -v VIRTUAL_ENV
 } &> /dev/null
 
-function fork() {
-  cat "/proc/$$/fd/255" 2> /dev/null | bash -s -- "${@}"
-}
-
 # envsubst
 function env_replace() {
   sed \
     -e "s|\${user}|${user}|g" \
     -e "s|\${home}|${home}|g" \
     -e "s|\${domain}|${domain}|g" \
-    -e "s|\${hostname}|${hostname}|g" \
+    -e "s|\${hostname}|${host}|g" \
     -e "s|\${tag}|${tag}|g" \
     -e "s|\${resolve}|${resolve}|g" \
     -e "s|\${external_ip}|${external_ip}|g"
@@ -224,10 +217,10 @@ function _list() {
     find './src'       -mindepth 1 -maxdepth 1 -type d -name '0.*' | sed 's#.*/##g' 2> /dev/null || true
 #   find './src/0.fpr' -mindepth 1 -maxdepth 1 -type d             | sed 's#.*/##g' 2> /dev/null || true
 
-    echo "${user}"
-    echo "${hostname}"
     echo "${domain}"
-    echo "$(hostname -f)"
+    echo "${host}"
+    echo "${host}.${domain}"
+    echo "${user}"
 
     echo '0000000000000000000000000000000000000000'
     echo "${openpgp4fpr}"
@@ -294,7 +287,7 @@ EOS
   if is_sudoer; then
     cat << EOS | ${SUDO} tee /etc/hosts > /dev/null
 127.0.0.1 localhost
-127.0.0.1 ${hostname}.${domain} ${hostname}
+127.0.0.1 ${host}.${domain} ${host}
 ::1       localhost ip6-localhost ip6-loopback
 ff02::1   ip6-allnodes
 ff02::2   ip6-allrouters
@@ -670,7 +663,7 @@ function _fpr() {
         "${cmds[@]}" --quick-add-key    "0x${fpr}" ed25519 auth 0
 
         "${cmds[@]}" --quick-add-uid    "0x${fpr}" "${fpr}"
-#       "${cmds[@]}" --quick-add-uid    "0x${fpr}" "${user}@$(hostname -f)"
+#       "${cmds[@]}" --quick-add-uid    "0x${fpr}" "${user}@${host}.${domain}"
         "${cmds[@]}" --quick-revoke-uid "0x${fpr}" "${uuid}"
 
       fi
@@ -690,6 +683,8 @@ function _fpr() {
   if ! is_venv; then
     source './.venv/bin/activate'
   fi
+
+  source './.fprrc' 2> /dev/null || true
 
 }
 
@@ -884,8 +879,8 @@ function _k8s() {
 #     cat                   './src/com.github/kubernetes/dashboard/aio/deploy/recommended.yaml'        | kubectl apply -f -
 #     curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
 
-      kubectl delete namespace "${hostname}" 2> /dev/null || true
-      kubectl create namespace "${hostname}"              || true
+      kubectl delete namespace "${host}" 2> /dev/null || true
+      kubectl create namespace "${host}"              || true
 
     fi
   )
@@ -897,7 +892,7 @@ function _validate() {
       -e "${user}"                               --or \
       -e "${home}"                               --or \
       -e "${domain}"                             --or \
-      -e "${hostname}"                           --or \
+      -e "${host}"                               --or \
       -e "${openpgp4fpr}"                        --or \
       -e "${resolve}"                            --or \
       -e "${external_ip}"                        --or \
@@ -1019,7 +1014,7 @@ function _deploy() {
 
       done
 
-#     kubectl -n "${hostname}" rollout restart deploy "${src_key##*.}" || \
+#     kubectl -n "${host}" rollout restart deploy "${src_key##*.}" || \
       ( cat './deploy.yml' | env_replace | kubectl apply -f - )
 
     popd &> /dev/null
@@ -1166,7 +1161,6 @@ def add_tokens(tokenizer, model, prompt):
       tokens |= set(regex.findall(r'\X', data))
 
   tokens |= {os.environ.get('openpgp4fpr')}
-  tokens |= {'${hash}'}
 # tokens |= set(prompt.splitlines())
   tokens |= set(re.split(split_regex, prompt))
   tokens |= set(regex.findall(r'\X', prompt))
@@ -1236,34 +1230,38 @@ function main() {
   (
     pushd "${home}" &> /dev/null
 
+      arg1="${1:-}"
+      shift || true
+
       if ! is_mnt './fpr'; then
 
         _deps
         _fpr
-#       _mnt
         _mnt "${openpgp4fpr}" './fpr'
 
-        fork "${hash}"
-        exit
+        arg1="${user}@${host}.${domain}"
 
       fi
       _fpr
-
-      arg1="${1:-}"
-      shift || true
 
       # handle
       if [[ -z "${arg1}" ]]; then
         true
 
-      elif [[ "${hash}" == "${arg1}" ]]; then
+      elif [[ "${user}@${host}.${domain}" == "${arg1}" ]]; then
+
+#       main mnt
+        main config '.mnt | to_entries[]' | while read entry; do
+          key="$(echo "${entry}" | yq -cr '.key')"
+          val="$(echo "${entry}" | yq -cr '.value')"
+          main mnt "${key}" "${val}"
+        done
 
         main .
         main license
 #       main imp
         main exp
 
-        main auth
         main pull
         main up
         main doc
@@ -1293,7 +1291,7 @@ function main() {
         git config --global diff.sjis.textconv 'iconv -f sjis'
         git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
 #       git config --global user.name          "${user}"
-#       git config --global user.email         "${user}@$(hostname -f)"
+#       git config --global user.email         "${user}@${host}.${domain}"
         git config --global user.signingkey    "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
         git config --global gpg.program        "$(type -p gpg)"
         git config --global commit.gpgsign     true
