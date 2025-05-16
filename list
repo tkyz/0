@@ -10,7 +10,6 @@
 192.168.0.0/16
 192.168.0.0/24
 192.168.0.1
-anonymous
 docker.io/alpine/curl:latest
 docker.io/library/alpine:latest
 docker.io/library/debian:latest
@@ -76,6 +75,3 @@ https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0.git
 https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting.git
 https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5.git
 https://huggingface.co/webui/ControlNet-modules-safetensors.git
-none
-null
-unknown
