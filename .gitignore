@@ -1,6 +1,8 @@
 #----------------------------------------------------------------
 # userhome
 
+/.*
+
 # %USERPROFILE%
 /3D Objects/
 /AppData/
@@ -30,7 +32,6 @@
 /スタート メニュー
 
 # ${HOME}
-/.*
 /snap/
 /ダウンロード/
 /テンプレート/
@@ -44,7 +45,7 @@
 #----------------------------------------------------------------
 # 0
 
-/fpr/
+/boot/
 /lib/
 /mnt/
 /opt/
@@ -52,18 +53,18 @@
 /src/0.playground/**/.classpath
 /src/0.playground/**/.project
 /src/0.playground/**/target/
-/src/0.fpr/
 /src/com.github/
 /src/com.gitlab/
 /src/org.golang/
 /tmp/
-/setup.env
 
 #----------------------------------------------------------------
 # files
 
 *.iso
 *.exe
+*.cmd
+*.dll
 *.o
 *.class
 *.jar
