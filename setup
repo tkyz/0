@@ -1377,8 +1377,6 @@ function main() {
       type_git "${home}" "${domain}" "git://git.${domain}/${rep_name}.git"          || true
 #     type_git "${home}" "${domain}" "ssh://${user}@git.${domain}/${rep_name}.git"  || true
       type_git "${home}" 'github'    'https://github.com/tkyz/0.git'                || true
-#     type_git "${home}" 'github'    "https://github.com/${user}/${rep_name}.git"   || true
-#     type_git "${home}" 'github'    "ssh://git@github.com/${user}/${rep_name}.git" || true
 
       mkdir -p "${home}/src/0.fpr"
       gpg --with-colons --list-keys | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
