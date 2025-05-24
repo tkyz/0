@@ -1373,10 +1373,10 @@ function main() {
       echo -n "openpgp4fpr:${openpgp4fpr}" | qrencode --type ansi
 
       rep_name='0'
-      type_git "${home}" 'origin'    "${home}/lib/0.git/${rep_name}.git"            || true
-      type_git "${home}" "${domain}" "git://git.${domain}/${rep_name}.git"          || true
-#     type_git "${home}" "${domain}" "ssh://${user}@git.${domain}/${rep_name}.git"  || true
-      type_git "${home}" 'github'    'https://github.com/tkyz/0.git'                || true
+      type_git "${home}" 'origin'    "${home}/lib/0.git/${rep_name}.git"           || true
+      type_git "${home}" "${domain}" "git://git.${domain}/${rep_name}.git"         || true
+#     type_git "${home}" "${domain}" "ssh://${user}@git.${domain}/${rep_name}.git" || true
+      type_git "${home}" 'github'    'https://github.com/tkyz/0.git'               || true
 
       mkdir -p "${home}/src/0.fpr"
       gpg --with-colons --list-keys | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
