@@ -1354,7 +1354,15 @@ function main() {
         main mnt "${key}" "${val}"
       done || true
 
+      rep_name='0'
+      type_git "${home}" 'origin'    "${home}/lib/0.git/${rep_name}.git"           || true
+      type_git "${home}" "${domain}" "git://git.${domain}/${rep_name}.git"         || true
+#     type_git "${home}" "${domain}" "ssh://${user}@git.${domain}/${rep_name}.git" || true
+      type_git "${home}" 'github'    'https://github.com/tkyz/0.git'               || true
+
       main .
+      main "${openpgp4fpr}" 2> /dev/null || true
+
       main pull
 
       main k8s
@@ -1362,23 +1370,25 @@ function main() {
 #     main cd
 #     main doc
 
-    elif [[ '.' == "${arg1}" || '0' == "${arg1}" || "${openpgp4fpr}" == "${arg1}" ]]; then
+    elif [[ '.' == "${arg1}" ]]; then
 
       echo    '---'
       echo    "openpgp4fpr:${openpgp4fpr}"
       echo -n "openpgp4fpr:${openpgp4fpr}" | qrencode --type ansi
-
-      rep_name='0'
-      type_git "${home}" 'origin'    "${home}/lib/0.git/${rep_name}.git"           || true
-      type_git "${home}" "${domain}" "git://git.${domain}/${rep_name}.git"         || true
-#     type_git "${home}" "${domain}" "ssh://${user}@git.${domain}/${rep_name}.git" || true
-      type_git "${home}" 'github'    'https://github.com/tkyz/0.git'               || true
 
       mkdir -p "${home}/src/0.fpr"
       gpg --with-colons --list-keys | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
 #       gpg               --export-secret-keys         --output "${home}/${fpr}.key"       "0x${fpr}" 2> /dev/null
         gpg --batch --yes --export             --armor --output "${home}/src/0.fpr/${fpr}" "0x${fpr}" 2> /dev/null
       done
+
+      mkdir -p "${home}/.ssh"
+      touch "${home}/.ssh/authorized_keys"
+      {
+        cat "${home}/.ssh/authorized_keys"
+#       curl -fsSL 'https://github.com/${user}.keys'
+      } | sort -u | tee "${home}/.ssh/authorized_keys.tmp" &> /dev/null
+      mv "${home}/.ssh/authorized_keys.tmp" "${home}/.ssh/authorized_keys"
 
       main config '.blockchain | to_entries[]' | while read entry; do
         key="$(echo "${entry}" | yq -cr '.key')"
