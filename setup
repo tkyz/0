@@ -703,10 +703,10 @@ function _mnt() {
       enc_dir="${base_dir}/enc"
 
       # init
-#     mkdir -p "${enc_dir}"
-#     conf_file_org="${enc_dir}/gocryptfs.conf"
-#     conf_file_gpg="${conf_file_org}.gpg"
-#     test ! -f "${gpw_file}"                                      && cat /dev/urandom | tr --complement --delete '[:graph:]' | head -c 2048 | gpg --encrypt --throw-keyids > "${gpw_file}"      || true
+      mkdir -p "${enc_dir}"
+      conf_file_org="${enc_dir}/gocryptfs.conf"
+      conf_file_gpg="${conf_file_org}.gpg"
+      test ! -f "${gpw_file}"                                      && cat /dev/urandom | tr --complement --delete '[:graph:]' | head -c 2048 | gpg --encrypt --throw-keyids > "${gpw_file}"      || true
 #     test ! -f "${conf_file_org}" &&   test -f "${conf_file_gpg}" && cat "${conf_file_gpg}"                                                 | gpg --decrypt                > "${conf_file_org}" || true
 #     test ! -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && gocryptfs -extpass 'gpg' -extpass '--decrypt' -extpass "${gpw_file}" -init "${enc_dir}"
 #     test   -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && cat "${conf_file_org}"                                                 | gpg --encrypt --throw-keyids > "${conf_file_gpg}" || true
@@ -1055,8 +1055,8 @@ function _sandbox() {
     opts+=('--workdir'  '/root')
     opts+=('--volume'   "${home}:/root")
     # fuse
-    opts+=('--device'   '/dev/fuse')
-    opts+=('--cap-add'  'SYS_ADMIN')
+#   opts+=('--device'   '/dev/fuse')
+#   opts+=('--cap-add'  'SYS_ADMIN')
     # x11
     opts+=('--env'      "DISPLAY=${DISPLAY:-:0.0}")
     opts+=('--volume'   '/tmp/.X11-unix/X0:/tmp/.X11-unix/X0')
