@@ -687,7 +687,7 @@ function _upack() {
 
     # list...
     if [[ -z "${target_file}" ]]; then
-      find '.' -mindepth 1 -maxdepth 1 -type f -name '*.zip' 2> /dev/null | while read item; do
+      find '.' -mindepth 1 -maxdepth 1 -type f -name '*.tar' -or -name '*.rar' -or -name '*.gz' -or -name '*.zip' -or -name '*.7z' 2> /dev/null | while read item; do
         _upack "${item}"
       done
       return
@@ -710,6 +710,8 @@ function _upack() {
 
         unar -output-directory "${dir}" "${name}"
 
+      else
+        echo "unsupported. ${mime}" >&2
       fi
 
     popd &> /dev/null
@@ -1234,7 +1236,6 @@ from transformers import (
 )
 from datasets import Dataset
 
-list_file  = '${home}/list'
 model_path = '${home}/lib/0.llm/7b'
 
 def gen(tokenizer, model, prompt, max=4096):
@@ -1256,32 +1257,25 @@ def add_tokens(tokenizer, model, prompt):
 
   split_regex = r'[\s\t\r\n\+\-\*/=%_\.:,;\"\'\^\~\(\)\[\]\{\}<>\`\?$&\|#@!0-9\\\\、。！？：；（）「」＜＞＿]+'
 
-  tokens = set()
+  tokens  = set()
+  tokens |= {os.environ.get('openpgp4fpr')}
+# tokens |= set(prompt.splitlines())
+  tokens |= set(re.split(split_regex, prompt))
+  tokens |= set(regex.findall(r'\X', prompt))
   if os.path.isfile('${llm_token_file:-}'):
     with open('${llm_token_file:-}', 'r', encoding="UTF-8") as f:
       data    = f.read()
       tokens |= set(data.splitlines())
       tokens |= set(re.split(split_regex, data))
       tokens |= set(regex.findall(r'\X', data))
-
-  tokens |= {os.environ.get('openpgp4fpr')}
-# tokens |= set(prompt.splitlines())
-  tokens |= set(re.split(split_regex, prompt))
-  tokens |= set(regex.findall(r'\X', prompt))
-  if os.path.isfile(list_file):
-    with open(list_file, 'r', encoding="UTF-8") as f:
+  if os.path.isfile('./setup'):
+    with open('./setup', 'r', encoding="UTF-8") as f:
       data    = f.read()
 #     tokens |= set(data.splitlines())
       tokens |= set(re.split(split_regex, data))
       tokens |= set(regex.findall(r'\X', data))
   if os.path.isfile('./.bash_history'):
     with open('./.bash_history', 'r', encoding="UTF-8") as f:
-      data    = f.read()
-#     tokens |= set(data.splitlines())
-      tokens |= set(re.split(split_regex, data))
-      tokens |= set(regex.findall(r'\X', data))
-  if os.path.isfile('./setup'):
-    with open('./setup', 'r', encoding="UTF-8") as f:
       data    = f.read()
 #     tokens |= set(data.splitlines())
       tokens |= set(re.split(split_regex, data))
@@ -1403,16 +1397,7 @@ function main() {
         main mnt "${key}" "${val}"
       done || true
 
-      git config --global gpg.program     "$(type -p gpg)"
-      git config --global commit.gpgsign  true
-      git config --global user.name       'unknown'
-      git config --global user.email      'unknown'
-      git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
-
       main 0
-      main .
-      main license
-
       main pull
       main k8s
       main ci
@@ -1420,6 +1405,12 @@ function main() {
 #     main doc
 
     elif [[ '0' == "${arg1}" ]]; then
+
+      git config --global gpg.program     "$(type -p gpg)"
+      git config --global commit.gpgsign  true
+      git config --global user.name       'unknown'
+      git config --global user.email      'unknown'
+      git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
 
       type_git "${home}" 'origin'    "${home}/lib/0.git/${arg1}.git"          || true
       type_git "${home}" "${domain}" "git://git.${domain}/${arg1}.git"        || true
@@ -1431,14 +1422,16 @@ function main() {
 #     curl -fsSL 'https://github.com/tkyz.keys'    >> "${home}/.ssh/authorized_keys"
 #     curl -fsSL 'https://github.com/tkyz.gpg'     |  gpg --import
 
+      main "${openpgp4fpr}" 2> /dev/null || true
+      main .
+      main license
+
       cat "${home}/.ssh/authorized_keys" | sort -u | tee "${home}/.ssh/authorized_keys.tmp" &> /dev/null
       mv "${home}/.ssh/authorized_keys.tmp" "${home}/.ssh/authorized_keys"
 
       chmod    go-rwx "${home}"        &> /dev/null || true
       chmod -R go-rwx "${home}/.gnupg" &> /dev/null || true
       chmod -R go-rwx "${home}/.ssh"   &> /dev/null || true
-
-      main "${openpgp4fpr}" 2> /dev/null || true
 
     elif [[ '.' == "${arg1}" ]]; then
 
