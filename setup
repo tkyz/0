@@ -1138,21 +1138,6 @@ function _clean() {
 
 }
 
-function _size() {
-  git count-objects -vH | grep 'size-pack:' | sed 's/^size-pack: //g'
-}
-
-function _squash() {
-  (
-
-    EDITOR='sed -i "2,\$s/^pick/fixup/"' git rebase --interactive --root
-    git commit --no-verify --amend --no-edit --message 'squash'
-
-#   git push --no-verify --force
-
-  )
-}
-
 function _sandbox() {
   (
 
@@ -1405,8 +1390,9 @@ function main() {
 
     # handle
     if [[ -z "${arg1}" ]]; then
-#     main config | yq -r .
 #     main "${boot_id}"
+#     main 0
+#     main config | yq -r .
       true
 
     elif [[ "${arg1}" == "${boot_id}" ]]; then
@@ -1424,8 +1410,6 @@ function main() {
       git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
 
       main 0
-      main "${openpgp4fpr}" 2> /dev/null || true
-
       main .
       main license
 
@@ -1453,6 +1437,8 @@ function main() {
       chmod    go-rwx "${home}"        &> /dev/null || true
       chmod -R go-rwx "${home}/.gnupg" &> /dev/null || true
       chmod -R go-rwx "${home}/.ssh"   &> /dev/null || true
+
+      main "${openpgp4fpr}" 2> /dev/null || true
 
     elif [[ '.' == "${arg1}" ]]; then
 
