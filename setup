@@ -67,11 +67,6 @@ function is_sudoer() {
   fi
 }
 
-function is_deb() {
-# test 'debian' == "${ID_LIKE}" ||
-  test 'debian' == "${ID}"
-} &> /dev/null
-
 function is_container() {
   test 'podman' == "${container:-}" ||
   test -f '/run/.containerenv' ||
@@ -120,10 +115,14 @@ function is_venv() {
 # envsubst
 function env_replace() {
   sed \
+    -e "s|\${domain}|${domain}|g" \
+    -e "s|\${namespace}|${namespace}|g" \
+    -e "s|\${hostname}|${host}|g" \
     -e "s|\${user}|${user}|g" \
     -e "s|\${home}|${home}|g" \
-    -e "s|\${domain}|${domain}|g" \
-    -e "s|\${hostname}|${host}|g" \
+    -e "s|\${machine_id}|${machine_id}|g" \
+    -e "s|\${boot_id}|${boot_id}|g" \
+    -e "s|\${proc_id}|${proc_id}|g" \
     -e "s|\${tag}|${tag}|g" \
     -e "s|\${resolve}|${resolve}|g" \
     -e "s|\${external_ip}|${external_ip}|g"
@@ -149,30 +148,40 @@ function type_git() {
 #     git init --object-format=sha256
       git init
 
-      git remote add     "${remote}" "${uri}"         2> /dev/null || \
-      git remote set-url "${remote}" "${uri}"
+      git remote add     "${remote}" "${uri}" 2> /dev/null || \
+      git remote set-url "${remote}" "${uri}" 2> /dev/null || \
+      true
 
       git fetch --prune "${remote}"
 
-      git remote set-head "${remote}" 'main'          2> /dev/null || \
-      git remote set-head "${remote}" 'master'        2> /dev/null || \
+      git remote set-head "${remote}" 'main'   2> /dev/null || \
+      git remote set-head "${remote}" 'master' 2> /dev/null || \
+      git remote set-head "${remote}" 'trunk'  2> /dev/null || \
       true
 
-      git branch --set-upstream-to='origin/main'      2> /dev/null || \
-      git branch --set-upstream-to='origin/master'    2> /dev/null || \
-      git branch --set-upstream-to='upstream/main'    2> /dev/null || \
-      git branch --set-upstream-to='upstream/master'  2> /dev/null || \
-      git branch --set-upstream-to="${remote}/main"   2> /dev/null || \
-      git branch --set-upstream-to="${remote}/master" 2> /dev/null || \
-      true
+      if git checkout --orphan 'main'; then
+        git checkout -b 'main' "${remote}/main"   2> /dev/null || \
+        git checkout -b 'main' "${remote}/master" 2> /dev/null || \
+        git checkout -b 'main' "${remote}/trunk"  2> /dev/null || \
+        true
+      fi
 
       if ! git rebase --no-autostash "${remote}" 2> /dev/null; then
 
-        # conflict
+        git reset --mixed "${remote}/main"   2> /dev/null || \
+        git reset --mixed "${remote}/master" 2> /dev/null || \
+        git reset --mixed "${remote}/trunk"  2> /dev/null || \
+        true
 
         git status
 
       fi
+
+      git branch --set-upstream-to='origin/main'      2> /dev/null || \
+      git branch --set-upstream-to='origin/master'    2> /dev/null || \
+      git branch --set-upstream-to="${remote}/main"   2> /dev/null || \
+      git branch --set-upstream-to="${remote}/master" 2> /dev/null || \
+      true
 
       git gc
 
@@ -183,10 +192,14 @@ function type_git() {
 #----------------------------------------------------------------
 # public
 
-function _deps() {
+function _etc() {
+
+  if ! is_sudoer; then
+    return
+  fi
 
   # /etc/wsl.conf
-  if is_sudoer && is_wsl; then
+  if is_wsl; then
     cat << EOS | ${SUDO} tee '/etc/wsl.conf' > /dev/null
 [automount]
 options            = "uid=0,gid=0,umask=0077,fmask=0177,metadata"
@@ -201,7 +214,7 @@ EOS
   fi
 
   # /etc/default/keyboard
-  if is_sudoer; then
+  if true; then
     cat << EOS | ${SUDO} tee '/etc/default/keyboard' > /dev/null
 XKBMODEL=pc105
 XKBLAYOUT=jp
@@ -212,7 +225,7 @@ EOS
   fi
 
   # /etc/hosts
-  if is_sudoer; then
+  if true; then
     cat << EOS | ${SUDO} tee '/etc/hosts' > /dev/null
 127.0.0.1 localhost
 127.0.0.1 ${host}.${domain} ${host}
@@ -240,12 +253,25 @@ EOS
   fi
 
   # /etc/apt/*
-  if is_sudoer && is_deb; then
-    (
+  if true; then
 
-      echo 'APT::Default-Release "stable";' | ${SUDO} tee '/etc/apt/apt.conf.d/00default' > /dev/null
+    echo 'APT::Default-Release "stable";' | ${SUDO} tee '/etc/apt/apt.conf.d/00default' > /dev/null
 
-      cat << EOS | ${SUDO} tee /etc/apt/sources.list > /dev/null
+    # tor           https://support.torproject.org/apt/
+    # nvidia        https://nvidia.github.io/nvidia-container-runtime/
+    # k8s           https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+    # nordvpn       https://support.nordvpn.com/hc/ja/articles/20196094470929
+    # bigtop
+    # docker        https://docs.docker.com/engine/install/debian/
+    # google-cloud  https://cloud.google.com/storage/docs/gcsfuse-install
+    # google-chrome
+    # bazel
+    # dotnet        https://learn.microsoft.com/ja-jp/dotnet/core/install/linux-debian
+    # unity         https://docs.unity3d.com/hub/manual/InstallHub.html
+    # virtualbox    https://www.virtualbox.org/wiki/Linux_Downloads
+    # winehq        https://gitlab.winehq.org/wine/wine/-/wikis/Debian-Ubuntu
+
+    cat << EOS | ${SUDO} tee '/etc/apt/sources.list' > /dev/null
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
@@ -262,210 +288,195 @@ deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security 
 #deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
 EOS
 
-      arr=()
-      arr+=('bash')
-      arr+=('gnupg2')
-      arr+=('curl')
+    curl -fsSL 'https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc' | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.torproject.gpg'
+    curl -fsSL 'https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key'                                | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/io.k8s.pkgs.gpg'
+    curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey'                                    | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.nvidia.gpg'
+    curl -fsSL 'https://repo.nordvpn.com/gpg/nordvpn_public.asc'                                        | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.nordvpn.gpg'
+#   curl -fsSL 'https://dlcdn.apache.org/bigtop/bigtop-3.3.0/repos/GPG-KEY-bigtop'                      | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.apache.bigtop.gpg'
+#   curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                                            | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.docker.download.gpg'
+    curl -fsSL 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'                                  | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.google.cloud.packages.gpg'
+#   curl -fsSL 'https://dl-ssl.google.com/linux/linux_signing_key.pub'                                  | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.google.gpg'
+#   curl -fsSL 'https://bazel.build/bazel-release.pub.gpg'                                              | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/build.bazel.gpg'
+    curl -fsSL 'https://packages.microsoft.com/keys/microsoft.asc'                                      | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.microsoft.gpg'
+    curl -fsSL 'https://hub.unity3d.com/linux/keys/public'                                              | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.unity.gpg'
+    curl -fsSL 'https://www.virtualbox.org/download/oracle_vbox_2016.asc'                               | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.virtualbox.gpg'
+    curl -fsSL 'https://dl.winehq.org/wine-builds/winehq.key'                                           | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.winehq.gpg'
 
-      ${SUDO} apt-get update
-      ${SUDO} apt-get upgrade -y
-      ${SUDO} apt-get install -y "${arr[@]}"
+    # /etc/apt/sources.list.d/*
+    echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             ${VERSION_CODENAME}                  main"    | ${SUDO} tee    '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
+#   echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             ${VERSION_CODENAME}                  main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-experimental-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
+#   echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-experimental-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-nightly-main-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
+#   echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-nightly-main-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
+    echo 'deb     [signed-by=/etc/apt/keyrings/io.k8s.pkgs.gpg                           ] https://pkgs.k8s.io/core:/stable:/v1.32/deb/                          /'                                            | ${SUDO} tee    '/etc/apt/sources.list.d/io.k8s.pkgs.list'               > /dev/null
+    echo 'deb     [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)       /'                                            | ${SUDO} tee    '/etc/apt/sources.list.d/com.nvidia.list'                > /dev/null
+#   echo 'deb     [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/experimental/deb/$(ARCH) /'                                            | ${SUDO} tee -a '/etc/apt/sources.list.d/com.nvidia.list'                > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/com.nordvpn.gpg                           ] https://repo.nordvpn.com/deb/nordvpn/${ID}                            stable                               main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.nordvpn.list'               > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/org.apache.bigtop.gpg                     ] http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH)       bigtop                               contrib" | ${SUDO} tee    '/etc/apt/sources.list.d/org.apache.bigtop.list'         > /dev/null # ${VERSION_ID}
+#   echo "deb     [signed-by=/etc/apt/keyrings/com.docker.download.gpg       arch=${arch}] https://download.docker.com/linux/${ID}                               ${VERSION_CODENAME}                  stable"  | ${SUDO} tee    '/etc/apt/sources.list.d/com.docker.download.list'       > /dev/null
+    echo 'deb     [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 cloud-sdk                            main'    | ${SUDO} tee    '/etc/apt/sources.list.d/com.google.cloud.packages.list' > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 gcsfuse-${VERSION_CODENAME}          main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/com.google.cloud.packages.list' > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/com.google.gpg                arch=${arch}] https://dl.google.com/linux/chrome/deb                                stable                               main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.google.list'                > /dev/null
+#   echo "deb     [signed-by=/etc/apt/keyrings/build.bazel.gpg               arch=${arch}] http://storage.googleapis.com/bazel-apt                               stable                               jdk1.8"  | ${SUDO} tee    '/etc/apt/sources.list.d/build.bazel.list'               > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/com.microsoft.gpg             arch=${arch}] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod               ${VERSION_CODENAME}                  main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.microsoft.list'             > /dev/null
+    echo 'deb     [signed-by=/etc/apt/keyrings/com.unity.gpg                             ] https://hub.unity3d.com/linux/repos/deb                               stable                               main'    | ${SUDO} tee    '/etc/apt/sources.list.d/com.unity.list'                 > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/org.virtualbox.gpg            arch=${arch}] https://download.virtualbox.org/virtualbox/${ID}                      ${VERSION_CODENAME}                  contrib" | ${SUDO} tee    '/etc/apt/sources.list.d/org.virtualbox.list'            > /dev/null
+    echo "deb     [signed-by=/etc/apt/keyrings/org.winehq.gpg                            ] https://dl.winehq.org/wine-builds/${ID}                               ${VERSION_CODENAME}                  main"    | ${SUDO} tee    '/etc/apt/sources.list.d/org.winehq.list'                > /dev/null
 
-      # tor           https://support.torproject.org/apt/
-      # nvidia        https://nvidia.github.io/nvidia-container-runtime/
-      # k8s           https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
-      # nordvpn       https://support.nordvpn.com/hc/ja/articles/20196094470929
-      # bigtop
-      # docker        https://docs.docker.com/engine/install/debian/
-      # google-cloud  https://cloud.google.com/storage/docs/gcsfuse-install
-      # google-chrome
-      # bazel
-      # dotnet        https://learn.microsoft.com/ja-jp/dotnet/core/install/linux-debian
-      # unity         https://docs.unity3d.com/hub/manual/InstallHub.html
-      # virtualbox    https://www.virtualbox.org/wiki/Linux_Downloads
-      # winehq        https://gitlab.winehq.org/wine/wine/-/wikis/Debian-Ubuntu
-
-      curl -fsSL 'https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc' | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.torproject.gpg'
-      curl -fsSL 'https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key'                                | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/io.k8s.pkgs.gpg'
-      curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey'                                    | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.nvidia.gpg'
-      curl -fsSL 'https://repo.nordvpn.com/gpg/nordvpn_public.asc'                                        | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.nordvpn.gpg'
-#     curl -fsSL 'https://dlcdn.apache.org/bigtop/bigtop-3.3.0/repos/GPG-KEY-bigtop'                      | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.apache.bigtop.gpg'
-#     curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                                            | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.docker.download.gpg'
-      curl -fsSL 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'                                  | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.google.cloud.packages.gpg'
-#     curl -fsSL 'https://dl-ssl.google.com/linux/linux_signing_key.pub'                                  | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.google.gpg'
-#     curl -fsSL 'https://bazel.build/bazel-release.pub.gpg'                                              | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/build.bazel.gpg'
-      curl -fsSL 'https://packages.microsoft.com/keys/microsoft.asc'                                      | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.microsoft.gpg'
-      curl -fsSL 'https://hub.unity3d.com/linux/keys/public'                                              | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.unity.gpg'
-      curl -fsSL 'https://www.virtualbox.org/download/oracle_vbox_2016.asc'                               | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.virtualbox.gpg'
-      curl -fsSL 'https://dl.winehq.org/wine-builds/winehq.key'                                           | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.winehq.gpg'
-
-      # /etc/apt/sources.list.d/*
-      echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             ${VERSION_CODENAME}                  main"    | ${SUDO} tee    '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-#     echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             ${VERSION_CODENAME}                  main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-#     echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-experimental-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-#     echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-experimental-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-#     echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-nightly-main-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-#     echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-nightly-main-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-      echo 'deb     [signed-by=/etc/apt/keyrings/io.k8s.pkgs.gpg                           ] https://pkgs.k8s.io/core:/stable:/v1.32/deb/                          /'                                            | ${SUDO} tee    '/etc/apt/sources.list.d/io.k8s.pkgs.list'               > /dev/null
-      echo 'deb     [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)       /'                                            | ${SUDO} tee    '/etc/apt/sources.list.d/com.nvidia.list'                > /dev/null
-#     echo 'deb     [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/experimental/deb/$(ARCH) /'                                            | ${SUDO} tee -a '/etc/apt/sources.list.d/com.nvidia.list'                > /dev/null
-      echo "deb     [signed-by=/etc/apt/keyrings/com.nordvpn.gpg                           ] https://repo.nordvpn.com/deb/nordvpn/${ID}                            stable                               main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.nordvpn.list'               > /dev/null
-#     echo "deb     [signed-by=/etc/apt/keyrings/org.apache.bigtop.gpg                     ] http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH)       bigtop                               contrib" | ${SUDO} tee    '/etc/apt/sources.list.d/org.apache.bigtop.list'         > /dev/null # ${VERSION_ID}
-#     echo "deb     [signed-by=/etc/apt/keyrings/com.docker.download.gpg       arch=${arch}] https://download.docker.com/linux/${ID}                               ${VERSION_CODENAME}                  stable"  | ${SUDO} tee    '/etc/apt/sources.list.d/com.docker.download.list'       > /dev/null
-      echo 'deb     [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 cloud-sdk                            main'    | ${SUDO} tee    '/etc/apt/sources.list.d/com.google.cloud.packages.list' > /dev/null
-      echo "deb     [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 gcsfuse-${VERSION_CODENAME}          main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/com.google.cloud.packages.list' > /dev/null
-#     echo "deb     [signed-by=/etc/apt/keyrings/com.google.gpg                arch=${arch}] https://dl.google.com/linux/chrome/deb                                stable                               main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.google.list'                > /dev/null
-#     echo "deb     [signed-by=/etc/apt/keyrings/build.bazel.gpg               arch=${arch}] http://storage.googleapis.com/bazel-apt                               stable                               jdk1.8"  | ${SUDO} tee    '/etc/apt/sources.list.d/build.bazel.list'               > /dev/null
-      echo "deb     [signed-by=/etc/apt/keyrings/com.microsoft.gpg             arch=${arch}] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod               ${VERSION_CODENAME}                  main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.microsoft.list'             > /dev/null
-      echo 'deb     [signed-by=/etc/apt/keyrings/com.unity.gpg                             ] https://hub.unity3d.com/linux/repos/deb                               stable                               main'    | ${SUDO} tee    '/etc/apt/sources.list.d/com.unity.list'                 > /dev/null
-      echo "deb     [signed-by=/etc/apt/keyrings/org.virtualbox.gpg            arch=${arch}] https://download.virtualbox.org/virtualbox/${ID}                      ${VERSION_CODENAME}                  contrib" | ${SUDO} tee    '/etc/apt/sources.list.d/org.virtualbox.list'            > /dev/null
-      echo "deb     [signed-by=/etc/apt/keyrings/org.winehq.gpg                            ] https://dl.winehq.org/wine-builds/${ID}                               ${VERSION_CODENAME}                  main"    | ${SUDO} tee    '/etc/apt/sources.list.d/org.winehq.list'                > /dev/null
-
-    )
   fi
 
-  # apt
-  if is_sudoer && is_deb; then
-    (
+}
 
-      arr=()
+function _apt() {
 
-      # shell
-      arr+=('bash-completion')
-#     arr+=('zsh')
-#     arr+=('fish')
+  if ! is_sudoer; then
+    return
+  fi
 
-      # hw
-      if ! is_container; then
-        arr+=('lshw')
-        arr+=('lsscsi')
-        arr+=('usbutils')
-      fi
+  (
 
-      # fw
-      if ! is_container; then
-        arr+=('firmware-linux')
-        arr+=('firmware-realtek')
-        arr+=('firmware-iwlwifi')
-      fi
+    arr=()
 
-      # vol
-      if ! is_container; then
-        arr+=('parted')
-        arr+=('cryptsetup')
-        arr+=('lvm2')
-      fi
+    # shell
+    arr+=('bash-completion')
+#   arr+=('zsh')
+#   arr+=('fish')
 
-      # fuse
-      arr+=('fuse')
-      arr+=('archivemount')
-      arr+=('cifs-utils')
-      arr+=('gocryptfs')
+    # hw
+    if ! is_container; then
+      arr+=('lshw')
+      arr+=('lsscsi')
+      arr+=('usbutils')
+    fi
 
-      # gpu
-      arr+=('nvidia-container-toolkit')
-      if ! is_container; then
-        arr+=('nvidia-kernel-dkms')
-        arr+=('nvidia-driver')
-        arr+=('nvidia-detect')
-        arr+=('nvidia-smi')
-      fi
+    # fw
+    if ! is_container; then
+      arr+=('firmware-linux')
+      arr+=('firmware-realtek')
+      arr+=('firmware-iwlwifi')
+    fi
 
-      # archive
-      arr+=('libarchive-tools')
-      arr+=('unar')
-      arr+=('zip')
+    # vol
+    if ! is_container; then
+      arr+=('parted')
+      arr+=('cryptsetup')
+      arr+=('lvm2')
+    fi
 
-      # print
-      arr+=('cups')
+    # fuse
+    arr+=('fuse')
+    arr+=('archivemount')
+    arr+=('cifs-utils')
+    arr+=('gocryptfs')
 
-      # git
-      arr+=('git')
-      arr+=('git-crypt')
-      arr+=('git-lfs')
+    # gpu
+    arr+=('nvidia-container-toolkit')
+    if ! is_container; then
+      arr+=('nvidia-kernel-dkms')
+      arr+=('nvidia-driver')
+      arr+=('nvidia-detect')
+      arr+=('nvidia-smi')
+    fi
 
-      # python
-      arr+=('python3')
-      arr+=('python3-pip')
-      arr+=('python3-venv')
+    # archive
+    arr+=('libarchive-tools')
+    arr+=('unar')
+    arr+=('zip')
 
-      # vm
-      if ! is_container; then
-        arr+=('qemu-system')
-        arr+=('qemu-kvm')
-        arr+=('libvirt-daemon-system')
-        arr+=('libvirt-daemon')
-        arr+=('virtinst')
-        arr+=('virt-manager')
-        arr+=('bridge-utils')
-        arr+=('libosinfo-bin')
-      fi
+    # print
+    arr+=('cups')
 
-      # container
-      if ! is_container; then
-        arr+=('podman')
-        arr+=('containerd.io')
-      fi
+    # git
+    arr+=('git')
+    arr+=('git-crypt')
+    arr+=('git-lfs')
 
-      # k8s
-#     arr+=('kubeadm')
-#     arr+=('kubelet')
-      arr+=('kubectl')
+    # python
+    arr+=('python3')
+    arr+=('python3-pip')
+    arr+=('python3-venv')
 
-      # locale
-      arr+=('locales-all')
-      arr+=('task-japanese')
-      arr+=('fonts-dejavu-core')
-
-      arr+=('util-linux')
-      arr+=('procps')
-      arr+=('uuid-runtime')
-      arr+=('faketime')
-      arr+=('openssl')
-      arr+=('openssh-client')
-      arr+=('openssh-server')
-      arr+=('pkg-config')
-      arr+=('gettext-base')
-
-      if ! is_container; then
-        arr+=('ufw')
-        arr+=('rkhunter')
-        arr+=('clamav')
-      fi
-
-      arr+=('rsync')
-      arr+=('xsel')
-      arr+=('parallel')
-      arr+=('nkf')
-      arr+=('jq')
-      arr+=('htop')
-      arr+=('tmux')
-      arr+=('qrencode')
-
-      arr+=('vim')
-#     arr+=('emacs')
-
-      arr+=('nmap')
-      arr+=('tcpdump')
-
-      arr+=('moreutils')
-      arr+=('aria2')
-      arr+=('ffmpeg')
-      arr+=('webp-pixbuf-loader')
-      arr+=('libcairo2')
-      arr+=('build-essential')
-      arr+=('libglfw3-dev')
-      arr+=('libgles2-mesa-dev')
-      arr+=('libcairo2-dev')
+    # vm
+    if ! is_container; then
+      arr+=('qemu-system')
+      arr+=('qemu-kvm')
+      arr+=('libvirt-daemon-system')
+      arr+=('libvirt-daemon')
+      arr+=('virtinst')
       arr+=('virt-manager')
-#     arr+=('winehq-stable')
+      arr+=('bridge-utils')
+      arr+=('libosinfo-bin')
+    fi
 
-      ${SUDO} apt-get update
-      ${SUDO} apt-get upgrade -y
-      ${SUDO} apt-get install -y "${arr[@]}"
+    # container
+    if ! is_container; then
+      arr+=('podman')
+      arr+=('containerd.io')
+    fi
 
-    )
-  fi
+    # k8s
+#   arr+=('kubeadm')
+#   arr+=('kubelet')
+    arr+=('kubectl')
+
+    # locale
+    arr+=('locales-all')
+    arr+=('task-japanese')
+    arr+=('fonts-dejavu-core')
+
+    arr+=('util-linux')
+    arr+=('procps')
+    arr+=('uuid-runtime')
+    arr+=('faketime')
+    arr+=('openssl')
+    arr+=('openssh-client')
+    arr+=('openssh-server')
+    arr+=('pkg-config')
+    arr+=('gettext-base')
+
+    if ! is_container; then
+      arr+=('ufw')
+      arr+=('rkhunter')
+      arr+=('clamav')
+    fi
+
+    arr+=('rsync')
+    arr+=('xsel')
+    arr+=('parallel')
+    arr+=('nkf')
+    arr+=('jq')
+    arr+=('htop')
+    arr+=('tmux')
+    arr+=('qrencode')
+
+    arr+=('vim')
+#   arr+=('emacs')
+
+    arr+=('nmap')
+    arr+=('tcpdump')
+
+    arr+=('moreutils')
+    arr+=('aria2')
+    arr+=('ffmpeg')
+    arr+=('webp-pixbuf-loader')
+    arr+=('libcairo2')
+    arr+=('build-essential')
+    arr+=('libglfw3-dev')
+    arr+=('libgles2-mesa-dev')
+    arr+=('libcairo2-dev')
+    arr+=('virt-manager')
+#   arr+=('winehq-stable')
+
+    ${SUDO} apt-get update
+    ${SUDO} apt-get upgrade -y
+    ${SUDO} apt-get install -y "${arr[@]}"
+
+  )
+
+}
+
+function _etc2() {
 
   # ufw
   if is_sudoer && is_cmd ufw; then
@@ -509,12 +520,14 @@ EOS
   # sshd
   if is_sudoer && [[ -f '/etc/ssh/sshd_config' ]]; then
     ${SUDO} sed -i -r \
-      -e 's/#?PermitRootLogin .*/PermitRootLogin no/g' \
-      -e 's/#?PermitEmptyPasswords .*/PermitEmptyPasswords no/g' \
-      -e 's/#?PasswordAuthentication .*/PasswordAuthentication no/g' \
-      -e 's/#?PubkeyAuthentication .*/PubkeyAuthentication yes/g' \
-      -e 's/#?StrictModes .*/StrictModes yes/g' \
+      -e 's/^#?PermitRootLogin .*$/PermitRootLogin no/g' \
+      -e 's/^#?PermitEmptyPasswords .*$/PermitEmptyPasswords no/g' \
+      -e 's/^#?PasswordAuthentication .*$/PasswordAuthentication no/g' \
+      -e 's/^#?PubkeyAuthentication .*$/PubkeyAuthentication yes/g' \
+      -e 's/^#?StrictModes .*$/StrictModes yes/g' \
       '/etc/ssh/sshd_config'
+#     -e 's/^#?MaxAuthTries .*$/MaxAuthTries 1/g' \
+#     -e 's|^#?AuthorizedKeysFile .*$|AuthorizedKeysFile /etc/ssh/authorized_keys .ssh/authorized_keys|g' \
   fi
   if is_sudoer && ! is_container; then
     ${SUDO} systemctl reload sshd
@@ -532,39 +545,80 @@ EOS
     ${SUDO} update-locale LANG='ja_JP.UTF-8'
   fi
 
-  # venv
-  if true; then
-    (
+  # ssh
+  if is_cmd ssh; then
+    mkdir -p "${home}/.ssh"
+    touch "${home}/.ssh/authorized_keys"
+  fi
 
-      venv_dir="${home}/.venv"
-
-      python3 -m venv "${venv_dir}"
-      source "${venv_dir}/bin/activate"
-
-      req_file="${venv_dir}/requirements.txt"
-      touch "${req_file}"
-      {
-        cat "${req_file}"
-        echo pip
-        echo yq
-        pip freeze | sed -e 's/[!=<> #].*//g'
-      } 2> /dev/null | sort -u > "${req_file}.tmp"
-      mv "${req_file}.tmp" "${req_file}"
-
-      pip install --upgrade --requirement "${req_file}"
-
-    )
+  # git
+  if is_cmd git; then
+    git config --global init.defaultBranch main
+    git config --global core.ignorecase    false
+    git config --global core.quotepath     false
+    git config --global core.autocrlf      false
+    git config --global core.safecrlf      true
+    git config --global core.filemode      true
+    git config --global core.hooksPath     '~/.git-hooks'
+    git config --global color.ui           auto
+    git config --global color.diff         auto
+    git config --global color.status       auto
+    git config --global color.branch       auto
+    git config --global pull.ff            only
+    git config --global pull.rebase        true
+    git config --global pull.autostash     false
+    git config --global rebase.autostash   false
+    git config --global merge.ff           false
+    git config --global diff.sjis.textconv 'iconv -f sjis'
+    git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+    git config --global user.name          "${user}"
+    git config --global user.email         "${user}@${host}.${domain}"
   fi
 
 }
 
+function _venv() {
+
+  if ! is_venv; then
+    return
+  fi
+
+  (
+
+    venv_dir="${home}/.venv"
+
+    python3 -m venv "${venv_dir}"
+    source "${venv_dir}/bin/activate"
+
+    req_file="${venv_dir}/requirements.txt"
+    touch "${req_file}"
+    {
+      cat "${req_file}"
+      echo pip
+      echo yq
+      pip freeze | sed -e 's/[!=<> #].*//g'
+    } 2> /dev/null | sort -u > "${req_file}.tmp"
+    mv "${req_file}.tmp" "${req_file}"
+
+    pip install --upgrade --requirement "${req_file}"
+
+  )
+
+}
+
 function _fpr() {
+
+  if ! unset openpgp4fpr 2> /dev/null; then
+    return
+  fi
+
   (
 
     fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
     if [[ -z "${fpr}" ]]; then
       fpr="$(gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | sort | head -n 1 || true)"
     fi
+
     if [[ -z "${fpr}" ]]; then
 
       passphrase=''
@@ -595,6 +649,11 @@ function _fpr() {
     grep -q default-recipient "${conf_file}" && sed -i -r -e "s/^(default-recipient).*/\1 0x${fpr}/g" "${conf_file}" || echo "default-recipient 0x${fpr}" >> "${conf_file}"
 
   )
+
+  openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
+  readonly openpgp4fpr
+  export   openpgp4fpr
+
 }
 
 function _enc() {
@@ -620,6 +679,43 @@ function _dec() {
   cat '/dev/stdin' | base64 --decode | gpg --decrypt
 
 } 2> /dev/null
+
+function _upack() {
+  (
+
+    target_file="${1:-}"
+
+    # list...
+    if [[ -z "${target_file}" ]]; then
+      find '.' -mindepth 1 -maxdepth 1 -type f -name '*.zip' 2> /dev/null | while read item; do
+        _upack "${item}"
+      done
+      return
+    fi
+
+    if [[ ! -f "${target_file}" ]]; then
+      return
+    fi
+
+    name="${target_file##*/}"
+    path="${target_file%/*}"
+    mime="$(file --mime-type --brief "${target_file}")"
+    dir="${name%.*}"
+
+    pushd "${path}" &> /dev/null
+
+      if [[ 'application/zip' == "${mime}" ]]; then
+
+        mkdir -p "${dir}"
+
+        unar -output-directory "${dir}" "${name}"
+
+      fi
+
+    popd &> /dev/null
+
+  )
+}
 
 function _mnt() {
   (
@@ -692,6 +788,9 @@ function _mnt() {
 
         mkdir -p "${mnt_dir}"
         ${SUDO} mount --options "${mnt_opts}" UUID="${uuid}" "${mnt_dir}" || rm -d "${mnt_dir}"
+#       echo "UUID=${uuid} ${mnt_dir} ${fstype} ${mnt_opts} 0 0" | ${SUDO} tee --append /etc/fstab
+
+#       rm "${credentials}"
 
       fi
 
@@ -1039,6 +1138,21 @@ function _clean() {
 
 }
 
+function _size() {
+  git count-objects -vH | grep 'size-pack:' | sed 's/^size-pack: //g'
+}
+
+function _squash() {
+  (
+
+    EDITOR='sed -i "2,\$s/^pick/fixup/"' git rebase --interactive --root
+    git commit --no-verify --amend --no-edit --message 'squash'
+
+#   git push --no-verify --force
+
+  )
+}
+
 function _sandbox() {
   (
 
@@ -1075,6 +1189,7 @@ function _browse() {
 
   python3 <(cat << EOS
 from selenium                           import webdriver
+from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.options import Options
 
 def main():
@@ -1091,8 +1206,8 @@ def main():
   driver.maximize_window();
 
   driver.get('${1}')
-# print(driver.session_id)
-# print(driver.command_executor)
+  print(driver.session_id)
+  print(driver.service.service_url)
 
 if __name__ == '__main__':
   main()
@@ -1264,81 +1379,29 @@ function main() {
 
     # machine_id
     if [[ ! -e "${boot_dir}/${machine_id}" ]]; then
-      _deps
+      _etc
+      _apt
+      _etc2
+      _venv
       touch "${boot_dir}/${machine_id}"
     fi
 
     # openpgp4fpr
-    if unset openpgp4fpr 2> /dev/null; then
-
-      _fpr
-
-      openpgp4fpr="$(gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//')"
-      readonly openpgp4fpr
-      export   openpgp4fpr
-
-      git config --global init.defaultBranch main
-      git config --global core.ignorecase    false
-      git config --global core.quotepath     false
-      git config --global core.autocrlf      false
-      git config --global core.safecrlf      true
-      git config --global core.filemode      true
-      git config --global core.hooksPath     '~/.git-hooks'
-      git config --global color.ui           auto
-      git config --global color.diff         auto
-      git config --global color.status       auto
-      git config --global color.branch       auto
-      git config --global pull.ff            only
-      git config --global pull.rebase        true
-      git config --global pull.autostash     false
-      git config --global rebase.autostash   false
-      git config --global merge.ff           false
-      git config --global diff.sjis.textconv 'iconv -f sjis'
-      git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
-      git config --global user.name          'unknown'
-      git config --global user.email         'unknown'
-      git config --global user.signingkey    "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
-      git config --global gpg.program        "$(type -p gpg)"
-      git config --global commit.gpgsign     true
-
-#     git config --global user.name          "${user}"
-#     git config --global user.email         "${user}@${host}.${domain}"
-
-      _license
-
-    fi
+    _fpr
 
     # boot_id
     if [[ ! -e "${boot_dir}/${boot_id}" ]]; then
       _mnt
       touch "${boot_dir}/${boot_id}"
-      is_boot=
+      main "${boot_id}"
     fi
 
     # activate
-    act_files=()
-    act_files+=("${home}/.venv/bin/activate")
-    act_files+=("${boot_dir}/${machine_id}")
-    act_files+=("${boot_dir}/${boot_id}")
-    act_files+=("${boot_dir}/${proc_id}")
-#   act_files+=("${boot_dir}/${openpgp4fpr}/...")
-    for act_file in "${act_files[@]}"; do
-
-      if [[ ! -f "${act_file}" ]]; then
-        continue
-      fi
-      if ! file --brief --mime-type "${act_file}" | grep -q '^text/'; then
-        continue
-      fi
-
-      source "${act_file}" || true
-
-    done
-
-    if [[ -v is_boot ]]; then
-      unset is_boot
-      main "${boot_id}"
-    fi
+    source "${home}/.venv/bin/activate"
+    source "${boot_dir}/${machine_id}"  2> /dev/null || true
+#   source "${boot_dir}/${openpgp4fpr}" 2> /dev/null || true
+#   source "${boot_dir}/${boot_id}"     2> /dev/null || true
+#   source "${boot_dir}/${proc_id}"     2> /dev/null || true
 
     # handle
     if [[ -z "${arg1}" ]]; then
@@ -1354,21 +1417,42 @@ function main() {
         main mnt "${key}" "${val}"
       done || true
 
-      rep_name='0'
-      type_git "${home}" 'origin'    "${home}/lib/0.git/${rep_name}.git"           || true
-      type_git "${home}" "${domain}" "git://git.${domain}/${rep_name}.git"         || true
-#     type_git "${home}" "${domain}" "ssh://${user}@git.${domain}/${rep_name}.git" || true
-      type_git "${home}" 'github'    'https://github.com/tkyz/0.git'               || true
+      git config --global gpg.program     "$(type -p gpg)"
+      git config --global commit.gpgsign  true
+      git config --global user.name       'unknown'
+      git config --global user.email      'unknown'
+      git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
 
-      main .
+      main 0
       main "${openpgp4fpr}" 2> /dev/null || true
 
-      main pull
+      main .
+      main license
 
+      main pull
       main k8s
       main ci
 #     main cd
 #     main doc
+
+    elif [[ '0' == "${arg1}" ]]; then
+
+      type_git "${home}" 'origin'    "${home}/lib/0.git/${arg1}.git"          || true
+      type_git "${home}" "${domain}" "git://git.${domain}/${arg1}.git"        || true
+#     type_git "${home}" 'github'    "https://github.com/${user}/${arg1}.git" || true
+      type_git "${home}" 'github'    "https://github.com/tkyz/${arg1}.git"    || true
+
+#     curl -fsSL "https://github.com/${user}.keys" >> "${home}/.ssh/authorized_keys"
+#     curl -fsSL "https://github.com/${user}.gpg"  |  gpg --import
+#     curl -fsSL 'https://github.com/tkyz.keys'    >> "${home}/.ssh/authorized_keys"
+#     curl -fsSL 'https://github.com/tkyz.gpg'     |  gpg --import
+
+      cat "${home}/.ssh/authorized_keys" | sort -u | tee "${home}/.ssh/authorized_keys.tmp" &> /dev/null
+      mv "${home}/.ssh/authorized_keys.tmp" "${home}/.ssh/authorized_keys"
+
+      chmod    go-rwx "${home}"        &> /dev/null || true
+      chmod -R go-rwx "${home}/.gnupg" &> /dev/null || true
+      chmod -R go-rwx "${home}/.ssh"   &> /dev/null || true
 
     elif [[ '.' == "${arg1}" ]]; then
 
@@ -1382,23 +1466,11 @@ function main() {
         gpg --batch --yes --export             --armor --output "${home}/src/0.fpr/${fpr}" "0x${fpr}" 2> /dev/null
       done
 
-      mkdir -p "${home}/.ssh"
-      touch "${home}/.ssh/authorized_keys"
-      {
-        cat "${home}/.ssh/authorized_keys"
-#       curl -fsSL 'https://github.com/${user}.keys'
-      } | sort -u | tee "${home}/.ssh/authorized_keys.tmp" &> /dev/null
-      mv "${home}/.ssh/authorized_keys.tmp" "${home}/.ssh/authorized_keys"
-
       main config '.blockchain | to_entries[]' | while read entry; do
         key="$(echo "${entry}" | yq -cr '.key')"
         val="$(echo "${entry}" | yq -cr '.value')"
         echo -n "${val}" | qrencode --type svg --output "${home}/doc/blockchain/${key}.svg"
       done || true
-
-      chmod    go-rwx "${home}"        &> /dev/null || true
-      chmod -R go-rwx "${home}/.gnupg" &> /dev/null || true
-      chmod -R go-rwx "${home}/.ssh"   &> /dev/null || true
 
     elif is_func "_${arg1}"; then
       "_${arg1}" "${@}"
