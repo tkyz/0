@@ -39,8 +39,8 @@ readonly host="$(hostname)"
 readonly user="${USER:-root}"
 readonly home="${HOME:-/root}"
 
-readonly machine_id="$(cat '/etc/machine-id')"
-readonly boot_id="$(cat '/proc/sys/kernel/random/boot_id')"
+readonly machine_id="$(cat '/etc/machine-id' 2> /dev/null || true)"
+readonly boot_id="$(cat '/proc/sys/kernel/random/boot_id' 2> /dev/null || true)"
 readonly proc_id="$(uuidgen 2> /dev/null || printf '%08d-%04d-%04d-%04d-%012d')"
 readonly tag='latest'
 
@@ -452,7 +452,6 @@ ${external_ip}       ntp.${domain}
 ${external_ip}       git.${domain}
 ${external_ip} container.${domain}
 ${external_ip}       apt.${domain}
-${external_ip}       mvn.${domain}
 ${external_ip}     pgsql.${domain}
 ${external_ip}     mysql.${domain}
 ${external_ip}   mariadb.${domain}
@@ -1017,8 +1016,11 @@ function _build() {
       opts+=('--define'  'maven.test.skip=false')
       opts+=('--define'  'maven.javadoc.skip=false')
       opts+=('--define'  'assembly.skipAssembly=true')
+      opts+=('clean')
+      opts+=('package')
+#     opts+=('deploy')
 
-      mvn "${opts[@]}" clean package # deploy
+      mvn "${opts[@]}" || true
 
     fi
 
@@ -1038,7 +1040,7 @@ function _build() {
         opts+=('--pull')
 #       opts+=('--no-cache')
 
-        podman build "${opts[@]}" .
+        podman build "${opts[@]}" . || true
 #       if ping -c 1 -W 3 'container.0' &> /dev/null; then
 #         podman push --tls-verify=false "${image}" || true
 #       fi
@@ -1155,18 +1157,21 @@ function _clean() {
 function _sandbox() {
   (
 
+    uuid="$(uuidgen)"
     image="${ID}:${VERSION_CODENAME:-latest}"
 
     opts=()
     opts+=('--interactive')
     opts+=('--tty')
     opts+=('--rm')
-    opts+=('--name'     "${domain}.sandbox.${proc_id}")
-    opts+=('--hostname' "${proc_id}.sandbox.${domain}")
+    opts+=('--name'     "${uuid}")
+    opts+=('--hostname' "${uuid}")
 #   opts+=('--network'  'host')
 #   opts+=('--env'      "UID=$(id -u)")
     opts+=('--workdir'  '/root')
-    opts+=('--volume'   "${home}:/root")
+    opts+=('--volume'   "${home}/boot/${uuid}:/root")
+    opts+=('--volume'   "${home}/.bashrc:/root/.bashrc:ro")
+    opts+=('--volume'   "${home}/.profile:/root/.profile:ro")
     # fuse
 #   opts+=('--device'   '/dev/fuse')
 #   opts+=('--cap-add'  'SYS_ADMIN')
@@ -1174,8 +1179,10 @@ function _sandbox() {
     opts+=('--env'      "DISPLAY=${DISPLAY:-:0.0}")
     opts+=('--volume'   '/tmp/.X11-unix/X0:/tmp/.X11-unix/X0')
 
+    mkdir -p "${home}/boot/${uuid}"
     podman run "${opts[@]}" "${image}"
-#   kubectl -n 0 run -it --rm --image="${image}" -- bash
+
+#   kubectl -n "${host}" run -it --rm --image="${image}" -- bash
 
   )
 }
