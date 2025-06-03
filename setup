@@ -1397,7 +1397,14 @@ function main() {
         main mnt "${key}" "${val}"
       done || true
 
+      git config --global gpg.program     "$(type -p gpg)"
+      git config --global commit.gpgsign  true
+      git config --global user.name       'unknown'
+      git config --global user.email      'unknown'
+      git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+
       main 0
+
       main pull
       main k8s
       main ci
@@ -1405,12 +1412,6 @@ function main() {
 #     main doc
 
     elif [[ '0' == "${arg1}" ]]; then
-
-      git config --global gpg.program     "$(type -p gpg)"
-      git config --global commit.gpgsign  true
-      git config --global user.name       'unknown'
-      git config --global user.email      'unknown'
-      git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
 
       type_git "${home}" 'origin'    "${home}/lib/0.git/${arg1}.git"          || true
       type_git "${home}" "${domain}" "git://git.${domain}/${arg1}.git"        || true
