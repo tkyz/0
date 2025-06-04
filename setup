@@ -999,54 +999,77 @@ function _build() {
     echo "${PWD}"
 
     if [[ -f './Makefile' ]]; then
-      true
+      (
+
+        test -f './autogen.sh' && './autogen.sh' || true
+        test -f './configure'  && './configure'  || true
+
+        make
+        make install
+
+      )
     fi
 
     if [[ -f './build.xml' ]]; then
-      true
+      (
+
+        opts=()
+        opts+=('clean')
+        opts+=('compile')
+        opts+=('jar')
+
+        ant "${opts[@]}" || true
+
+      )
     fi
     if [[ -f './pom.xml' ]]; then
+      (
 
-      MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData'
+        MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData'
 
-      opts=()
-      opts+=('--threads' '1C')
-      opts+=('--define'  "version=${tag}")
-      opts+=('--define'  'checkstyle.skip=false')
-      opts+=('--define'  'maven.test.skip=false')
-      opts+=('--define'  'maven.javadoc.skip=false')
-      opts+=('--define'  'assembly.skipAssembly=true')
-      opts+=('clean')
-      opts+=('package')
-#     opts+=('deploy')
+        opts=()
+        opts+=('--threads' '1C')
+        opts+=('--define'  "version=${tag}")
+        opts+=('--define'  'checkstyle.skip=false')
+        opts+=('--define'  'maven.test.skip=false')
+        opts+=('--define'  'maven.javadoc.skip=false')
+        opts+=('--define'  'assembly.skipAssembly=true')
+        opts+=('clean')
+        opts+=('package')
+#       opts+=('deploy')
 
-      mvn "${opts[@]}" || true
+        mvn "${opts[@]}" || true
 
+      )
     fi
 
     if [[ -f './package.json' ]]; then
-      true
-#     npm install
-#     npm run build
+      (
+        true
+#       npm install
+#       npm run build
+      )
     fi
 
     if [[ -f './Dockerfile' ]]; then
+      (
 
-      image="container.${domain}/${name}:${tag}"
-      if [[ -z "$(podman images --noheading "${image}")" ]]; then
+        image="container.${domain}/${name}:${tag}"
+        if [[ -z "$(podman images --noheading "${image}")" ]]; then
 
-        opts=()
-        opts+=('--tag' "${image}")
-        opts+=('--pull')
-#       opts+=('--no-cache')
+          opts=()
+          opts+=('--tag' "${image}")
+          opts+=('--pull')
+#         opts+=('--no-cache')
 
-        podman build "${opts[@]}" . || true
-#       if ping -c 1 -W 3 'container.0' &> /dev/null; then
-#         podman push --tls-verify=false "${image}" || true
-#       fi
+          podman build "${opts[@]}" . || true
+#         if ping -c 1 -W 3 'container.0' &> /dev/null; then
+#           podman push --tls-verify=false "${image}" || true
+#         fi
 
-      fi
+        fi
 
+      )
     fi
 
   )
@@ -1117,9 +1140,6 @@ function _ci() {
 
 function _cd() {
   (
-
-    _validate
-
     find "${home}/src" -name 'deploy.yml' | while read target; do
       pushd "${target%/*}" &> /dev/null
 
@@ -1127,7 +1147,6 @@ function _cd() {
 
       popd &> /dev/null
     done
-
   )
 }
 
@@ -1261,13 +1280,14 @@ def gen(tokenizer, model, prompt, max=4096):
 
   add_tokens(tokenizer, model, prompt)
 
-  streamer   = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-  input_ids  = tokenizer.encode(prompt, add_special_tokens=False, return_tensors='pt')
-  output_ids = model.generate(input_ids.to(device=model.device), max_new_tokens=max, temperature=1.0, top_p=1.0, do_sample=True, streamer=streamer)
+  streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
+  input_ids = tokenizer.encode(prompt, add_special_tokens=False, return_tensors='pt')
 # print(tokenizer.convert_ids_to_tokens(input_ids[0]))
-# print(tokenizer.convert_ids_to_tokens(output_ids[0]))
 # add_tokens(tokenizer, model, tokenizer.decode(input_ids[0]))
+
+  output_ids = model.generate(input_ids.to(device=model.device), max_new_tokens=max, temperature=1.0, top_p=1.0, do_sample=True, streamer=streamer)
+# print(tokenizer.convert_ids_to_tokens(output_ids[0]))
   add_tokens(tokenizer, model, tokenizer.decode(output_ids[0]))
 
 def add_tokens(tokenizer, model, prompt):
@@ -1318,7 +1338,8 @@ def main():
 
   while True:
 
-    prompt = sys.stdin.readline()
+    prompt = sys.stdin.read()
+#   prompt = sys.stdin.readline()
     if '' == prompt:
       break
 

@@ -9,7 +9,7 @@ RUN \
   curl -fsSLO "https://piston-data.mojang.com/v1/objects/${MINECRAFT_VERSION}/server.jar"
 
 #----------------------------------------------------------------
-FROM openjdk:21-jdk-slim
+FROM openjdk:25-slim
 
 EXPOSE 25565
 
