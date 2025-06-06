@@ -1158,7 +1158,7 @@ function _down() {
   main config '.mnt | to_entries[]' | while read entry; do
 #   key="$(echo "${entry}" | yq -cr '.key')"
     val="$(echo "${entry}" | yq -cr '.value')"
-    fusermount -u "${val}" && rm -d "${val}" || true
+    ( fusermount -u "${val}" || ${SUDO} fusermount -u "${val}" ) && rm -d "${val}" || true
   done || true
 
   _clean
