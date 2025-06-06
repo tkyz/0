@@ -39,17 +39,10 @@ readonly host="$(hostname)"
 readonly user="${USER:-root}"
 readonly home="${HOME:-/root}"
 
-readonly machine_id="$(cat '/etc/machine-id' 2> /dev/null || true)"
-readonly boot_id="$(cat '/proc/sys/kernel/random/boot_id' 2> /dev/null || true)"
-readonly proc_id="$(uuidgen 2> /dev/null || printf '%08d-%04d-%04d-%04d-%012d')"
+readonly machine_id="$(cat '/etc/machine-id'                 2> /dev/null || printf '%032d')"
+readonly boot_id="$(   cat '/proc/sys/kernel/random/boot_id' 2> /dev/null || printf '%08d-%04d-%04d-%04d-%012d')"
+
 readonly tag='latest'
-
-if true; then
-
-  resolve="${resolve:-$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)}"
-  external_ip="${external_ip:-$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)}"
-
-fi
 
 #----------------------------------------------------------------
 # private
@@ -121,8 +114,8 @@ function env_replace() {
     -e "s|\${user}|${user}|g" \
     -e "s|\${home}|${home}|g" \
     -e "s|\${machine_id}|${machine_id}|g" \
+    -e "s|\${openpgp4fpr}|${openpgp4fpr}|g" \
     -e "s|\${boot_id}|${boot_id}|g" \
-    -e "s|\${proc_id}|${proc_id}|g" \
     -e "s|\${tag}|${tag}|g" \
     -e "s|\${resolve}|${resolve}|g" \
     -e "s|\${external_ip}|${external_ip}|g"
@@ -200,7 +193,8 @@ function _apt() {
 
   echo 'APT::Default-Release "stable";' | ${SUDO} tee '/etc/apt/apt.conf.d/00default' > /dev/null
 
-  cat << EOS | ${SUDO} tee '/etc/apt/sources.list' > /dev/null
+# cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > /dev/null
+  cat << EOS | ${SUDO} tee '/etc/apt/sources.list'                   > /dev/null
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
@@ -232,41 +226,36 @@ EOS
   # winehq        https://gitlab.winehq.org/wine/wine/-/wikis/Debian-Ubuntu
 
   # /etc/apt/keyrings/*
-  curl -fsSL 'https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc' | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.torproject.gpg'
-  curl -fsSL 'https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key'                                | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/io.k8s.pkgs.gpg'
-  curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey'                                    | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.nvidia.gpg'
-  curl -fsSL 'https://repo.nordvpn.com/gpg/nordvpn_public.asc'                                        | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.nordvpn.gpg'
-# curl -fsSL 'https://dlcdn.apache.org/bigtop/bigtop-3.3.0/repos/GPG-KEY-bigtop'                      | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.apache.bigtop.gpg'
+# curl -fsSL 'https://bazel.build/bazel-release.pub.gpg'                                              | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/build.bazel.gpg'
 # curl -fsSL "https://download.docker.com/linux/${ID}/gpg"                                            | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.docker.download.gpg'
   curl -fsSL 'https://packages.cloud.google.com/apt/doc/apt-key.gpg'                                  | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.google.cloud.packages.gpg'
 # curl -fsSL 'https://dl-ssl.google.com/linux/linux_signing_key.pub'                                  | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.google.gpg'
-# curl -fsSL 'https://bazel.build/bazel-release.pub.gpg'                                              | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/build.bazel.gpg'
   curl -fsSL 'https://packages.microsoft.com/keys/microsoft.asc'                                      | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.microsoft.gpg'
+  curl -fsSL 'https://repo.nordvpn.com/gpg/nordvpn_public.asc'                                        | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.nordvpn.gpg'
+  curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey'                                    | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.nvidia.gpg'
   curl -fsSL 'https://hub.unity3d.com/linux/keys/public'                                              | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/com.unity.gpg'
+  curl -fsSL 'https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key'                                | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/io.k8s.pkgs.gpg'
+# curl -fsSL 'https://dlcdn.apache.org/bigtop/bigtop-3.3.0/repos/GPG-KEY-bigtop'                      | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.apache.bigtop.gpg'
+  curl -fsSL 'https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc' | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.torproject.gpg'
   curl -fsSL 'https://www.virtualbox.org/download/oracle_vbox_2016.asc'                               | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.virtualbox.gpg'
   curl -fsSL 'https://dl.winehq.org/wine-builds/winehq.key'                                           | ${SUDO} gpg --dearmor --yes --output '/etc/apt/keyrings/org.winehq.gpg'
 
   # /etc/apt/sources.list.d/*
-  echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             ${VERSION_CODENAME}                  main"    | ${SUDO} tee    '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-# echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             ${VERSION_CODENAME}                  main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-# echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-experimental-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-# echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-experimental-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-# echo "deb     [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-nightly-main-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-# echo "deb-src [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                             tor-nightly-main-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
-  echo 'deb     [signed-by=/etc/apt/keyrings/io.k8s.pkgs.gpg                           ] https://pkgs.k8s.io/core:/stable:/v1.32/deb/                          /'                                            | ${SUDO} tee    '/etc/apt/sources.list.d/io.k8s.pkgs.list'               > /dev/null
-  echo 'deb     [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)       /'                                            | ${SUDO} tee    '/etc/apt/sources.list.d/com.nvidia.list'                > /dev/null
-# echo 'deb     [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/experimental/deb/$(ARCH) /'                                            | ${SUDO} tee -a '/etc/apt/sources.list.d/com.nvidia.list'                > /dev/null
-  echo "deb     [signed-by=/etc/apt/keyrings/com.nordvpn.gpg                           ] https://repo.nordvpn.com/deb/nordvpn/${ID}                            stable                               main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.nordvpn.list'               > /dev/null
-# echo "deb     [signed-by=/etc/apt/keyrings/org.apache.bigtop.gpg                     ] http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH)       bigtop                               contrib" | ${SUDO} tee    '/etc/apt/sources.list.d/org.apache.bigtop.list'         > /dev/null # ${VERSION_ID}
-# echo "deb     [signed-by=/etc/apt/keyrings/com.docker.download.gpg       arch=${arch}] https://download.docker.com/linux/${ID}                               ${VERSION_CODENAME}                  stable"  | ${SUDO} tee    '/etc/apt/sources.list.d/com.docker.download.list'       > /dev/null
-  echo 'deb     [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 cloud-sdk                            main'    | ${SUDO} tee    '/etc/apt/sources.list.d/com.google.cloud.packages.list' > /dev/null
-  echo "deb     [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                                 gcsfuse-${VERSION_CODENAME}          main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/com.google.cloud.packages.list' > /dev/null
-# echo "deb     [signed-by=/etc/apt/keyrings/com.google.gpg                arch=${arch}] https://dl.google.com/linux/chrome/deb                                stable                               main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.google.list'                > /dev/null
-# echo "deb     [signed-by=/etc/apt/keyrings/build.bazel.gpg               arch=${arch}] http://storage.googleapis.com/bazel-apt                               stable                               jdk1.8"  | ${SUDO} tee    '/etc/apt/sources.list.d/build.bazel.list'               > /dev/null
-  echo "deb     [signed-by=/etc/apt/keyrings/com.microsoft.gpg             arch=${arch}] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod               ${VERSION_CODENAME}                  main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.microsoft.list'             > /dev/null
-  echo 'deb     [signed-by=/etc/apt/keyrings/com.unity.gpg                             ] https://hub.unity3d.com/linux/repos/deb                               stable                               main'    | ${SUDO} tee    '/etc/apt/sources.list.d/com.unity.list'                 > /dev/null
-  echo "deb     [signed-by=/etc/apt/keyrings/org.virtualbox.gpg            arch=${arch}] https://download.virtualbox.org/virtualbox/${ID}                      ${VERSION_CODENAME}                  contrib" | ${SUDO} tee    '/etc/apt/sources.list.d/org.virtualbox.list'            > /dev/null
-  echo "deb     [signed-by=/etc/apt/keyrings/org.winehq.gpg                            ] https://dl.winehq.org/wine-builds/${ID}                               ${VERSION_CODENAME}                  main"    | ${SUDO} tee    '/etc/apt/sources.list.d/org.winehq.list'                > /dev/null
+
+# echo "deb [signed-by=/etc/apt/keyrings/build.bazel.gpg               arch=${arch}] http://storage.googleapis.com/bazel-apt                         stable                      jdk1.8"  | ${SUDO} tee    '/etc/apt/sources.list.d/build.bazel.list'               > /dev/null
+# echo "deb [signed-by=/etc/apt/keyrings/com.docker.download.gpg       arch=${arch}] https://download.docker.com/linux/${ID}                         ${VERSION_CODENAME}         stable"  | ${SUDO} tee    '/etc/apt/sources.list.d/com.docker.download.list'       > /dev/null
+  echo 'deb [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                           cloud-sdk                   main'    | ${SUDO} tee    '/etc/apt/sources.list.d/com.google.cloud.packages.list' > /dev/null
+  echo "deb [signed-by=/etc/apt/keyrings/com.google.cloud.packages.gpg             ] https://packages.cloud.google.com/apt                           gcsfuse-${VERSION_CODENAME} main"    | ${SUDO} tee -a '/etc/apt/sources.list.d/com.google.cloud.packages.list' > /dev/null
+# echo "deb [signed-by=/etc/apt/keyrings/com.google.gpg                arch=${arch}] https://dl.google.com/linux/chrome/deb                          stable                      main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.google.list'                > /dev/null
+  echo "deb [signed-by=/etc/apt/keyrings/com.microsoft.gpg             arch=${arch}] https://packages.microsoft.com/${ID}/${VERSION_ID}/prod         ${VERSION_CODENAME}         main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.microsoft.list'             > /dev/null
+  echo "deb [signed-by=/etc/apt/keyrings/com.nordvpn.gpg                           ] https://repo.nordvpn.com/deb/nordvpn/${ID}                      stable                      main"    | ${SUDO} tee    '/etc/apt/sources.list.d/com.nordvpn.list'               > /dev/null
+  echo 'deb [signed-by=/etc/apt/keyrings/com.nvidia.gpg                            ] https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH) /'                                   | ${SUDO} tee    '/etc/apt/sources.list.d/com.nvidia.list'                > /dev/null
+  echo 'deb [signed-by=/etc/apt/keyrings/com.unity.gpg                             ] https://hub.unity3d.com/linux/repos/deb                         stable                      main'    | ${SUDO} tee    '/etc/apt/sources.list.d/com.unity.list'                 > /dev/null
+  echo 'deb [signed-by=/etc/apt/keyrings/io.k8s.pkgs.gpg                           ] https://pkgs.k8s.io/core:/stable:/v1.32/deb/                    /'                                   | ${SUDO} tee    '/etc/apt/sources.list.d/io.k8s.pkgs.list'               > /dev/null
+# echo "deb [signed-by=/etc/apt/keyrings/org.apache.bigtop.gpg                     ] http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH) bigtop                      contrib" | ${SUDO} tee    '/etc/apt/sources.list.d/org.apache.bigtop.list'         > /dev/null # ${VERSION_ID}
+  echo "deb [signed-by=/etc/apt/keyrings/org.torproject.gpg                        ] https://deb.torproject.org/torproject.org                       ${VERSION_CODENAME}         main"    | ${SUDO} tee    '/etc/apt/sources.list.d/org.torproject.list'            > /dev/null
+  echo "deb [signed-by=/etc/apt/keyrings/org.virtualbox.gpg            arch=${arch}] https://download.virtualbox.org/virtualbox/${ID}                ${VERSION_CODENAME}         contrib" | ${SUDO} tee    '/etc/apt/sources.list.d/org.virtualbox.list'            > /dev/null
+  echo "deb [signed-by=/etc/apt/keyrings/org.winehq.gpg                            ] https://dl.winehq.org/wine-builds/${ID}                         ${VERSION_CODENAME}         main"    | ${SUDO} tee    '/etc/apt/sources.list.d/org.winehq.list'                > /dev/null
 
   (
 
@@ -608,6 +597,7 @@ function _fpr() {
 
     if [[ -z "${fpr}" ]]; then
 
+      uuid="$(uuidgen)"
       passphrase=''
 
       export TZ='utc'
@@ -616,9 +606,9 @@ function _fpr() {
       cmds+=('faketime' '-f' "${unix_epoch}")
       cmds+=('gpg' '--no-tty' '--pinentry-mode' 'loopback' '--passphrase' "${passphrase}")
 
-      "${cmds[@]}" --quick-generate-key "${proc_id}" ed25519 sign,cert 0
+      "${cmds[@]}" --quick-generate-key "${uuid}" ed25519 sign,cert 0
 
-      fpr="$(gpg --with-colons --list-secret-keys "=${proc_id}" 2> /dev/null | grep ^fpr | cut -d ':' -f 10)"
+      fpr="$(gpg --with-colons --list-secret-keys "=${uuid}" 2> /dev/null | grep ^fpr | cut -d ':' -f 10)"
 
       "${cmds[@]}" --quick-add-key    "0x${fpr}" ed25519 sign 0
 #     "${cmds[@]}" --quick-add-key    "0x${fpr}" ed25519 cert 0
@@ -627,7 +617,7 @@ function _fpr() {
 
       "${cmds[@]}" --quick-add-uid    "0x${fpr}" "${fpr}"
 #     "${cmds[@]}" --quick-add-uid    "0x${fpr}" "${user}@${host}.${domain}"
-      "${cmds[@]}" --quick-revoke-uid "0x${fpr}" "${proc_id}"
+      "${cmds[@]}" --quick-revoke-uid "0x${fpr}" "${uuid}"
 
     fi
 
@@ -650,9 +640,8 @@ function _enc() {
     return
   fi
 
-# cat '/dev/stdin' | openssl enc -aes-256-cbc -pbkdf2 -salt | base64 --wapp 0
-# cat '/dev/stdin' | gpg --symmetric                        | base64 --wrap 0
-  cat '/dev/stdin' | gpg --encrypt                          | base64 --wrap 0
+# cat '/dev/stdin' | gpg --symmetric
+  cat '/dev/stdin' | gpg --encrypt
 
 } 2> /dev/null
 
@@ -663,7 +652,7 @@ function _dec() {
     return
   fi
 
-  cat '/dev/stdin' | base64 --decode | gpg --decrypt
+  cat '/dev/stdin' | gpg --decrypt
 
 } 2> /dev/null
 
@@ -852,23 +841,36 @@ function _umnt() {
   )
 }
 
+function _imp() {
+
+  # gpg
+  find "${home}/src/0.fpr" -mindepth 1 -maxdepth 1 -type f | while read file; do
+    cat "${file}" | gpg --import
+  done
+# curl -fsSL "https://fpr.${domain}/${openpgp4fpr}" | gpg --import
+# curl -fsSL "https://github.com/${user}.gpg"       | gpg --import
+# curl -fsSL 'https://github.com/tkyz.gpg'          | gpg --import
+
+  # ssh
+# curl -fsSL "https://github.com/${user}.keys" >> "${home}/.ssh/authorized_keys"
+# curl -fsSL 'https://github.com/tkyz.keys'    >> "${home}/.ssh/authorized_keys"
+
+}
+
 function _exp() {
 
   # gpg
   mkdir -p "${home}/src/0.fpr"
   gpg --with-colons --list-keys | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
-#   gpg               --export-secret-keys         --output "${home}/${fpr}.key"       "0x${fpr}" 2> /dev/null
-    gpg --batch --yes --export             --armor --output "${home}/src/0.fpr/${fpr}" "0x${fpr}" 2> /dev/null
+#   gpg --batch --yes --export-secret-keys --armor --output "${home}/${fpr}.key"       "0x${fpr}" 2> /dev/null || true
+    gpg --batch --yes --export             --armor --output "${home}/src/0.fpr/${fpr}" "0x${fpr}"
   done
 
   # qr
   main config '.blockchain | to_entries[]' | while read entry; do
-
     key="$(echo "${entry}" | yq -cr '.key')"
     val="$(echo "${entry}" | yq -cr '.value')"
-
     echo -n "${val}" | qrencode --type svg --output "${home}/doc/blockchain/${key}.svg"
-
   done || true
 
 }
@@ -876,6 +878,7 @@ function _exp() {
 function _pull() {
   (
 
+    # list...
     {
 
       cat "${home}/list" || true
@@ -916,7 +919,6 @@ function _pull() {
         git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
 
         type_git "${git_dir}" 'huggingface' "${uri}"
-#       type_git "${git_dir}" 'huggingface' "https://${user}:${token}@huggingface.co/$(echo "${arg1}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
 
       fi
     done
@@ -1148,6 +1150,21 @@ function _cd() {
       popd &> /dev/null
     done
   )
+}
+
+function _down() {
+
+  kind delete clusters --all
+
+  _umnt
+  main config '.mnt | to_entries[]' | while read entry; do
+#   key="$(echo "${entry}" | yq -cr '.key')"
+    val="$(echo "${entry}" | yq -cr '.value')"
+    fusermount -u "${val}" && rm -d "${val}" || true
+  done || true
+
+  _clean
+
 }
 
 function _clean() {
@@ -1394,6 +1411,9 @@ function main() {
     boot_dir="${home}/boot"
     mkdir -p "${boot_dir}"
 
+    resolve="${resolve:-$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)}"
+    external_ip="${external_ip:-$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)}"
+
     # machine_id
     if [[ ! -e "${boot_dir}/${machine_id}" ]]; then
       _apt
@@ -1417,18 +1437,15 @@ function main() {
     source "${boot_dir}/${machine_id}"  2> /dev/null || true
 #   source "${boot_dir}/${openpgp4fpr}" 2> /dev/null || true
 #   source "${boot_dir}/${boot_id}"     2> /dev/null || true
-#   source "${boot_dir}/${proc_id}"     2> /dev/null || true
 
     # handle
     if [[ -z "${arg1}" ]]; then
-      echo    '---'
-      echo    "openpgp4fpr:${openpgp4fpr}"
-      echo -n "openpgp4fpr:${openpgp4fpr}" | qrencode --type ansi
 #     main "${boot_id}"
-#     main 0
+#     main "${openpgp4fpr}" 2> /dev/null || true
 #     main config | yq -r .
+      true
 
-    elif [[ "${arg1}" == "${boot_id}" ]]; then
+    elif [[ "${boot_id}" == "${arg1}" ]]; then
 
       main config '.mnt | to_entries[]' | while read entry; do
         key="$(echo "${entry}" | yq -cr '.key')"
@@ -1436,43 +1453,42 @@ function main() {
         main mnt "${key}" "${val}"
       done || true
 
+      main imp
+      main exp
+
       git config --global gpg.program     "$(type -p gpg)"
       git config --global commit.gpgsign  true
       git config --global user.name       'unknown'
       git config --global user.email      'unknown'
       git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
 
-      main 0
+      type_git "${home}" 'origin'    "${home}/lib/0.git/0.git"          || true
+      type_git "${home}" "${domain}" "git://git.${domain}/0.git"        || true
+#     type_git "${home}" 'github'    "https://github.com/${user}/0.git" || true
+      type_git "${home}" 'github'    "https://github.com/tkyz/0.git"    || true
+
+      main "${openpgp4fpr}" 2> /dev/null || true
 
       main pull
       main k8s
       main ci
 #     main cd
 #     main doc
-
-    elif [[ '0' == "${arg1}" ]]; then
-
-      type_git "${home}" 'origin'    "${home}/lib/0.git/${arg1}.git"          || true
-      type_git "${home}" "${domain}" "git://git.${domain}/${arg1}.git"        || true
-#     type_git "${home}" 'github'    "https://github.com/${user}/${arg1}.git" || true
-      type_git "${home}" 'github'    "https://github.com/tkyz/${arg1}.git"    || true
-
-#     curl -fsSL "https://github.com/${user}.keys" >> "${home}/.ssh/authorized_keys"
-#     curl -fsSL "https://github.com/${user}.gpg"  |  gpg --import
-#     curl -fsSL 'https://github.com/tkyz.keys'    >> "${home}/.ssh/authorized_keys"
-#     curl -fsSL 'https://github.com/tkyz.gpg'     |  gpg --import
-
-      main "${openpgp4fpr}" 2> /dev/null || true
-      main .
-      main exp
       main license
 
-      cat "${home}/.ssh/authorized_keys" | sort -u | tee "${home}/.ssh/authorized_keys.tmp" &> /dev/null
-      mv "${home}/.ssh/authorized_keys.tmp" "${home}/.ssh/authorized_keys"
+      cat "${home}/.ssh/authorized_keys" | sort -u | tee "${home}/.ssh/authorized_keys.tmp"
+      mv  "${home}/.ssh/authorized_keys.tmp"             "${home}/.ssh/authorized_keys"
 
       chmod    go-rwx "${home}"        &> /dev/null || true
       chmod -R go-rwx "${home}/.gnupg" &> /dev/null || true
       chmod -R go-rwx "${home}/.ssh"   &> /dev/null || true
+
+    elif [[ '.' == "${arg1}" ]]; then
+      echo    "openpgp4fpr:${openpgp4fpr}"
+      echo -n "openpgp4fpr:${openpgp4fpr}" | qrencode --type ansi
+
+    elif [[ '-' == "${arg1}" ]]; then
+      main down
 
     elif is_func "_${arg1}"; then
       "_${arg1}" "${@}"
