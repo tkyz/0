@@ -729,6 +729,7 @@ function _mnt() {
       if [[ 'crypto_LUKS' == "${fstype}" ]]; then
 
         gpw_file="${boot_dir}/${mnt_key}"
+#       gpw_file="${boot_dir}/${mnt_key}/gpw"
         if [[ ! -f "${gpw_file}" ]]; then
           return
         fi
