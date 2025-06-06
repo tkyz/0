@@ -573,8 +573,7 @@ function _venv() {
       echo pip
       echo yq
       pip freeze | sed -e 's/[!=<> #].*//g'
-    } 2> /dev/null | sort -u > "${req_file}.tmp"
-    mv "${req_file}.tmp" "${req_file}"
+    } 2> /dev/null | sort --unique --output "${req_file}"
 
     pip install --upgrade --requirement "${req_file}"
 
@@ -706,7 +705,7 @@ function _mnt() {
       {
         find "${home}/boot" -mindepth 1 -maxdepth 1 | sed 's|.*/||g'
         lsblk --all --fs --json --paths | jq -cr '.. | objects | .uuid | select(. != null)'
-      } 2> /dev/null | sort -u | while read item; do
+      } 2> /dev/null | sort --unique | while read item; do
         _mnt "${item}"
       done
       return
@@ -809,7 +808,7 @@ function _umnt() {
 
     # list...
     if [[ -z "${mnt_key}" || -z "${mnt_dir}" ]]; then
-      find "${home}/mnt" -mindepth 1 -maxdepth 1 -type d | sed 's|.*/||g' | sort -u | while read item; do
+      find "${home}/mnt" -mindepth 1 -maxdepth 1 -type d | sed 's|.*/||g' | sort --unique | while read item; do
         _umnt "${item}"
       done
       return
@@ -885,12 +884,11 @@ function _pull() {
 
       find "${home}/lib" "${home}/src" -type d -name '.git' 2> /dev/null | while read base_dir; do
         git -C "${base_dir}" remote -v | awk '{ print $2 }'
-      done | sort -u | grep -E -e '^(https?)://.*\.git$'
+      done | sort --unique | grep -E -e '^(https?)://.*\.git$'
 
       podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>'
 
-    } 2> /dev/null | sort -u > "${home}/list.tmp" || true
-    mv "${home}/list.tmp" "${home}/list"
+    } 2> /dev/null | sort --unique --output "${home}/list" || true
 
     cat "${home}/list" | while read uri; do
       if [[ "${uri}" =~ ^docker\.io/[^/]+/[^:]+:.+$ ]]; then
@@ -1374,7 +1372,7 @@ EOS
 }
 
 function _license() {
-  cat << EOS > "${home}/LICENSE"
+  cat << EOS | tee "${home}/LICENSE"
 MIT License
 
 Copyright (c) $(date +'%Y') openpgp4fpr:${openpgp4fpr}
@@ -1441,7 +1439,7 @@ function main() {
     # handle
     if [[ -z "${arg1}" ]]; then
 #     main "${boot_id}"
-#     main "${openpgp4fpr}" 2> /dev/null || true
+#     main "${openpgp4fpr}"
 #     main config | yq -r .
       true
 
@@ -1474,10 +1472,10 @@ function main() {
       main ci
 #     main cd
 #     main doc
-      main license
+      main license &> /dev/null
 
-      cat "${home}/.ssh/authorized_keys" | sort -u | tee "${home}/.ssh/authorized_keys.tmp"
-      mv  "${home}/.ssh/authorized_keys.tmp"             "${home}/.ssh/authorized_keys"
+      sort --unique "${home}/.ssh/authorized_keys" --output "${home}/.ssh/authorized_keys"
+      sort --unique "${home}/list"                 --output "${home}/list"
 
       chmod    go-rwx "${home}"        &> /dev/null || true
       chmod -R go-rwx "${home}/.gnupg" &> /dev/null || true
