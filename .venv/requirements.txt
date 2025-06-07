@@ -148,8 +148,10 @@ python-dateutil
 python-dotenv
 python-multipart
 python-ulid
+python-xlib
 pytorch-lightning
 pytz
+pyxhook
 referencing
 regex
 requests
