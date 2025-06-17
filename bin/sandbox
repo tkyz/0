@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  source '/etc/os-release'
+
+  uuid="$(uuidgen)"
+  image="${ID}:${VERSION_CODENAME:-latest}"
+
+  opts=()
+  opts+=('--interactive')
+  opts+=('--tty')
+  opts+=('--rm')
+  opts+=('--name'     "${uuid}")
+  opts+=('--hostname' "${uuid}")
+# opts+=('--network'  'host')
+# opts+=('--env'      "UID=$(id -u)")
+  opts+=('--workdir'  '/root')
+# opts+=('--volume'   "/usr/local/:/usr/local/:ro")
+  opts+=('--volume'   "${HOME}/.venv/:${HOME}/.venv/:ro")
+  opts+=('--volume'   "${HOME}/bin/:/root/bin/:ro")
+  opts+=('--volume'   "${HOME}/boot/${uuid}:/root")
+  opts+=('--volume'   "${HOME}/.bashrc:/root/.bashrc:ro")
+  opts+=('--volume'   "${HOME}/.profile:/root/.profile:ro")
+  # fuse
+# opts+=('--device'   '/dev/fuse')
+# opts+=('--cap-add'  'SYS_ADMIN')
+  # x11
+  opts+=('--env'      "DISPLAY=${DISPLAY:-:0.0}")
+  opts+=('--volume'   '/tmp/.X11-unix/X0:/tmp/.X11-unix/X0')
+
+  mkdir -p "${HOME}/boot/${uuid}"
+  podman run "${opts[@]}" "${image}"
+
+# kubectl -n "$(hostname)" run -it --rm --image="${image}" -- bash
+
+)

@@ -1,0 +1,102 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  tag='latest'
+
+  if [[ "${PWD}" =~ ^${HOME}/src/.*$ ]]; then
+
+    name="$(echo "${PWD}" | sed -r "s|^${HOME}/src/||g")"
+
+    [[ "${name}" =~ ^com\.github/.*$   ]] && exit || true
+    [[ "${name}" =~ ^com\.gitlab/.*$   ]] && exit || true
+    [[ "${name}" =~ ^org\.golang/.*$   ]] && exit || true
+    [[ "${name}" =~ ^0\.playground/.*$ ]] && exit || true
+
+  else
+    name="$(echo "${PWD}" | sha256sum | cut -b 1-64)"
+  fi
+
+  echo '---'
+  echo "${PWD}"
+
+  if [[ -f './Makefile' ]]; then
+    (
+
+      test -f './autogen.sh' && './autogen.sh' || true
+      test -f './configure'  && './configure'  || true
+
+      make
+      make install
+
+    )
+  fi
+
+  if [[ -f './build.xml' ]]; then
+    (
+
+      opts=()
+      opts+=('clean')
+      opts+=('compile')
+      opts+=('jar')
+
+      ant "${opts[@]}" || true
+
+    )
+  fi
+
+  if [[ -f './pom.xml' ]]; then
+    (
+
+      MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData'
+
+      opts=()
+      opts+=('--threads' '1C')
+      opts+=('--define'  "version=${tag}")
+      opts+=('--define'  'checkstyle.skip=false')
+      opts+=('--define'  'maven.test.skip=false')
+      opts+=('--define'  'maven.javadoc.skip=false')
+      opts+=('--define'  'assembly.skipAssembly=true')
+      opts+=('clean')
+      opts+=('package')
+#     opts+=('deploy')
+
+      mvn "${opts[@]}" || true
+
+    )
+  fi
+
+  if [[ -f './package.json' ]]; then
+    (
+      true
+#     npm install
+#     npm run build
+    )
+  fi
+
+  if [[ -f './Dockerfile' ]]; then
+    (
+
+      image="container.$(hostname -d)/${name}:${tag}"
+      if [[ -z "$(podman images --noheading "${image}")" ]]; then
+
+        opts=()
+        opts+=('--tag' "${image}")
+        opts+=('--pull')
+#       opts+=('--no-cache')
+
+        podman build "${opts[@]}" . || true
+#       if ping -c 1 -W 3 'container.0' &> /dev/null; then
+#         podman push --tls-verify=false "${image}" || true
+#       fi
+
+      fi
+
+    )
+  fi
+
+)

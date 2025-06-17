@@ -18,7 +18,13 @@ nodes:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
     extraMounts:
-      - {hostPath: "${home}", containerPath: /root}
+      - {hostPath: "${HOME}/bin/",     containerPath: /root/bin/,     readOnly: true}
+#     - {hostPath: "${HOME}/doc/",     containerPath: /root/doc/}
+#     - {hostPath: "${HOME}/lib/",     containerPath: /root/lib/}
+#     - {hostPath: "${HOME}/src/",     containerPath: /root/src/}
+      - {hostPath: "${HOME}/.profile", containerPath: /root/.profile, readOnly: true}
+      - {hostPath: "${HOME}/.bashrc",  containerPath: /root/.bashrc,  readOnly: true}
+      - {hostPath: "${HOME}/setup",    containerPath: /root/setup,    readOnly: true}
     extraPortMappings:
       - {hostPort:    53, containerPort:    53, listenAddress: "${external_ip}", protocol: UDP} # dns
       - {hostPort:    80, containerPort:    80, listenAddress: "${external_ip}", protocol: TCP} # http
@@ -40,4 +46,10 @@ nodes:
 
   - role: worker
     extraMounts:
-      - {hostPath: "${home}", containerPath: /root}
+      - {hostPath: "${HOME}/bin/",     containerPath: /root/bin/,     readOnly: true}
+      - {hostPath: "${HOME}/doc/",     containerPath: /root/doc/}
+      - {hostPath: "${HOME}/lib/",     containerPath: /root/lib/}
+      - {hostPath: "${HOME}/src/",     containerPath: /root/src/}
+      - {hostPath: "${HOME}/.profile", containerPath: /root/.profile, readOnly: true}
+      - {hostPath: "${HOME}/.bashrc",  containerPath: /root/.bashrc,  readOnly: true}
+      - {hostPath: "${HOME}/setup",    containerPath: /root/setup,    readOnly: true}

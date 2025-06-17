@@ -2,7 +2,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: ${hostname}
+  namespace: ${namespace}
   name: setup
 spec:
   replicas: 1
@@ -32,7 +32,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: ${hostname}
+  namespace: ${namespace}
   name: setup
 spec:
   type: LoadBalancer
@@ -45,7 +45,7 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  namespace: ${hostname}
+  namespace: ${namespace}
   name: setup
 spec:
   rules:

@@ -1,0 +1,38 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  machine_id="$(machine_id)"
+  boot_id="$(boot_id)"
+
+  domain="$(hostname -d)"
+  namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
+  host="$(hostname)"
+  user="${USER:-root}"
+  home="${HOME:-/root}"
+
+  openpgp4fpr="$(openpgp4fpr)"
+  resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
+  external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)"
+  tag='latest'
+
+  sed_opts=()
+  sed_opts+=('-e' "s|\${machine_id}|${machine_id}|g")
+  sed_opts+=('-e' "s|\${boot_id}|${boot_id}|g")
+  sed_opts+=('-e' "s|\${domain}|${domain}|g")
+  sed_opts+=('-e' "s|\${namespace}|${namespace}|g")
+  sed_opts+=('-e' "s|\${host}|${host}|g")
+  sed_opts+=('-e' "s|\${USER}|${user}|g")
+  sed_opts+=('-e' "s|\${HOME}|${home}|g")
+  sed_opts+=('-e' "s|\${openpgp4fpr}|${openpgp4fpr}|g")
+  sed_opts+=('-e' "s|\${resolve}|${resolve}|g")
+  sed_opts+=('-e' "s|\${external_ip}|${external_ip}|g")
+  sed_opts+=('-e' "s|\${tag}|${tag}|g")
+
+  cat '/dev/stdin' | sed "${sed_opts[@]}"
+
+) 2> /dev/null

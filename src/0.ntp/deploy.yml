@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  namespace: ${hostname}
+  namespace: ${namespace}
   name: ntp
 data:
   chrony.conf: |
@@ -44,7 +44,7 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: ${hostname}
+  namespace: ${namespace}
   name: ntp
 spec:
   replicas: 2
@@ -74,7 +74,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: ${hostname}
+  namespace: ${namespace}
   name: ntp
 spec:
   type: LoadBalancer

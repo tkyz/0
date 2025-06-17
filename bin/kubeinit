@@ -1,0 +1,54 @@
+#!/bin/bash
+
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  name="$(hostname)"
+
+# kind delete cluster --name "${name}" || true
+
+  if ! kubectl config get-contexts "kind-${name}" &> /dev/null ; then
+
+    is_sudoer
+    if [[ '0' == "$(id -u)" ]]; then
+      SUDO=
+    elif type sudo &> /dev/null && sudo -v -n > /dev/null; then
+      SUDO=sudo
+    fi
+
+    ${SUDO} sysctl --write fs.inotify.max_user_instances=1024
+    ${SUDO} sysctl --write fs.inotify.max_user_watches=65536
+    ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53
+
+    cat "${HOME}/src/0.kind/kind.yml" | varsubst | KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --name "${name}" --config -
+
+    ${SUDO} sysctl --write fs.inotify.max_user_instances=128
+    ${SUDO} sysctl --write fs.inotify.max_user_watches=8192
+    ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+
+    kubectl config set-context     "kind-${name}"
+    kubectl cluster-info --context "kind-${name}"
+
+    kubectl get configmap kube-proxy --namespace kube-system --output yaml | sed 's/strictARP: false/strictARP: true/' | kubectl apply -f -
+
+    # loadbalancer
+#   cat             "${home}/src/com.github/metallb/metallb/config/manifests/metallb-native.yaml"         | kubectl apply -f -
+    curl 'https://raw.githubusercontent.com/metallb/metallb/v0.15.2/config/manifests/metallb-native.yaml' | kubectl apply -f -
+
+    # ingress
+#   cat             "${home}/src/com.github/kubernetes/ingress-nginx/deploy/static/provider/kind/deploy.yaml"                    | kubectl apply -f -
+    curl 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.3/deploy/static/provider/kind/deploy.yaml' | kubectl apply -f -
+
+    # dashboard
+#   cat             "${home}/src/com.github/kubernetes/dashboard/aio/deploy/recommended.yaml"        | kubectl apply -f -
+#   curl 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml' | kubectl apply -f -
+
+  else
+    kubectl config get-contexts
+  fi
+
+)
