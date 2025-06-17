@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  target_file="${1:-}"
+
+  # list...
+  if [[ -z "${target_file}" ]]; then
+    find '.' -mindepth 1 -maxdepth 1 -type f -name '*.tar' -or -name '*.rar' -or -name '*.gz' -or -name '*.zip' -or -name '*.7z' 2> /dev/null | while read item; do
+      "${BASH_SOURCE}" "${item}"
+    done
+
+  elif [[ ! -f "${target_file}" ]]; then
+    false
+
+  else
+
+    name="${target_file##*/}"
+    path="${target_file%/*}"
+    mime="$(file --mime-type --brief "${target_file}")"
+    dir="${name%.*}"
+
+    pushd "${path}"
+
+      if [[ 'application/zip' == "${mime}" ]]; then
+
+        mkdir -p "${dir}"
+
+        unar -output-directory "${dir}" "${name}"
+
+      else
+        echo "unsupported. ${mime}" >&2
+      fi
+
+    popd
+
+  fi
+
+)

@@ -8,12 +8,9 @@ set -o pipefail
 
   test -f './deploy.yml'
 
-  host="$(hostname)"
-  test "kind-${host}" == "$(kubectl config current-context)"
+  source varinit
 
-  tag='latest'
-  domain="$(hostname -d)"
-  namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '-')"
+  test "kind-${host}" == "$(kubectl config current-context)"
 
   name="$(echo "${PWD}" | sha256sum | cut -b 1-64)"
   if [[ "${PWD}" =~ ^${HOME}/src/.*$ ]]; then

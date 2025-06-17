@@ -1,0 +1,104 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+
+(
+
+  source varinit
+  boot_dir="${home}/boot"
+
+  mnt_key="${1:-}"
+  mnt_dir="${2:-${home}/mnt/${mnt_key}}"
+
+  # list...
+  if [[ -z "${mnt_key}" ]]; then
+    {
+      find "${home}/boot" -mindepth 1 -maxdepth 1 | sed 's|.*/||g'
+      lsblk --all --fs --json --paths | jq -cr '.. | objects | .uuid | select(. != null)'
+    } 2> /dev/null | sort --unique | while read item; do
+      "${BASH_SOURCE}" "${item}"
+    done
+
+  # skip
+  elif is_mnt "${mnt_dir}"; then
+    true
+
+  # uuid
+  elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+
+    uuid="${mnt_key}"
+    blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${uuid}\")")"
+    name="$(  echo "${blk_info}" | jq -cr '.name')"
+    fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
+
+    if [[ 'crypto_LUKS' == "${fstype}" ]]; then
+
+      gpw_file="${boot_dir}/${mnt_key}"
+#     gpw_file="${boot_dir}/${mnt_key}/gpw"
+      map_dir="/dev/mapper/${uuid}"
+
+      if [[ -f "${gpw_file}" && ! -e "${map_dir}" ]]; then
+        cat "${gpw_file}" | dec | ${SUDO} cryptsetup open --type luks "${name}" "${uuid}" || true
+      fi
+
+    elif [[ -n "${fstype}" ]]; then
+
+      mnt_opts=()
+#     mnt_opts+=('vers=2.0')
+#     mnt_opts+=('defaults')
+#     mnt_opts+=('iocharset=utf8')
+#     mnt_opts+=('nounix')
+#     mnt_opts+=('dir_mode=0700')
+#     mnt_opts+=('file_mode=0600')
+#     mnt_opts+=("uid=$(id -u)")
+#     mnt_opts+=("gid=$(id -g)")
+#     mnt_opts+=('ro')
+#     if [[ -n "${user}" && -n "${pass}" ]]; then
+#
+#       credentials="$(mktemp)"
+#       echo "username=${user}" >> "${credentials}"
+#       echo "password=${pass}" >> "${credentials}"
+#
+#       mnt_opts+=("credentials=${credentials}")
+#
+#     fi
+      mnt_opts="$(IFS=,; echo "${mnt_opts[*]}")"
+
+      mkdir -p "${mnt_dir}"
+      ${SUDO} mount --options "${mnt_opts}" UUID="${uuid}" "${mnt_dir}" || rm -d "${mnt_dir}"
+#     echo "UUID=${uuid} ${mnt_dir} ${fstype} ${mnt_opts} 0 0" | ${SUDO} tee --append /etc/fstab
+
+#     rm "${credentials}"
+
+    fi
+
+  # fpr
+  elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+
+    base_dir="${boot_dir}/${mnt_key}"
+    gpw_file="${base_dir}/gpw"
+    enc_dir="${base_dir}/enc"
+
+    # init
+    mkdir -p "${enc_dir}"
+    conf_file_org="${enc_dir}/gocryptfs.conf"
+    conf_file_gpg="${conf_file_org}.gpg"
+    test ! -f "${gpw_file}"                                      && cat /dev/urandom | tr --complement --delete '[:graph:]' | head -c 2048 | gpg --encrypt --throw-keyids > "${gpw_file}"      || true
+    test ! -f "${conf_file_org}" &&   test -f "${conf_file_gpg}" && cat "${conf_file_gpg}"                                                 | gpg --decrypt                > "${conf_file_org}" || true
+    test ! -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && gocryptfs -extpass 'gpg' -extpass '--decrypt' -extpass "${gpw_file}" -init "${enc_dir}"
+    test   -f "${conf_file_org}" && ! test -f "${conf_file_gpg}" && cat "${conf_file_org}"                                                 | gpg --encrypt --throw-keyids > "${conf_file_gpg}" || true
+
+    mkdir -p "${mnt_dir}"
+    gocryptfs \
+      -extpass 'gpg' \
+      -extpass '--decrypt' \
+      -extpass "${gpw_file}" \
+      "${enc_dir}" \
+      "${mnt_dir}" || rm -d "${mnt_dir}"
+
+  fi
+
+)

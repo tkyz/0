@@ -1,0 +1,44 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+
+(
+
+  source varinit
+
+  mnt_key="${1:-}"
+  mnt_dir="${home}/mnt/${mnt_key}"
+
+  # list...
+  if [[ -z "${mnt_key}" ]]; then
+    find "${home}/mnt" -mindepth 1 -maxdepth 1 -type d | sed 's|.*/||g' | sort --unique | while read item; do
+      "${BASH_SOURCE}" "${item}"
+    done
+
+  # skip
+  elif ! is_mnt "${mnt_dir}"; then
+    true
+
+  # uuid
+  elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+
+    uuid="${mnt_key}"
+    blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${uuid}\")")"
+    fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
+
+    if [[ 'crypto_LUKS' == "${fstype}" ]]; then
+      ${SUDO} cryptsetup close "${uuid}" || true
+
+    else
+      ${SUDO} fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
+    fi
+
+  # fpr
+  elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+    fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
+  fi
+
+)

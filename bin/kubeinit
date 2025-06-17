@@ -7,31 +7,24 @@ set -o pipefail
 
 (
 
-  name="$(hostname)"
+  source varinit
 
-# kind delete cluster --name "${name}" || true
+# kind delete cluster --name "${host}" || true
 
-  if ! kubectl config get-contexts "kind-${name}" &> /dev/null ; then
-
-    is_sudoer
-    if [[ '0' == "$(id -u)" ]]; then
-      SUDO=
-    elif type sudo &> /dev/null && sudo -v -n > /dev/null; then
-      SUDO=sudo
-    fi
+  if ! kubectl config get-contexts "kind-${host}" &> /dev/null ; then
 
     ${SUDO} sysctl --write fs.inotify.max_user_instances=1024
     ${SUDO} sysctl --write fs.inotify.max_user_watches=65536
     ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53
 
-    cat "${HOME}/src/0.kind/kind.yml" | varsubst | KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --name "${name}" --config -
+    cat "${HOME}/src/0.kind/kind.yml" | varsubst | KIND_EXPERIMENTAL_PROVIDER=podman kind create cluster --name "${host}" --config -
 
     ${SUDO} sysctl --write fs.inotify.max_user_instances=128
     ${SUDO} sysctl --write fs.inotify.max_user_watches=8192
     ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
-    kubectl config set-context     "kind-${name}"
-    kubectl cluster-info --context "kind-${name}"
+    kubectl config set-context     "kind-${host}"
+    kubectl cluster-info --context "kind-${host}"
 
     kubectl get configmap kube-proxy --namespace kube-system --output yaml | sed 's/strictARP: false/strictARP: true/' | kubectl apply -f -
 

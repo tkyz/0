@@ -6,7 +6,7 @@ set -o pipefail
 
 (
 
-  tag='latest'
+  source varinit
 
   if [[ "${PWD}" =~ ^${HOME}/src/.*$ ]]; then
 
@@ -81,7 +81,7 @@ set -o pipefail
   if [[ -f './Dockerfile' ]]; then
     (
 
-      image="container.$(hostname -d)/${name}:${tag}"
+      image="container.${domain}/${name}:${tag}"
       if [[ -z "$(podman images --noheading "${image}")" ]]; then
 
         opts=()
