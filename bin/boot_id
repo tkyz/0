@@ -5,5 +5,5 @@ set -o nounset
 set -o pipefail
 
 (
-  cat '/proc/sys/kernel/random/boot_id' 2> /dev/null # || printf '%08d-%04d-%04d-%04d-%012d'
-)
+  cat '/proc/sys/kernel/random/boot_id' # || printf '%08d-%04d-%04d-%04d-%012d'
+) 2> /dev/null

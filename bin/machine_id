@@ -5,5 +5,5 @@ set -o nounset
 set -o pipefail
 
 (
-  cat '/etc/machine-id' 2> /dev/null # || printf '%032d'
-)
+  cat '/etc/machine-id' # || printf '%032d'
+) 2> /dev/null
