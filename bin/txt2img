@@ -1,0 +1,76 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  if [[ ! -p '/dev/stdin' ]]; then
+    echo -n "${@}" | "${BASH_SOURCE}"
+
+  else
+
+    source varinit
+
+    python3 <(cat << EOS
+import os
+import sys
+import uuid
+import torch
+
+from diffusers import DiffusionPipeline
+
+home = os.environ.get('HOME')
+
+def gen(pipe1, pipe2, prompt, prompt_n=''):
+
+# size_w =  640;  size_h = 1536
+  size_w =  768;  size_h = 1344
+# size_w =  832;  size_h = 1216
+# size_w =  896;  size_h = 1152
+# size_w = 1024;  size_h = 1024
+# size_w = 1152;  size_h =  896
+# size_w = 1216;  size_h =  832
+# size_w = 1344;  size_h =  768
+# size_w = 1536;  size_h =  640
+  steps = 40
+
+  images = pipe1(prompt=prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_end  =0.8, output_type='latent').images
+  images = pipe2(prompt=prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_start=0.8, image=images).images
+
+  for i in range(len(images)):
+    images[i].save('./' + str(uuid.uuid4()) + '.png')
+
+def main():
+
+  pipe1 = DiffusionPipeline.from_pretrained(home + '/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0',    local_files_only=True, torch_dtype=torch.float16, use_safetensors=True, variant='fp16')
+  pipe2 = DiffusionPipeline.from_pretrained(home + '/lib/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0', local_files_only=True, torch_dtype=torch.float16, use_safetensors=True, variant='fp16', text_encoder_2=pipe1.text_encoder_2, vae=pipe1.vae)
+
+  pipe1.safety_checker = None
+  pipe2.safety_checker = None
+
+  pipe1.to("cuda")
+  pipe2.to("cuda")
+
+  while True:
+
+    prompt = sys.stdin.read()
+#   prompt = sys.stdin.readline()
+    if '' == prompt:
+      break
+
+    try:
+      gen(pipe1, pipe2, prompt)
+    except KeyboardInterrupt as e:
+      print(e)
+      continue
+
+if __name__ == '__main__':
+  main()
+EOS
+)
+
+  fi
+
+) 2> /dev/null
