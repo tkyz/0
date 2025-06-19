@@ -7,6 +7,8 @@ set -o pipefail
 (
 
   source varinit
+  resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
+  external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)"
 
   sed_opts=()
   sed_opts+=('-e' "s|\${machine_id}|${machine_id}|g")

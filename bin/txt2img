@@ -34,10 +34,12 @@ def gen(pipe1, pipe2, prompt, prompt_n=''):
 # size_w = 1216;  size_h =  832
 # size_w = 1344;  size_h =  768
 # size_w = 1536;  size_h =  640
-  steps = 40
 
-  images = pipe1(prompt=prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_end  =0.8, output_type='latent').images
-  images = pipe2(prompt=prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_start=0.8, image=images).images
+  steps     = 40
+  denoising = 0.6
+
+  images = pipe1(prompt=prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_end  =denoising, output_type='latent').images
+  images = pipe2(prompt=prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_start=denoising, image=images).images
 
   for i in range(len(images)):
     images[i].save('./' + str(uuid.uuid4()) + '.png')

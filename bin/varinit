@@ -5,15 +5,14 @@ if [[ ! -v openpgp4fpr ]]; then
   machine_id="$(machine_id)"
   boot_id="$(boot_id)"
 
+  host="$(  hostname)"
   domain="$(hostname -d)"
   namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
-  host="$(hostname)"
+
   user="${USER:-root}"
   home="${HOME:-/root}"
 
   openpgp4fpr="$(openpgp4fpr)"
-  resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
-  external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)"
   tag='latest'
 
   if is_sudoer; then

@@ -1,0 +1,60 @@
+#!/bin/bash
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  source varinit
+
+  uri="${1:-}"
+
+  # list...
+  if [[ -z "${uri}" ]]; then
+
+    {
+
+      cat "${home}/list" || true
+
+      find "${home}/lib" "${home}/src" -type d -name '.git' 2> /dev/null | while read base_dir; do
+        git -C "${base_dir}" remote -v | awk '{ print $2 }'
+      done | sort --unique | grep -E -e '^(https?)://.*\.git$'
+
+      podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>'
+
+    } 2> /dev/null | sort --unique --output "${home}/list" || true
+
+    cat "${home}/list" | while read item; do
+      echo "${BASH_SOURCE}" "${item}"
+    done
+
+  elif [[ "${uri}" =~ ^docker\.io/[^/]+/[^:]+:.+$ ]]; then
+    podman pull "${uri}"
+
+  elif [[ "${uri}" =~ ^https://github\.com/.+\.git$ ]]; then
+
+    git_dir="${home}/src"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+    type_git "${git_dir}" 'github' "${uri}"
+
+  elif [[ "${uri}" =~ ^https://gitlab\.com/.+\.git$ ]]; then
+
+    git_dir="${home}/src"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+    type_git "${git_dir}" 'gitlab' "${uri}"
+
+  elif [[ "${uri}" =~ ^https://huggingface\.co/.+\.git$ ]]; then
+
+    git_dir="${home}/lib"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
+
+    type_git "${git_dir}" 'huggingface' "${uri}"
+
+  fi
+
+)

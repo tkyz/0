@@ -1,19 +1,21 @@
 umask 0022
 
-# bin
-if true; then
-  test -d "${HOME}/bin"                          && PATH="${HOME}/bin:${PATH}"
-  test -d "${HOME}/.local/bin"                   && PATH="${HOME}/.local/bin:${PATH}"
+# java
+if [[ -d "${HOME}/opt/net.java.jdk" ]]; then
+
+  export JAVA_HOME="${HOME}/opt/net.java.jdk"
+  export CLASSPATH='.:./*'
+
+  test -d "${HOME}/opt/org.apache.ant"   && PATH="${HOME}/opt/org.apache.ant/bin:${PATH}"
+  test -d "${HOME}/opt/org.apache.maven" && PATH="${HOME}/opt/org.apache.maven/bin:${PATH}"
+  PATH="${JAVA_HOME}/bin:${PATH}"
+
 fi
 
-# opt
+# bin
 if true; then
-  test -d "${HOME}/opt/net.java.jdk"             && export JAVA_HOME="${HOME}/opt/net.java.jdk"
-  test -f "${JAVA_HOME}/bin/java"                && export CLASSPATH='.:./*'
-  test -f "${JAVA_HOME}/bin/java"                && PATH="${JAVA_HOME}/bin:${PATH}"
-  test -f "${HOME}/opt/org.apache.ant/bin/ant"   && PATH="${HOME}/opt/org.apache.ant/bin:${PATH}"
-  test -f "${HOME}/opt/org.apache.maven/bin/mvn" && PATH="${HOME}/opt/org.apache.maven/bin:${PATH}"
-  test -f "${JAVA_HOME}/.local/bin"              && PATH="${HOME}/.local/bin:${PATH}"
+  test -d "${HOME}/bin"                  && PATH="${HOME}/bin:${PATH}"
+  test -d "${HOME}/.local/bin"           && PATH="${HOME}/.local/bin:${PATH}"
 fi
 
 test -n "${BASH_VERSION}" && test -f "${HOME}/.bashrc" && source "${HOME}/.bashrc"

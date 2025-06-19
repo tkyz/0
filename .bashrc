@@ -114,19 +114,11 @@ if true; then
   alias ll='la -lF '
   alias gs='git status '
   alias vi='vim '
+
   alias timestamp='date --utc "+%Y%m%d_%H%M%S_%N" '
   alias clipcopy=' xsel --clipboard --input '
   alias clippaste='xsel --clipboard --output '
   alias relogin='exec "${SHELL:-bash}" -l '
-
-  alias sstatus='  sudo systemctl status '
-  alias sstart='   sudo systemctl start '
-  alias sstop='    sudo systemctl stop '
-  alias srestart=' sudo systemctl restart '
-  alias senable='  sudo systemctl enable '
-  alias sdisable=' sudo systemctl disable '
-  alias sreenable='sudo systemctl reenable '
-  alias reboot='   sudo shutdown now -r '
 
 fi
 
