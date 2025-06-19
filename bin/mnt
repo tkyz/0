@@ -6,7 +6,7 @@ set -o pipefail
 
 (
 
-  source varinit
+  source varrc
   boot_dir="${home}/boot"
 
   mnt_key="${1:-}"

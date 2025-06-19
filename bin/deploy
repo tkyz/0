@@ -6,7 +6,7 @@ set -o pipefail
 
 (
 
-  source varinit
+  source varrc
 
   test -f './deploy.yml'
   test "kind-${host}" == "$(kubectl config current-context)"

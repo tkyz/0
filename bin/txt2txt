@@ -1,19 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-set -o errexit
-set -o nounset
-set -o pipefail
-
-(
-
-  if [[ ! -p '/dev/stdin' ]]; then
-    echo -n "${@}" | "${BASH_SOURCE}"
-
-  else
-
-    source varinit
-
-    python3 <(cat << EOS
 import os
 import sys
 import re
@@ -56,6 +42,7 @@ def add_tokens(tokenizer, model, prompt):
 # tokens |= set(prompt.splitlines())
   tokens |= set(re.split(split_regex, prompt))
   tokens |= set(regex.findall(r'\X', prompt))
+
   if os.path.isfile(home + '/setup'):
     with open(home + '/setup', 'r', encoding="UTF-8") as f:
       data    = f.read()
@@ -90,22 +77,16 @@ def main():
 
   while True:
 
-    prompt = sys.stdin.read()
+#   prompt = sys.stdin.read()
 #   prompt = sys.stdin.readline()
-    if '' == prompt:
-      break
+    prompt = ' '.join(sys.argv[1:])
 
     try:
       gen(tokenizer, model, prompt)
     except KeyboardInterrupt as e:
       print(e)
-      continue
+
+    break
 
 if __name__ == '__main__':
   main()
-EOS
-)
-
-  fi
-
-) 2> /dev/null

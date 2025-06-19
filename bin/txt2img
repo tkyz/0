@@ -1,19 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-set -o errexit
-set -o nounset
-set -o pipefail
-
-(
-
-  if [[ ! -p '/dev/stdin' ]]; then
-    echo -n "${@}" | "${BASH_SOURCE}"
-
-  else
-
-    source varinit
-
-    python3 <(cat << EOS
 import os
 import sys
 import uuid
@@ -36,13 +22,20 @@ def gen(pipe1, pipe2, prompt, prompt_n=''):
 # size_w = 1536;  size_h =  640
 
   steps     = 40
-  denoising = 0.6
+  denoising =  0.6
+  batch     =  2
+  count     =  4
 
-  images = pipe1(prompt=prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_end  =denoising, output_type='latent').images
-  images = pipe2(prompt=prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_start=denoising, image=images).images
+  prompt   = [prompt]   * batch
+  prompt_n = [prompt_n] * batch
 
-  for i in range(len(images)):
-    images[i].save('./' + str(uuid.uuid4()) + '.png')
+  for i in range(count):
+
+    images = pipe1(prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_end  =denoising, output_type='latent').images
+    images = pipe2(prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_start=denoising, image=images).images
+
+    for j in range(len(images)):
+      images[j].save('./' + str(uuid.uuid4()) + '.png')
 
 def main():
 
@@ -57,22 +50,16 @@ def main():
 
   while True:
 
-    prompt = sys.stdin.read()
+#   prompt = sys.stdin.read()
 #   prompt = sys.stdin.readline()
-    if '' == prompt:
-      break
+    prompt = ' '.join(sys.argv[1:])
 
     try:
       gen(pipe1, pipe2, prompt)
     except KeyboardInterrupt as e:
       print(e)
-      continue
+
+    break
 
 if __name__ == '__main__':
   main()
-EOS
-)
-
-  fi
-
-) 2> /dev/null

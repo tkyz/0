@@ -6,7 +6,7 @@ set -o pipefail
 
 (
 
-  source varinit
+  source varrc
 
   if [[ "${PWD}" =~ ^${HOME}/src/.*$ ]]; then
 

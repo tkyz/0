@@ -2,18 +2,18 @@
 
 if [[ ! -v openpgp4fpr ]]; then
 
-  machine_id="$(machine_id)"
-  boot_id="$(boot_id)"
+  machine_id="$(cat '/etc/machine-id'                 || printf '%032d')"
+  boot_id="$(   cat '/proc/sys/kernel/random/boot_id' || printf '%08d-%04d-%04d-%04d-%012d')"
+  openpgp4fpr="$(openpgp4fpr)"
+  tag='latest'
 
-  host="$(  hostname)"
   domain="$(hostname -d)"
   namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
+  host="$(hostname)"
+# fqdn="$(hostname -f)"
 
   user="${USER:-root}"
   home="${HOME:-/root}"
-
-  openpgp4fpr="$(openpgp4fpr)"
-  tag='latest'
 
   if is_sudoer; then
     if [[ '0' == "$(id -u)" ]]; then

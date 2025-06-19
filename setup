@@ -32,8 +32,9 @@ set -o pipefail
   test 'debian' == "${ID_LIKE:-${ID}}"
   test 'bash'   == "${SHELL##*/}"
 
-# source varinit
-  fqdn="$(hostname -f)"
+# source "${HOME}/bin/varrc"
+  fqdn="$(  hostname -f)"
+  domain="$(hostname -d)"
   user="${USER:-root}"
   home="${HOME:-/root}"
 
@@ -107,8 +108,6 @@ EOS
       # git
       (
 
-        git_rep_pub='https://github.com/tkyz/0.git'
-
         git config --global init.defaultBranch main
         git config --global core.ignorecase    false
         git config --global core.quotepath     false
@@ -133,38 +132,35 @@ EOS
 #       git init --object-format=sha256 .
         git init .
 
-        git remote add      'public' "${git_rep_pub}" || \
-        git remote set-url  'public' "${git_rep_pub}"
+        git_remote='origin';    git_uri="${home}/lib/0.git/0.git";            git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
+        git_remote="${domain}"; git_uri="git://git.${domain}/0.git";          git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
+#       git_remote='github';    git_uri="https://github.com/${user}/0.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
+#       git_remote='github';    git_uri="ssh://git@github.com/${user}/0.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
+        git_remote='public';    git_uri='https://github.com/tkyz/0.git';      git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
 
-        git fetch --prune   'public'
+        git fetch --prune --all || true
 
-        git remote set-head 'public' 'main'   || \
-        git remote set-head 'public' 'master' || \
-        git remote set-head 'public' 'trunk'  || \
-        true
+        git remote | while read remote; do
+          git remote set-head "${remote}" 'main' || true
+        done
 
         if git checkout --orphan 'main'; then
-          git checkout -b 'main' 'public/main'   || \
-          git checkout -b 'main' 'public/master' || \
-          git checkout -b 'main' 'public/trunk'  || \
-          true
+          git checkout -b 'main' 'origin/main'    ||
+          git checkout -b 'main' "${domain}/main" ||
+          git checkout -b 'main' 'public/main'
         fi
 
-        if ! git rebase --no-autostash 'public'; then
+        git remote | while read remote; do
+          git rebase --no-autostash "${remote}" || true
+        done
+#       git reset --mixed 'origin/main'
+#       git reset --mixed "${domain}/main"
+#       git reset --mixed 'public/main'
+#       git status
 
-          git reset --mixed 'public/main'   || \
-          git reset --mixed 'public/master' || \
-          git reset --mixed 'public/trunk'  || \
-          true
-
-          git status
-
-        fi
-
-        git branch --set-upstream-to='origin/main'   || \
-        git branch --set-upstream-to='origin/master' || \
-        git branch --set-upstream-to='public/main'   || \
-        git branch --set-upstream-to='public/master' || \
+        git branch --set-upstream-to='origin/main'    ||
+        git branch --set-upstream-to="${domain}/main" ||
+        git branch --set-upstream-to='public/main'    ||
         true
 
         git gc

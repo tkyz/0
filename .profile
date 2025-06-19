@@ -14,10 +14,12 @@ fi
 
 # bin
 if true; then
-  test -d "${HOME}/bin"                  && PATH="${HOME}/bin:${PATH}"
   test -d "${HOME}/.local/bin"           && PATH="${HOME}/.local/bin:${PATH}"
+  test -d "${HOME}/bin"                  && PATH="${HOME}/bin:${PATH}"
 fi
 
 test -n "${BASH_VERSION}" && test -f "${HOME}/.bashrc" && source "${HOME}/.bashrc"
 
 test 0 == "$(id -u)" && mesg n 2> /dev/null || true
+
+test -f "${HOME}/bin/varrc" && source "${HOME}/bin/varrc"
