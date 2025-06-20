@@ -32,7 +32,7 @@ set -o pipefail
   test 'debian' == "${ID_LIKE:-${ID}}"
   test 'bash'   == "${SHELL##*/}"
 
-# source "${HOME}/bin/varrc"
+  # varrc
   fqdn="$(  hostname -f)"
   domain="$(hostname -d)"
   user="${USER:-root}"
@@ -128,6 +128,8 @@ EOS
         git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
         git config --global user.name          "${user}"
         git config --global user.email         "${user}@${fqdn}"
+        git config --global gpg.program        "$(type -p gpg)"
+        git config --global commit.gpgsign     true
 
 #       git init --object-format=sha256 .
         git init .

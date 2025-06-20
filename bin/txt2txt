@@ -21,7 +21,7 @@ home = os.environ.get('HOME')
 
 def gen(tokenizer, model, prompt, max=4096):
 
-  add_tokens(tokenizer, model, prompt)
+# add_tokens(tokenizer, model, prompt)
 
   streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
 
@@ -31,7 +31,7 @@ def gen(tokenizer, model, prompt, max=4096):
 
   output_ids = model.generate(input_ids.to(device=model.device), max_new_tokens=max, temperature=1.0, top_p=1.0, do_sample=True, streamer=streamer)
 # print(tokenizer.convert_ids_to_tokens(output_ids[0]))
-  add_tokens(tokenizer, model, tokenizer.decode(output_ids[0]))
+# add_tokens(tokenizer, model, tokenizer.decode(output_ids[0]))
 
 def add_tokens(tokenizer, model, prompt):
 
@@ -71,6 +71,7 @@ def add_tokens(tokenizer, model, prompt):
 
 def main():
 
+# model_path = home + '/lib/co.huggingface/stabilityai/japanese-stablelm-base-gamma-7b'
   model_path = home + '/lib/co.huggingface/stabilityai/japanese-stablelm-base-beta-70b'
   tokenizer  = AutoTokenizer.from_pretrained(model_path)
   model      = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype='auto', device_map='auto', local_files_only=True)
