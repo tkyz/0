@@ -6,14 +6,12 @@ set -o pipefail
 
 (
 
-  source varinit
-
   mnt_key="${1:-}"
-  mnt_dir="${home}/mnt/${mnt_key}"
+  mnt_dir="${HOME}/mnt/${mnt_key}"
 
   # list...
   if [[ -z "${mnt_key}" ]]; then
-    find "${home}/mnt" -mindepth 1 -maxdepth 1 -type d | sed 's|.*/||g' | sort --unique | while read item; do
+    find "${HOME}/mnt" -mindepth 1 -maxdepth 1 -type d | sed 's|.*/||g' | sort --unique | while read item; do
       "${BASH_SOURCE}" "${item}"
     done
 

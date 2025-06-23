@@ -32,14 +32,8 @@ set -o pipefail
   test 'debian' == "${ID_LIKE:-${ID}}"
   test 'bash'   == "${SHELL##*/}"
 
-  # varrc
-  fqdn="$(  hostname -f)"
-  domain="$(hostname -d)"
-  user="${USER:-root}"
-  home="${HOME:-/root}"
-
-  if [[ ! -d "${home}/.git" ]]; then
-    pushd "${home}" &> /dev/null
+  if [[ ! -d "${HOME}/.git" ]]; then
+    pushd "${HOME}" &> /dev/null
 
       if [[ '0' == "$(id -u)" ]]; then
         SUDO=
@@ -89,10 +83,10 @@ EOS
 
       )
 
-      # pip
+      # venv
       (
 
-        venv_dir="${home}/.venv"
+        venv_dir="${HOME}/.venv"
 
         python3 -m venv "${venv_dir}"
         source "${venv_dir}/bin/activate"
@@ -126,18 +120,19 @@ EOS
         git config --global merge.ff           false
         git config --global diff.sjis.textconv 'iconv -f sjis'
         git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
-        git config --global user.name          "${user}"
-        git config --global user.email         "${user}@${fqdn}"
+        git config --global user.name          "${USER}"
+        git config --global user.email         "${USER}@$(hostname -f)"
         git config --global gpg.program        "$(type -p gpg)"
         git config --global commit.gpgsign     true
 
 #       git init --object-format=sha256 .
         git init .
 
-        git_remote='origin';    git_uri="${home}/lib/0.git/0.git";            git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
+        domain="$(hostname -d)"
+        git_remote='origin';    git_uri="${HOME}/lib/0.git/0.git";            git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
         git_remote="${domain}"; git_uri="git://git.${domain}/0.git";          git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
-#       git_remote='github';    git_uri="https://github.com/${user}/0.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
-#       git_remote='github';    git_uri="ssh://git@github.com/${user}/0.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
+#       git_remote='github';    git_uri="https://github.com/${USER}/0.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
+#       git_remote='github';    git_uri="ssh://git@github.com/${USER}/0.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
         git_remote='public';    git_uri='https://github.com/tkyz/0.git';      git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}"
 
         git fetch --prune --all || true

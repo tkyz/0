@@ -6,14 +6,15 @@ set -o pipefail
 
 (
 
-  source varrc
+  host="$(hostname)"
+  namespace="$(hostname -d | tr '.' $'\n' | tac | paste -s -d '.')"
 
   test -f './deploy.yml'
   test "kind-${host}" == "$(kubectl config current-context)"
 
   name="$(echo "${PWD}" | sha256sum | cut -b 1-64)"
-  if [[ "${PWD}" =~ ^${home}/src/.*$ ]]; then
-    name="$(echo "${PWD}" | sed -r "s|^${home}/src/||g")"
+  if [[ "${PWD}" =~ ^${HOME}/src/.*$ ]]; then
+    name="$(echo "${PWD}" | sed -r "s|^${HOME}/src/||g")"
   fi
 
   [[ "${name}" =~ ^com\.github/.*$   ]] && exit || true

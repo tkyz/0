@@ -23,6 +23,7 @@ set -o pipefail
 # opts+=('--volume'   "/usr/local/:/usr/local/:ro")
   opts+=('--volume'   "${HOME}/.venv/:${HOME}/.venv/:ro")
   opts+=('--volume'   "${HOME}/bin/:/root/bin/:ro")
+  opts+=('--volume'   "${HOME}/sbin/:/root/sbin/:ro")
   opts+=('--volume'   "${HOME}/boot/${uuid}:/root")
   opts+=('--volume'   "${HOME}/.bashrc:/root/.bashrc:ro")
   opts+=('--volume'   "${HOME}/.profile:/root/.profile:ro")

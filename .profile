@@ -1,5 +1,19 @@
 umask 0022
 
+# bin
+test -d "${HOME}/.local/bin" && PATH="${HOME}/.local/bin:${PATH}"
+test -d "${HOME}/bin"        && PATH="${HOME}/bin:${PATH}"
+
+test -n "${BASH_VERSION}" && test -f "${HOME}/.bashrc" && source "${HOME}/.bashrc"
+
+test 0 == "$(id -u)" && mesg n 2> /dev/null || true
+
+#----------------------------------------------------------------
+# ...
+
+# python
+test -f "${HOME}/.venv/bin/activate" && source "${HOME}/.venv/bin/activate"
+
 # java
 if [[ -d "${HOME}/opt/net.java.jdk" ]]; then
 
@@ -12,14 +26,5 @@ if [[ -d "${HOME}/opt/net.java.jdk" ]]; then
 
 fi
 
-# bin
-if true; then
-  test -d "${HOME}/.local/bin"           && PATH="${HOME}/.local/bin:${PATH}"
-  test -d "${HOME}/bin"                  && PATH="${HOME}/bin:${PATH}"
-fi
-
-test -n "${BASH_VERSION}" && test -f "${HOME}/.bashrc" && source "${HOME}/.bashrc"
-
-test 0 == "$(id -u)" && mesg n 2> /dev/null || true
-
-test -f "${HOME}/bin/varrc" && source "${HOME}/bin/varrc"
+# sbin
+test -d "${HOME}/sbin" && PATH="${HOME}/sbin:${PATH}"

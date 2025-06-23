@@ -1,0 +1,5 @@
+#!/bin/bash
+
+(
+  cat '/etc/machine-id' # || printf '%032d'
+)

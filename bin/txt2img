@@ -5,7 +5,10 @@ import sys
 import uuid
 import torch
 
-from diffusers import DiffusionPipeline
+from diffusers import (
+  DiffusionPipeline,
+  StableDiffusionXLPipeline,
+)
 
 home = os.environ.get('HOME')
 
@@ -21,17 +24,19 @@ def gen(pipe1, pipe2, prompt, prompt_n=''):
 # size_w = 1344;  size_h =  768
 # size_w = 1536;  size_h =  640
 
-  steps     = 40
-  denoising =  0.8
-  batch     =  2
-  count     =  4
+  steps       = 40
+  denoising   =  0.999
+  batch       =  2
+  count       =  4
+  output_type = 'latent'
+# output_type = 'pil'
 
   prompt   = [prompt]   * batch
   prompt_n = [prompt_n] * batch
 
   for i in range(count):
 
-    images = pipe1(prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_end  =denoising, output_type='latent').images
+    images = pipe1(prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_end  =denoising, output_type=output_type).images
     images = pipe2(prompt, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, denoising_start=denoising, image=images).images
 
     for j in range(len(images)):

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+(
+  cat '/proc/sys/kernel/random/boot_id' # || printf '%08d-%04d-%04d-%04d-%012d'
+)

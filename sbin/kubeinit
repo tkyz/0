@@ -6,7 +6,7 @@ set -o pipefail
 
 (
 
-  source varrc
+  host="$(hostname)"
 
 # kind delete cluster --name "${host}" || true
 

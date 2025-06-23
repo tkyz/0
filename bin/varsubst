@@ -6,22 +6,23 @@ set -o pipefail
 
 (
 
-  source varinit
-  resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
-  external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)"
+  tag='latest'
+
+  domain="$(hostname -d)"
+  namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
 
   sed_opts=()
-  sed_opts+=('-e' "s|\${machine_id}|${machine_id}|g")
-  sed_opts+=('-e' "s|\${boot_id}|${boot_id}|g")
+  sed_opts+=('-e' "s|\${tag}|${tag}|g")
+  sed_opts+=('-e' "s|\${machine_id}|$(machine_id)|g")
+  sed_opts+=('-e' "s|\${boot_id}|$(boot_id)|g")
   sed_opts+=('-e' "s|\${domain}|${domain}|g")
   sed_opts+=('-e' "s|\${namespace}|${namespace}|g")
-  sed_opts+=('-e' "s|\${host}|${host}|g")
-  sed_opts+=('-e' "s|\${USER}|${user}|g")
-  sed_opts+=('-e' "s|\${HOME}|${home}|g")
-  sed_opts+=('-e' "s|\${openpgp4fpr}|${openpgp4fpr}|g")
-  sed_opts+=('-e' "s|\${resolve}|${resolve}|g")
-  sed_opts+=('-e' "s|\${external_ip}|${external_ip}|g")
-  sed_opts+=('-e' "s|\${tag}|${tag}|g")
+  sed_opts+=('-e' "s|\${host}|$(hostname)|g")
+  sed_opts+=('-e' "s|\${USER}|${USER}|g")
+  sed_opts+=('-e' "s|\${HOME}|${HOME}|g")
+  sed_opts+=('-e' "s|\${openpgp4fpr}|"$(openpgp4fpr)"|g")
+  sed_opts+=('-e' "s|\${resolve}|$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)|g")
+  sed_opts+=('-e' "s|\${external_ip}|$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)|g")
 
   cat '/dev/stdin' | sed "${sed_opts[@]}"
 

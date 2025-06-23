@@ -35,6 +35,6 @@ set -o pipefail
   grep -q default-key       "${conf_file}" && sed -i -r -e "s/^(default-key).*/\1       0x${fpr}/g" "${conf_file}" || echo "default-key       0x${fpr}" >> "${conf_file}"
   grep -q default-recipient "${conf_file}" && sed -i -r -e "s/^(default-recipient).*/\1 0x${fpr}/g" "${conf_file}" || echo "default-recipient 0x${fpr}" >> "${conf_file}"
 
-) &> /dev/null
+) >&2
 
 gpgconf --list-options gpg | grep default-key | cut -d ':' -f 10 | sed -r 's/.*"=?(0x)?//'

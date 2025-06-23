@@ -68,7 +68,7 @@ if [[ -t 0 ]]; then
       user="${txtcyn}${user}${txtrst}"
     fi
 
-    PS1="${VIRTUAL_ENV_PROMPT:-}${scheme}://${user}@${fqdn}:${path} ${sign} "
+    PS1="${scheme}://${user}@${fqdn}:${path} ${sign} "
 #   PS2=
 #   PS3=
 #   PS4=
@@ -119,8 +119,6 @@ if true; then
   alias clipcopy=' xsel --clipboard --input '
   alias clippaste='xsel --clipboard --output '
   alias relogin='exec "${SHELL:-bash}" -l '
-
-  alias venv="source '${HOME}/.venv/bin/activate' "
 
 fi
 
