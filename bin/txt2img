@@ -25,7 +25,7 @@ def gen(pipe1, pipe2, prompt, prompt_n=''):
 # size_w = 1536;  size_h =  640
 
   steps       = 40
-  denoising   =  0.999
+  denoising   =  0.8
   batch       =  2
   count       =  4
   output_type = 'latent'
