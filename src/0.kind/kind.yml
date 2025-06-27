@@ -11,25 +11,26 @@ nodes:
         kind: ClusterConfiguration
         apiServer:
           extraArgs:
-            service-node-port-range: 53-65535
+#           service-node-port-range: 3306-3306,5432-5432,6379-6379,8333-8333,9418-9418,30000-32767
       - |
         kind: InitConfiguration
         nodeRegistration:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
     extraMounts:
-      - {hostPath: "${HOME}/bin/",     containerPath: /root/bin/,     readOnly: true}
-#     - {hostPath: "${HOME}/doc/",     containerPath: /root/doc/}
-#     - {hostPath: "${HOME}/lib/",     containerPath: /root/lib/}
-#     - {hostPath: "${HOME}/src/",     containerPath: /root/src/}
+      - {hostPath: "${HOME}/bin",      containerPath: /root/bin,      readOnly: true}
+#     - {hostPath: "${HOME}/doc",      containerPath: /root/doc}
+#     - {hostPath: "${HOME}/lib",      containerPath: /root/lib}
+#     - {hostPath: "${HOME}/src",      containerPath: /root/src}
+      - {hostPath: "${HOME}/sbin",     containerPath: /root/sbin,     readOnly: true}
       - {hostPath: "${HOME}/.profile", containerPath: /root/.profile, readOnly: true}
       - {hostPath: "${HOME}/.bashrc",  containerPath: /root/.bashrc,  readOnly: true}
       - {hostPath: "${HOME}/setup",    containerPath: /root/setup,    readOnly: true}
     extraPortMappings:
-      - {hostPort:    53, containerPort:    53, listenAddress: "${external_ip}", protocol: UDP} # dns
-      - {hostPort:    80, containerPort:    80, listenAddress: "${external_ip}", protocol: TCP} # http
-      - {hostPort:   123, containerPort:   123, listenAddress: "${external_ip}", protocol: UDP} # ntp
-      - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: TCP} # https
+#     - {hostPort:    53, containerPort:    53, listenAddress: "${external_ip}", protocol: UDP} # dns
+#     - {hostPort:    80, containerPort:    80, listenAddress: "${external_ip}", protocol: TCP} # http
+#     - {hostPort:   123, containerPort:   123, listenAddress: "${external_ip}", protocol: UDP} # ntp
+#     - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: TCP} # https
 #     - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: UDP} # quic
 #     - {hostPort:  2181, containerPort:  2181, listenAddress: "${external_ip}", protocol: TCP} # zookeeper
       - {hostPort:  3306, containerPort:  3306, listenAddress: "${external_ip}", protocol: TCP} # mysql,mariadb
@@ -41,15 +42,16 @@ nodes:
       - {hostPort:  8333, containerPort:  8333, listenAddress: "${external_ip}", protocol: TCP} # bitcoin
 #     - {hostPort:  8443, containerPort:  8443, listenAddress: "${external_ip}", protocol: TCP}
       - {hostPort:  9418, containerPort:  9418, listenAddress: "${external_ip}", protocol: TCP} # git
-      - {hostPort: 25565, containerPort: 25565, listenAddress: "${external_ip}", protocol: TCP} # minecraft
+#     - {hostPort: 25565, containerPort: 25565, listenAddress: "${external_ip}", protocol: TCP} # minecraft
       - {hostPort: 30303, containerPort: 30303, listenAddress: "${external_ip}", protocol: TCP} # ethereum
 
   - role: worker
     extraMounts:
-      - {hostPath: "${HOME}/bin/",     containerPath: /root/bin/,     readOnly: true}
-      - {hostPath: "${HOME}/doc/",     containerPath: /root/doc/}
-      - {hostPath: "${HOME}/lib/",     containerPath: /root/lib/}
-      - {hostPath: "${HOME}/src/",     containerPath: /root/src/}
+      - {hostPath: "${HOME}/bin",      containerPath: /root/bin,      readOnly: true}
+      - {hostPath: "${HOME}/doc",      containerPath: /root/doc}
+      - {hostPath: "${HOME}/lib",      containerPath: /root/lib}
+      - {hostPath: "${HOME}/src",      containerPath: /root/src}
+      - {hostPath: "${HOME}/sbin",     containerPath: /root/sbin,     readOnly: true}
       - {hostPath: "${HOME}/.profile", containerPath: /root/.profile, readOnly: true}
       - {hostPath: "${HOME}/.bashrc",  containerPath: /root/.bashrc,  readOnly: true}
       - {hostPath: "${HOME}/setup",    containerPath: /root/setup,    readOnly: true}

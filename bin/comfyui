@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  if ! is_container; then
+
+    uuid="$(uuidgen)"
+    image='python:3.11'
+
+    opts=()
+    opts+=('--interactive')
+    opts+=('--tty')
+    opts+=('--rm')
+    opts+=('--name'       "${uuid}")
+    opts+=('--hostname'   "${uuid}")
+    opts+=('--device'     'nvidia.com/gpu=all')
+    opts+=('--publish'    '8188:8188')
+    opts+=('--entrypoint' 'bash')
+    opts+=('--workdir'    "/${uuid}")
+    opts+=('--volume'     "${BASH_SOURCE}:/entrypoint:ro")
+    opts+=('--volume'     "${HOME}/.cache/pip:/root/.cache/pip")
+    opts+=('--volume'     "${HOME}/bin/is_container:/usr/local/bin/is_container:ro")
+    opts+=('--volume'     "${HOME}/src/com.github/comfyanonymous/ComfyUI:/${uuid}")
+    opts+=('--volume'     "${HOME}/lib/co.huggingface:/${uuid}/models/checkpoints/co.huggingface:ro")
+    opts+=('--volume'     "${HOME}/lib/com.civitai/models:/${uuid}/models/checkpoints/com.civitai:ro")
+
+    mkdir -p "${HOME}/boot/${uuid}"
+    podman run "${opts[@]}" "${image}" '/entrypoint'
+
+#   kubectl -n "$(hostname)" run -it --rm --image="${image}" -- bash
+
+  else
+
+#   pip install --upgrade     pip
+    pip install --requirement requirements.txt
+
+    python main.py --listen 0.0.0.0
+
+  fi
+
+)

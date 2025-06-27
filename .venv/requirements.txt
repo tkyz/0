@@ -74,6 +74,7 @@ huggingface-hub
 humanfriendly
 idna
 imageio
+imageio-ffmpeg
 importlib_metadata
 importlib_resources
 inflection
@@ -131,7 +132,6 @@ peft
 piexif
 pillow
 pillow-avif-plugin
-pip
 platformdirs
 pluggy
 propcache
