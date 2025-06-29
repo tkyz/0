@@ -22,7 +22,6 @@ nodes:
 #     - {hostPath: "${HOME}/doc",      containerPath: /root/doc}
 #     - {hostPath: "${HOME}/lib",      containerPath: /root/lib}
 #     - {hostPath: "${HOME}/src",      containerPath: /root/src}
-      - {hostPath: "${HOME}/sbin",     containerPath: /root/sbin,     readOnly: true}
       - {hostPath: "${HOME}/.profile", containerPath: /root/.profile, readOnly: true}
       - {hostPath: "${HOME}/.bashrc",  containerPath: /root/.bashrc,  readOnly: true}
       - {hostPath: "${HOME}/setup",    containerPath: /root/setup,    readOnly: true}
@@ -51,7 +50,6 @@ nodes:
       - {hostPath: "${HOME}/doc",      containerPath: /root/doc}
       - {hostPath: "${HOME}/lib",      containerPath: /root/lib}
       - {hostPath: "${HOME}/src",      containerPath: /root/src}
-      - {hostPath: "${HOME}/sbin",     containerPath: /root/sbin,     readOnly: true}
       - {hostPath: "${HOME}/.profile", containerPath: /root/.profile, readOnly: true}
       - {hostPath: "${HOME}/.bashrc",  containerPath: /root/.bashrc,  readOnly: true}
       - {hostPath: "${HOME}/setup",    containerPath: /root/setup,    readOnly: true}

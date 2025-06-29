@@ -8,6 +8,10 @@ set -o pipefail
 
   if ! is_container; then
 
+    if is_sudoer; then
+      sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
+    fi
+
     uuid="$(uuidgen)"
     image='python:3.11'
 
@@ -25,10 +29,11 @@ set -o pipefail
     opts+=('--volume'     "${HOME}/.cache/pip:/root/.cache/pip")
     opts+=('--volume'     "${HOME}/bin/is_container:/usr/local/bin/is_container:ro")
     opts+=('--volume'     "${HOME}/src/com.github/comfyanonymous/ComfyUI:/${uuid}")
+#   opts+=('--volume'     "${HOME}/src/com.github/ltdrdata/ComfyUI-Manager:/${uuid}/custom_nodes/ComfyUI-Manager")
     opts+=('--volume'     "${HOME}/lib/co.huggingface:/${uuid}/models/checkpoints/co.huggingface:ro")
     opts+=('--volume'     "${HOME}/lib/com.civitai/models:/${uuid}/models/checkpoints/com.civitai:ro")
+    opts+=('--volume'     "${HOME}/lib/co.huggingface/comfyanonymous/ControlNet-v1-1_fp16_safetensors:/${uuid}/models/controlnet/co.huggingface/comfyanonymous/ControlNet-v1-1_fp16_safetensors:ro")
 
-    mkdir -p "${HOME}/boot/${uuid}"
     podman run "${opts[@]}" "${image}" '/entrypoint'
 
 #   kubectl -n "$(hostname)" run -it --rm --image="${image}" -- bash
@@ -38,7 +43,7 @@ set -o pipefail
 #   pip install --upgrade     pip
     pip install --requirement requirements.txt
 
-    python main.py --listen 0.0.0.0
+    python main.py --listen
 
   fi
 
