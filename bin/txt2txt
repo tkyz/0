@@ -2,20 +2,13 @@
 
 import os
 import sys
-import re
-import time
-import regex
 import torch
 
 from transformers import (
   AutoTokenizer,
   AutoModelForCausalLM,
   TextStreamer,
-  Trainer,
-  TrainingArguments,
-  DataCollatorForLanguageModeling,
 )
-from datasets import Dataset
 
 home = os.environ.get('HOME')
 
@@ -33,53 +26,14 @@ def main():
 #   prompt = sys.stdin.read()
 #   prompt = sys.stdin.readline()
     prompt = ' '.join(sys.argv[1:])
-#   add_tokens(tokenizer, model, prompt)
 
     input_ids = tokenizer.encode(prompt, add_special_tokens=False, return_tensors='pt')
 #   print(tokenizer.convert_ids_to_tokens(input_ids[0]))
-#   add_tokens(tokenizer, model, tokenizer.decode(input_ids[0]))
 
     output_ids = model.generate(input_ids.to(device=model.device), max_new_tokens=max, temperature=1.0, top_p=1.0, do_sample=True, streamer=streamer)
 #   print(tokenizer.convert_ids_to_tokens(output_ids[0]))
-#   add_tokens(tokenizer, model, tokenizer.decode(output_ids[0]))
 
     break
-
-def add_tokens(tokenizer, model, prompt):
-
-  split_regex = r'[\s\t\r\n\+\-\*/=%_\.:,;\"\'\^\~\(\)\[\]\{\}<>\`\?$&\|#@!0-9\\\\、。！？：；（）「」＜＞＿]+'
-
-  tokens  = set()
-  tokens |= {os.environ.get('openpgp4fpr')}
-# tokens |= set(prompt.splitlines())
-  tokens |= set(re.split(split_regex, prompt))
-  tokens |= set(regex.findall(r'\X', prompt))
-
-  if os.path.isfile(home + '/setup'):
-    with open(home + '/setup', 'r', encoding="UTF-8") as f:
-      data    = f.read()
-#     tokens |= set(data.splitlines())
-      tokens |= set(re.split(split_regex, data))
-      tokens |= set(regex.findall(r'\X', data))
-  if os.path.isfile(home + '/.bash_history'):
-    with open(home + '/.bash_history', 'r', encoding="UTF-8") as f:
-      data    = f.read()
-#     tokens |= set(data.splitlines())
-      tokens |= set(re.split(split_regex, data))
-      tokens |= set(regex.findall(r'\X', data))
-
-  tokens |= set(filter(lambda s: '' != s, tokens))
-  tokens |= {' '}
-  tokens |= {'\s', r'\s'}
-  tokens |= {'\t', r'\t'}
-  tokens |= {'\r', r'\r'}
-  tokens |= {'\n', r'\n'}
-  tokens  = list(map(str, tokens))
-  tokens  = sorted(tokens)
-  tokens  = sorted(tokens, key=len, reverse=True)
-
-  if 0 < tokenizer.add_tokens(tokens):
-    model.resize_token_embeddings(len(tokenizer), mean_resizing=True)
 
 if __name__ == '__main__':
   main()

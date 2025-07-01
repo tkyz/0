@@ -1,5 +1,10 @@
 umask 0022
 
+# perm
+chmod    go-rwx "${HOME}"        &> /dev/null || true
+chmod -R go-rwx "${HOME}/.gnupg" &> /dev/null || true
+chmod -R go-rwx "${HOME}/.ssh"   &> /dev/null || true
+
 # bin
 test -d "${HOME}/.local/bin" && PATH="${HOME}/.local/bin:${PATH}"
 test -d "${HOME}/bin"        && PATH="${HOME}/bin:${PATH}"
@@ -25,6 +30,3 @@ if [[ -d "${HOME}/opt/net.java.jdk" ]]; then
   PATH="${JAVA_HOME}/bin:${PATH}"
 
 fi
-
-# sbin
-test -d "${HOME}/sbin" && PATH="${HOME}/sbin:${PATH}"

@@ -19,7 +19,7 @@ def main():
 
   pipe.to('cuda')
 
-  size_w = 832
+  size_w = 640
   size_h = 480
 
   batch          =  1

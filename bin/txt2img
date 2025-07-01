@@ -36,7 +36,7 @@ def main():
   steps       = 40
   denoising   =  0.8
   batch       =  2
-  count       =  2
+  count       =  1
   output_type = 'latent'
 # output_type = 'pil'
 
