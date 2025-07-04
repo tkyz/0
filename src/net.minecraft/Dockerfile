@@ -2,14 +2,14 @@
 # https://www.minecraft.net/en-us/download/server
 FROM alpine/curl:latest as downloader
 
-ARG MINECRAFT_VERSION=e6ec2f64e6080b9b5d9b471b291c33cc7f509733
+ARG MINECRAFT_VERSION=05e4b48fbc01f0385adb74bcff9751d34552486c
 
 RUN \
   curl -fsSLO "https://launcher.mojang.com/v1/objects/${MINECRAFT_VERSION}/server.jar" || \
   curl -fsSLO "https://piston-data.mojang.com/v1/objects/${MINECRAFT_VERSION}/server.jar"
 
 #----------------------------------------------------------------
-FROM openjdk:25-slim
+FROM openjdk:26-slim
 
 EXPOSE 25565
 

@@ -16,6 +16,8 @@ set -o pipefail
 
   # test
 
+  # doc
+
   # rel
   find "${HOME}/src" -name 'deploy.yml' 2> /dev/null | while read target; do
     pushd "${target%/*}" &> /dev/null

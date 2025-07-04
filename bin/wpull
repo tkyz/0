@@ -87,7 +87,7 @@ set -o pipefail
 
       find "${HOME}/lib" "${HOME}/src" -type d -name '.git' 2> /dev/null | while read base_dir; do
         git -C "${base_dir}" remote -v | awk '{ print $2 }'
-      done | sort --unique | grep -E -e '^(https?)://.*\.git$'
+      done | sort --unique | grep -E -e '^(https?)://.*\.git$' || true
 
       podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>'
 
@@ -96,6 +96,17 @@ set -o pipefail
     cat "${HOME}/list" | while read item; do
       "${BASH_SOURCE}" "${item}"
     done
+
+# elif [[ "${uri}" =~ ^.*\.tar\.gz$ || "${uri}" =~ ^.*\.tgz$ ]]; then
+#   curl -fsSL "${uri}" | tar zxf - --strip-components 1 --no-same-permissions --no-same-owner
+
+# elif [[ "${uri}" =~ ^.*\.zip$ ]]; then
+#   curl -fsSL "${uri}" | bsdtar xf - --strip-components 0
+
+# elif [[ "${uri}" =~ ^.*\.7z$ ]]; then
+#   curl -fsSL  "${url}" 2> /dev/null > file
+#   7z x file
+#   rm file
 
   elif [[ "${uri}" =~ ^docker\.io/[^/]+/[^:]+:.+$ ]]; then
     type_container "${uri}"

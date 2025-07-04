@@ -34,8 +34,8 @@ metadata:
   namespace: ${namespace}
   name: btc
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: btc
   ports:
-    - {protocol: TCP, port: 8333, nodePort: 8333}
+    - {protocol: TCP, port: 8333, nodePort: 38333}

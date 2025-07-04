@@ -1,20 +1,20 @@
 umask 0022
 
-# perm
-chmod    go-rwx "${HOME}"        &> /dev/null || true
-chmod -R go-rwx "${HOME}/.gnupg" &> /dev/null || true
-chmod -R go-rwx "${HOME}/.ssh"   &> /dev/null || true
-
 # bin
 test -d "${HOME}/.local/bin" && PATH="${HOME}/.local/bin:${PATH}"
 test -d "${HOME}/bin"        && PATH="${HOME}/bin:${PATH}"
 
 test -n "${BASH_VERSION}" && test -f "${HOME}/.bashrc" && source "${HOME}/.bashrc"
 
-test 0 == "$(id -u)" && mesg n 2> /dev/null || true
+test 0 == "$(id -u)" && mesg n &> /dev/null || true
 
 #----------------------------------------------------------------
 # ...
+
+# perm
+chmod    go-rwx "${HOME}"        &> /dev/null || true
+chmod -R go-rwx "${HOME}/.gnupg" &> /dev/null || true
+chmod -R go-rwx "${HOME}/.ssh"   &> /dev/null || true
 
 # python
 test -f "${HOME}/.venv/bin/activate" && source "${HOME}/.venv/bin/activate"

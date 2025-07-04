@@ -35,7 +35,6 @@ metadata:
   namespace: ${namespace}
   name: setup
 spec:
-  type: LoadBalancer
   selector:
     app: setup
   ports:

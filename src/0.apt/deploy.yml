@@ -33,11 +33,9 @@ metadata:
   namespace: ${namespace}
   name: apt
 spec:
-  type: LoadBalancer
   selector:
     app: apt
   ports:
-#   - {protocol: TCP, port:  443}
     - {protocol: TCP, port: 3142}
 
 ---

@@ -70,8 +70,8 @@ metadata:
   namespace: ${namespace}
   name: dns
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: dns
   ports:
-    - {protocol: UDP, port: 53, nodePort: 53}
+    - {protocol: UDP, port: 53, nodePort: 30053}

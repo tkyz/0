@@ -32,7 +32,7 @@ metadata:
   namespace: ${namespace}
   name: eth
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: eth
   ports:

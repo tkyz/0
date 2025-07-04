@@ -32,8 +32,8 @@ metadata:
   namespace: ${namespace}
   name: redis
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: redis
   ports:
-    - {protocol: TCP, port: 6379, nodePort: 6379}
+    - {protocol: TCP, port: 6379, nodePort: 36379}

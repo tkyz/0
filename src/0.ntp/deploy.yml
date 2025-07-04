@@ -77,8 +77,8 @@ metadata:
   namespace: ${namespace}
   name: ntp
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: ntp
   ports:
-    - {protocol: UDP, port: 123, nodePort: 123}
+    - {protocol: UDP, port: 123, nodePort: 30123}

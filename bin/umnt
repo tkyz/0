@@ -27,10 +27,10 @@ set -o pipefail
     fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
 
     if [[ 'crypto_LUKS' == "${fstype}" ]]; then
-      ${SUDO} cryptsetup close "${uuid}" || true
+      sudo cryptsetup close "${uuid}" || true
 
     else
-      ${SUDO} fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
+      sudo fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
     fi
 
   # fpr

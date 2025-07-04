@@ -32,16 +32,16 @@ set -o pipefail
   test 'debian' == "${ID_LIKE:-${ID}}"
   test 'bash'   == "${SHELL##*/}"
 
+  if [[ '0' == "$(id -u)" ]]; then
+    SUDO=
+  elif type sudo &> /dev/null && sudo -v -n > /dev/null; then
+    SUDO='sudo'
+  else
+    false
+  fi
+
   function _apt() {
     (
-
-      if [[ '0' == "$(id -u)" ]]; then
-        SUDO=
-      elif type sudo &> /dev/null && sudo -v -n > /dev/null; then
-        SUDO='sudo'
-      else
-        false
-      fi
 
 #     cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > /dev/null
       cat << EOS | ${SUDO} tee '/etc/apt/sources.list'                   > /dev/null
@@ -62,9 +62,10 @@ deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security 
 EOS
 
       items=()
-      items+=('curl')
-      items+=('gnupg2')
+      items+=('uuid-runtime')
       items+=('openssl')
+      items+=('gnupg2')
+      items+=('curl')
       items+=('git')
       items+=('git-crypt')
       items+=('git-lfs')
@@ -145,7 +146,7 @@ EOS
       git gc
 
     )
-  } 2> /dev/null
+  } 2> '/dev/null'
 
   function _venv() {
     (
@@ -167,10 +168,10 @@ EOS
     )
   }
 
-  pushd "${HOME}" &> /dev/null
-    test   -v SUDO      && _apt
-    test ! -d './.git'  && _git
-    test ! -d './.venv' && _venv
-  popd &> /dev/null
+  pushd "${HOME}" &> '/dev/null'
+    _apt
+    _git
+    _venv
+  popd &> '/dev/null'
 
 )

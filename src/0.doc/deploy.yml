@@ -76,7 +76,6 @@ metadata:
   namespace: ${namespace}
   name: doc
 spec:
-  type: LoadBalancer
   selector:
     app: doc
   ports:

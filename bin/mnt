@@ -39,7 +39,7 @@ set -o pipefail
       map_dir="/dev/mapper/${uuid}"
 
       if [[ -f "${gpw_file}" && ! -e "${map_dir}" ]]; then
-        cat "${gpw_file}" | dec | ${SUDO} cryptsetup open --type luks "${name}" "${uuid}" || true
+        cat "${gpw_file}" | dec | sudo cryptsetup open --type luks "${name}" "${uuid}" || true
       fi
 
     elif [[ -n "${fstype}" ]]; then
@@ -66,8 +66,8 @@ set -o pipefail
       mnt_opts="$(IFS=,; echo "${mnt_opts[*]}")"
 
       mkdir -p "${mnt_dir}"
-      ${SUDO} mount --options "${mnt_opts}" UUID="${uuid}" "${mnt_dir}" || rm -d "${mnt_dir}"
-#     echo "UUID=${uuid} ${mnt_dir} ${fstype} ${mnt_opts} 0 0" | ${SUDO} tee --append /etc/fstab
+      sudo mount --options "${mnt_opts}" UUID="${uuid}" "${mnt_dir}" || rm -d "${mnt_dir}"
+#     echo "UUID=${uuid} ${mnt_dir} ${fstype} ${mnt_opts} 0 0" | sudo tee --append /etc/fstab
 
 #     rm "${credentials}"
 

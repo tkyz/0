@@ -34,8 +34,8 @@ metadata:
   namespace: ${namespace}
   name: pgsql
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: pgsql
   ports:
-    - {protocol: TCP, port: 5432, nodePort: 5432}
+    - {protocol: TCP, port: 5432, nodePort: 35432}

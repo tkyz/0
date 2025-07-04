@@ -32,8 +32,8 @@ metadata:
   namespace: ${namespace}
   name: git
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: git
   ports:
-    - {protocol: TCP, port: 9418, nodePort: 9418}
+    - {protocol: TCP, port: 9418, nodePort: 39418}

@@ -34,8 +34,8 @@ metadata:
   namespace: ${namespace}
   name: mariadb
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: mariadb
   ports:
-    - {protocol: TCP, port: 3306, nodePort: 3306}
+    - {protocol: TCP, port: 3306, nodePort: 33306}

@@ -32,7 +32,6 @@ metadata:
   namespace: ${namespace}
   name: container
 spec:
-  type: LoadBalancer
   selector:
     app: container
   ports:
