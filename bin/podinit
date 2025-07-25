@@ -1,0 +1,40 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  nvidia-smi
+
+  if is_sudoer; then
+
+    sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
+
+#   sudo sysctl --write fs.inotify.max_user_instances=1024
+#   sudo sysctl --write fs.inotify.max_user_watches=65536
+    sudo sysctl --write net.ipv4.ip_unprivileged_port_start=53
+
+  fi
+
+  function _compose {
+    cat compose.yml | varsubst | podman-compose --file /dev/stdin "${@}"
+  }
+
+  pushd "${HOME}" &> /dev/null
+    _compose down "${@}"
+    _compose up   "${@}" & # --detach
+  popd &> /dev/null
+
+  while [[ 'running' != "$(_compose ps --format json | jq -r '.[] | select(.Labels."com.docker.compose.service" == "proxy").State')" ]]; do
+    sleep 1
+  done
+
+  if is_sudoer; then
+ #  sudo sysctl --write fs.inotify.max_user_instances=128
+ #  sudo sysctl --write fs.inotify.max_user_watches=8192
+    sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+  fi
+
+)

@@ -52,20 +52,42 @@ set -o pipefail
   if [[ -f './pom.xml' ]]; then
     (
 
-      MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData'
+      uuid="$(uuidgen)"
 
-      opts=()
-      opts+=('--threads' '1C')
-      opts+=('--define'  "version=${tag}")
-      opts+=('--define'  'checkstyle.skip=false')
-      opts+=('--define'  'maven.test.skip=false')
-      opts+=('--define'  'maven.javadoc.skip=false')
-      opts+=('--define'  'assembly.skipAssembly=true')
-      opts+=('clean')
-      opts+=('package')
-#     opts+=('deploy')
+      podman run \
+        --rm \
+        --workdir "/${uuid}" \
+        --volume  ".:/${uuid}" \
+        --volume  "${HOME}/.m2:/root/.m2" \
+        --env     MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData' \
+        maven:latest \
+          mvn \
+            --threads 1C \
+            --define  version="${tag}" \
+            --define  checkstyle.skip=false \
+            --define  maven.test.skip=false \
+            --define  maven.javadoc.skip=false \
+            --define  assembly.skipAssembly=true \
+            clean \
+            package
+#           deploy
 
-      mvn "${opts[@]}" || true
+    )
+  fi
+
+  if [[ -f './build.gradle' ]]; then
+    (
+
+      uuid="$(uuidgen)"
+
+      podman run \
+        --rm \
+        --workdir "/${uuid}" \
+        --volume  ".:/${uuid}" \
+        gradle:latest \
+          gradle \
+            clean \
+            build
 
     )
   fi

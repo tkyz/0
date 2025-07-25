@@ -7,51 +7,16 @@ nodes:
 
   - role: control-plane
     kubeadmConfigPatches:
-      - |
-        kind: ClusterConfiguration
-        apiServer:
-          extraArgs:
-            service-node-port-range: 30000-39999
+#     - |
+#       kind: ClusterConfiguration
+#       apiServer:
+#         extraArgs:
+#           service-node-port-range: 30000-39999
       - |
         kind: InitConfiguration
         nodeRegistration:
           kubeletExtraArgs:
             node-labels: "ingress-ready=true"
-    extraMounts:
-      - {hostPath: "${HOME}/.profile", containerPath: /root/.profile, readOnly: true}
-      - {hostPath: "${HOME}/.bashrc",  containerPath: /root/.bashrc,  readOnly: true}
-    extraPortMappings:
-      # ingress
-      - {hostPort:    80, containerPort:    80, listenAddress: "${external_ip}", protocol: TCP} # http
-      - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: TCP} # https
-      # service
-#     - {hostPort:    53, containerPort: 30053, listenAddress: "${external_ip}", protocol: UDP} # dns
-#     - {hostPort:   123, containerPort: 30123, listenAddress: "${external_ip}", protocol: UDP} # ntp
-      - {hostPort:  3306, containerPort: 33306, listenAddress: "${external_ip}", protocol: TCP} # mysql,mariadb
-      - {hostPort:  5432, containerPort: 35432, listenAddress: "${external_ip}", protocol: TCP} # postgresql
-      - {hostPort:  6379, containerPort: 36379, listenAddress: "${external_ip}", protocol: TCP} # redis
-      - {hostPort:  8333, containerPort: 38333, listenAddress: "${external_ip}", protocol: TCP} # bitcoin
-      - {hostPort:  9418, containerPort: 39418, listenAddress: "${external_ip}", protocol: TCP} # git
-      - {hostPort: 25565, containerPort: 35565, listenAddress: "${external_ip}", protocol: TCP} # minecraft
-      - {hostPort: 30303, containerPort: 30303, listenAddress: "${external_ip}", protocol: TCP} # ethereum
-#     - {hostPort:   443, containerPort:   443, listenAddress: "${external_ip}", protocol: UDP} # quic
-#     - {hostPort:  2181, containerPort:  2181, listenAddress: "${external_ip}", protocol: TCP} # zookeeper
-#     - {hostPort:  6969, containerPort:  6969, listenAddress: "${external_ip}", protocol: TCP} # bittorrent tracker
-#     - {hostPort:  8020, containerPort:  8020, listenAddress: "${external_ip}", protocol: TCP} # hdfs
-#     - {hostPort:  8443, containerPort:  8443, listenAddress: "${external_ip}", protocol: TCP}
 
   - role: worker
-    extraMounts:
-      - {hostPath: "${HOME}/doc",      containerPath: /root/doc}
-      - {hostPath: "${HOME}/lib",      containerPath: /root/lib}
-      - {hostPath: "${HOME}/src",      containerPath: /root/src}
-      - {hostPath: "${HOME}/.profile", containerPath: /root/.profile, readOnly: true}
-      - {hostPath: "${HOME}/.bashrc",  containerPath: /root/.bashrc,  readOnly: true}
-
   - role: worker
-    extraMounts:
-      - {hostPath: "${HOME}/doc",      containerPath: /root/doc}
-      - {hostPath: "${HOME}/lib",      containerPath: /root/lib}
-      - {hostPath: "${HOME}/src",      containerPath: /root/src}
-      - {hostPath: "${HOME}/.profile", containerPath: /root/.profile, readOnly: true}
-      - {hostPath: "${HOME}/.bashrc",  containerPath: /root/.bashrc,  readOnly: true}

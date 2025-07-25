@@ -25,8 +25,9 @@ if [[ -d "${HOME}/opt/net.java.jdk" ]]; then
   export JAVA_HOME="${HOME}/opt/net.java.jdk"
   export CLASSPATH='.:./*'
 
-  test -d "${HOME}/opt/org.apache.ant"   && PATH="${HOME}/opt/org.apache.ant/bin:${PATH}"
-  test -d "${HOME}/opt/org.apache.maven" && PATH="${HOME}/opt/org.apache.maven/bin:${PATH}"
+# test -d "${HOME}/opt/org.apache.ant"   && PATH="${HOME}/opt/org.apache.ant/bin:${PATH}"
+# test -d "${HOME}/opt/org.apache.maven" && PATH="${HOME}/opt/org.apache.maven/bin:${PATH}"
+# test -d "${HOME}/opt/org.gradle"       && PATH="${HOME}/opt/org.gradle/bin:${PATH}"
   PATH="${JAVA_HOME}/bin:${PATH}"
 
 fi

@@ -1,0 +1,337 @@
+version: 3
+services:
+
+  dns:
+    image: docker.io/coredns/coredns:latest
+    container_name: dns
+#   ports:
+#     - 53:53/udp
+#   cap_add:
+#     - NET_ADMIN
+#   command:
+#     - /bin/sh
+#     - -c
+#     - |
+#       cat << EOS | tee /Corefile
+#       .:53 {
+#         errors
+#         log
+#         forward . 127.0.0.11
+#         reload
+#       }
+#       EOS
+
+  ntp:
+#   build: ./src/org.chrony-project
+    image: 'container.${domain}/org.chrony-project:${tag}'
+    container_name: ntp
+    ports:
+      - 123:123/udp
+    cap_add:
+      - SYS_TIME
+
+  proxy:
+    image: docker.io/nginx:latest
+    container_name: proxy
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+#     - {type: bind, source: ./src/0.proxy,                target: /etc/nginx/conf.d,                read_only: true}
+      - {type: bind, source: ./src/0.proxy/default.conf,   target: /etc/nginx/conf.d/default.conf,   read_only: true}
+      - {type: bind, source: ./src/0.proxy/apt.conf,       target: /etc/nginx/conf.d/apt.conf,       read_only: true}
+      - {type: bind, source: ./src/0.proxy/container.conf, target: /etc/nginx/conf.d/container.conf, read_only: true}
+      - {type: bind, source: ./src/0.proxy/doc.conf,       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
+      - {type: bind, source: ./src/0.proxy/setup.conf,     target: /etc/nginx/conf.d/setup.conf,     read_only: true}
+#     - {type: bind, source: ./src/0.proxy/concourse.conf, target: /etc/nginx/conf.d/concourse.conf, read_only: true}
+#     - {type: bind, source: ./src/0.proxy/gitlab.conf,    target: /etc/nginx/conf.d/gitlab.conf,    read_only: true}
+#     - {type: bind, source: ./src/0.proxy/jenkins.conf,   target: /etc/nginx/conf.d/jenkins.conf,   read_only: true}
+#     - {type: bind, source: ./src/0.proxy/redmine.conf,   target: /etc/nginx/conf.d/redmine.conf,   read_only: true}
+#     - {type: bind, source: ./src/0.proxy/wordpress.conf, target: /etc/nginx/conf.d/wordpress.conf, read_only: true}
+#     - {type: bind, source: ./src/0.proxy/comfyui.conf,   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
+#     - {type: bind, source: ./src/0.proxy/chat.conf,      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
+    depends_on:
+      - apt
+      - container
+      - doc
+      - setup
+#     - concourse
+#     - gitlab
+#     - jenkins
+#     - redmine
+#     - wordpress
+#     - comfyui
+#     - chat
+
+  #----------------------------------------------------------------
+ # blockchain
+
+  btc:
+#   build: ./src/org.bitcoin
+    image: 'container.${domain}/org.bitcoin:${tag}'
+    container_name: btc
+    ports:
+      - 8333:8333
+    volumes:
+      - {type: bind, source: ./lib/0.btc,              target: /root/.bitcoin}
+#     - {type: bind, source: ./src/0.btc/bitcoin.conf, target: /root/.bitcoin/bitcoin.conf, read_only: true}
+
+  eth:
+#   build: ./src/org.ethereum
+    image: 'container.${domain}/org.ethereum:${tag}'
+    container_name: eth
+    ports:
+      - 30303:30303
+    volumes:
+      - {type: bind, source: ./lib/0.eth, target: /root/.ethereum}
+
+  #----------------------------------------------------------------
+  # db
+
+  mariadb:
+    image: docker.io/mariadb:latest
+    container_name: mariadb
+    ports:
+      - 3306:3306
+    volumes:
+      - {type: bind, source: ./lib/0.mariadb, target: /var/lib/mysql}
+    environment:
+      MARIADB_ROOT_PASSWORD: mariadb
+
+  pgsql:
+    image: docker.io/postgres:alpine
+    container_name: pgsql
+    ports:
+      - 5432:5432
+    volumes:
+      - {type: bind, source: ./lib/0.pgsql, target: /var/lib/postgresql/data}
+    environment:
+      POSTGRES_PASSWORD: pgsql
+
+  redis:
+    image: docker.io/redis:alpine
+    container_name: redis
+    ports:
+      - 6379:6379
+    volumes:
+      - {type: bind, source: ./lib/0.redis, target: /data}
+
+  mongo:
+    image: docker.io/mongo:latest
+    container_name: mongo
+    ports:
+      - 27017:27017
+    volumes:
+      - {type: bind, source: ./lib/0.mongo, target: /data}
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+
+  #----------------------------------------------------------------
+  # repo
+
+  apt:
+#   build: ./src/org.debian/apt-cacher-ng
+    image: 'container.${domain}/org.debian/apt-cacher-ng:${tag}'
+    container_name: apt
+    expose:
+      - 3142
+    volumes:
+      - {type: bind, source: ./lib/0.apt, target: /var/cache/apt-cacher-ng}
+
+  container:
+    image: docker.io/registry:latest
+    container_name: container
+    expose:
+      - 5000
+    volumes:
+      - {type: bind, source: ./lib/0.container, target: /var/lib/registry/docker/registry}
+
+  git:
+#   build: ./src/com.git-scm/git-daemon
+    image: 'container.${domain}/com.git-scm/git-daemon:${tag}'
+    container_name: git
+    ports:
+      - 9418:9418
+    volumes:
+      - {type: bind, source: ./lib/0.git, target: /var/git}
+
+  #----------------------------------------------------------------
+ # game
+
+  minecraft:
+#   build: ./src/net.minecraft
+    image: 'container.${domain}/net.minecraft:${tag}'
+    container_name: minecraft
+    ports:
+      - 25565:25565
+
+  #----------------------------------------------------------------
+  # gui
+
+  doc:
+    image: docker.io/nginx:latest
+    container_name: doc
+    expose:
+      - 80
+    volumes:
+      - {type: bind, source: ./src/0.doc/nginx.conf,                                   target: /etc/nginx/conf.d/default.conf}
+      - {type: bind, source: ./src/com.github/splitbrain/dokuwiki,                     target: /usr/share/nginx/html,                         read_only: true}
+#     - {type: bind, source: ./src/0.doc/conf,                                         target: /usr/share/nginx/html/conf,                    read_only: true}
+#     - {type: bind, source: ./doc,                                                    target: /usr/share/nginx/html/data/pages,              read_only: true}
+#     - {type: bind, source: ./doc,                                                    target: /usr/share/nginx/html/data/media,              read_only: true}
+      - {type: bind, source: ./src/com.github/splitbrain/dokuwiki-plugin-translation,  target: /usr/share/nginx/html/lib/plugins/translation, read_only: true}
+      - {type: bind, source: ./src/com.github/splitbrain/dokuwiki-plugin-vshare,       target: /usr/share/nginx/html/lib/plugins/vshare,      read_only: true}
+      - {type: bind, source: ./src/com.github/splitbrain/dokuwiki-plugin-gallery,      target: /usr/share/nginx/html/lib/plugins/gallery,     read_only: true}
+      - {type: bind, source: ./src/com.github/Chris--S/dokuwiki-plugin-xbr,            target: /usr/share/nginx/html/lib/plugins/xbr,         read_only: true}
+      - {type: bind, source: ./src/com.github/Chris--S/dokuwiki-plugin-iframe,         target: /usr/share/nginx/html/lib/plugins/iframe,      read_only: true}
+      - {type: bind, source: ./src/com.github/selfthinker/dokuwiki_plugin_wrap,        target: /usr/share/nginx/html/lib/plugins/wrap,        read_only: true}
+      - {type: bind, source: ./src/com.github/hanche/dokuwiki_color_plugin,            target: /usr/share/nginx/html/lib/plugins/color,       read_only: true}
+      - {type: bind, source: ./src/com.github/samuelet/indexmenu,                      target: /usr/share/nginx/html/lib/plugins/indexmenu,   read_only: true}
+      - {type: bind, source: ./src/com.github/lejmr/dokuwiki-plugin-drawio,            target: /usr/share/nginx/html/lib/plugins/drawio,      read_only: true}
+#     - {type: bind, source: ./src/com.gitlab/MatthiasLohr/dokuwiki-barcodes,          target: /usr/share/nginx/html/lib/plugins/Barcodes,    read_only: true}
+      - {type: bind, source: ./src/com.github/giterlizzi/dokuwiki-template-bootstrap3, target: /usr/share/nginx/html/lib/tpl/bootstrap3,      read_only: true}
+    depends_on:
+      - doc-php
+
+  doc-php:
+#   build: ./src/net.php/fpm
+    image: 'container.${domain}/net.php/fpm:${tag}'
+    container_name: doc-php
+    expose:
+      - 9000
+    volumes:
+      - {type: bind, source: ./src/com.github/splitbrain/dokuwiki,                     target: /usr/share/nginx/html}
+      - {type: bind, source: ./src/0.doc/conf,                                         target: /usr/share/nginx/html/conf}
+      - {type: bind, source: ./doc,                                                    target: /usr/share/nginx/html/data/pages}
+      - {type: bind, source: ./doc,                                                    target: /usr/share/nginx/html/data/media}
+      - {type: bind, source: ./src/com.github/splitbrain/dokuwiki-plugin-translation,  target: /usr/share/nginx/html/lib/plugins/translation}
+      - {type: bind, source: ./src/com.github/splitbrain/dokuwiki-plugin-vshare,       target: /usr/share/nginx/html/lib/plugins/vshare}
+      - {type: bind, source: ./src/com.github/splitbrain/dokuwiki-plugin-gallery,      target: /usr/share/nginx/html/lib/plugins/gallery}
+      - {type: bind, source: ./src/com.github/Chris--S/dokuwiki-plugin-xbr,            target: /usr/share/nginx/html/lib/plugins/xbr}
+      - {type: bind, source: ./src/com.github/Chris--S/dokuwiki-plugin-iframe,         target: /usr/share/nginx/html/lib/plugins/iframe}
+      - {type: bind, source: ./src/com.github/selfthinker/dokuwiki_plugin_wrap,        target: /usr/share/nginx/html/lib/plugins/wrap}
+      - {type: bind, source: ./src/com.github/hanche/dokuwiki_color_plugin,            target: /usr/share/nginx/html/lib/plugins/color}
+      - {type: bind, source: ./src/com.github/samuelet/indexmenu,                      target: /usr/share/nginx/html/lib/plugins/indexmenu}
+      - {type: bind, source: ./src/com.github/lejmr/dokuwiki-plugin-drawio,            target: /usr/share/nginx/html/lib/plugins/drawio}
+#     - {type: bind, source: ./src/com.gitlab/MatthiasLohr/dokuwiki-barcodes,          target: /usr/share/nginx/html/lib/plugins/Barcodes}
+      - {type: bind, source: ./src/com.github/giterlizzi/dokuwiki-template-bootstrap3, target: /usr/share/nginx/html/lib/tpl/bootstrap3}
+
+  setup:
+    image: docker.io/nginx:latest
+    container_name: setup
+    expose:
+      - 80
+    volumes:
+      - {type: bind, source: ./src/0.setup/nginx.conf, target: /etc/nginx/conf.d/default.conf}
+      - {type: bind, source: ./setup,                  target: /usr/share/nginx/html/setup,    read_only: true}
+
+  concourse:
+    image: docker.io/library/busybox:latest
+    container_name: concourse
+
+  gitlab:
+#   image: docker.io/gitlab/gitlab-ce:latest
+    image: docker.io/library/busybox:latest
+    container_name: gitlab
+    expose:
+      - 80
+
+  jenkins:
+#   image: docker.io/jenkins/jenkins:latest
+    image: docker.io/library/busybox:latest
+    container_name: jenkins
+    expose:
+      - 8080
+#   ports:
+#     - 50000:50000
+
+  redmine:
+#   image: docker.io/redmine:latest
+    image: docker.io/library/busybox:latest
+    container_name: redmine
+    expose:
+      - 3000
+    environment:
+      REDMINE_DB_MYSQL:    mariadb
+      REDMINE_DB_USERNAME: root
+      REDMINE_DB_PASSWORD: mariadb
+    depends_on:
+      - mariadb
+
+  wordpress:
+#   image: docker.io/wordpress:latest
+    image: docker.io/library/busybox:latest
+    container_name: wordpress
+    expose:
+      - 80
+    environment:
+      WORDPRESS_DB_HOST:     mariadb
+      WORDPRESS_DB_NAME:     wordpress
+      WORDPRESS_DB_USER:     root
+      WORDPRESS_DB_PASSWORD: mariadb
+    depends_on:
+      - mariadb
+
+  comfyui:
+    image: docker.io/python:3.11
+    container_name: comfyui
+    devices:
+      - nvidia.com/gpu=all
+#   expose:
+#     - 8188
+    ports:
+      - 8188:8188
+    volumes:
+      - {type: bind, source: ./.cache/pip,                                                                                   target: /root/.cache/pip}
+      - {type: bind, source: ./src/com.github/comfyanonymous/ComfyUI,                                                        target: /comfyui}
+#     - {type: bind, source: ./src/com.github/ltdrdata/ComfyUI-Manager,                                                      target: /comfyui/custom_nodes/ComfyUI-Manager}
+      - {type: bind, source: ./src/com.github/pythongosssss/ComfyUI-Custom-Scripts,                                          target: /comfyui/custom_nodes/ComfyUI-Custom-Scripts}
+      - {type: bind, source: ./src/com.github/asagi4/comfyui-prompt-control,                                                 target: /comfyui/custom_nodes/comfyui-prompt-control}
+      - {type: bind, source: ./src/com.github/cubiq/ComfyUI_IPAdapter_plus,                                                  target: /comfyui/custom_nodes/ComfyUI_IPAdapter_plus}
+      - {type: bind, source: ./lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors,       target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors,       read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors, target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors, read_only: true}
+      - {type: bind, source: ./lib/com.civitai/models,                                                                       target: /comfyui/models/checkpoints/com.civitai,                                                                              read_only: true}
+#     - {type: bind, source: ./lib/co.huggingface/comfyanonymous/ControlNet-v1-1_fp16_safetensors,                           target: /comfyui/models/controlnet/co.huggingface/comfyanonymous/ControlNet-v1-1_fp16_safetensors,                            read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter/sdxl_models/image_encoder/model.safetensors,                target: /comfyui/models/clip_vision/CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors,                                           read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter/sdxl_models/ip-adapter_sdxl.safetensors,                    target: /comfyui/models/ipadapter/co.huggingface/h94/IP-Adapter/ip-adapter_sdxl.safetensors,                                  read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter/sdxl_models/ip-adapter_sdxl_vit-h.safetensors,              target: /comfyui/models/ipadapter/co.huggingface/h94/IP-Adapter/ip-adapter_sdxl_vit-h.safetensors,                            read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter/sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors,         target: /comfyui/models/ipadapter/co.huggingface/h94/IP-Adapter/ip-adapter-plus_sdxl_vit-h.safetensors,                       read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter/sdxl_models/ip-adapter-plus-face_sdxl_vit-h.safetensors,    target: /comfyui/models/ipadapter/co.huggingface/h94/IP-Adapter/ip-adapter-plus-face_sdxl_vit-h.safetensors,                  read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl.bin,                          target: /comfyui/models/ipadapter/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl.bin,                            read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl.bin,                   target: /comfyui/models/ipadapter/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl.bin,                     read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-portrait_sdxl.bin,                 target: /comfyui/models/ipadapter/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-portrait_sdxl.bin,                   read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-portrait_sdxl_unnorm.bin,          target: /comfyui/models/ipadapter/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-portrait_sdxl_unnorm.bin,            read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl_lora.safetensors,             target: /comfyui/models/loras/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl_lora.safetensors,                   read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl_lora.safetensors,      target: /comfyui/models/loras/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl_lora.safetensors,            read_only: true}
+    working_dir: /comfyui
+    command:
+      - /bin/bash
+      - -c
+      - |
+        cat << EOS | sort -u | pip install --requirement /dev/stdin
+        $(cat requirements.txt)
+        lark
+        pillow
+        insightface
+        onnxruntime
+        onnxruntime-gpu
+        EOS
+        python main.py --listen
+
+  chat:
+    image: docker.io/python:3.11
+    container_name: chat
+    devices:
+      - nvidia.com/gpu=all
+#   expose:
+#     - 7860
+    ports:
+      - 7860:7860
+    volumes:
+      - {type: bind, source: ./.cache/pip,                                                     target: /root/.cache/pip}
+      - {type: bind, source: ./src/com.github/oobabooga/text-generation-webui,                 target: /text-generation-webui}
+      - {type: bind, source: ./lib/co.huggingface/stabilityai/japanese-stablelm-base-gamma-7b, target: /text-generation-webui/user_data/models/japanese-stablelm-base-gamma-7b, read_only: true}
+      - {type: bind, source: ./lib/co.huggingface/stabilityai/japanese-stablelm-base-beta-70b, target: /text-generation-webui/user_data/models/japanese-stablelm-base-beta-70b, read_only: true}
+    working_dir: /text-generation-webui
+    command: ./start_linux.sh
