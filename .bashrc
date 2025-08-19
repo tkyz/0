@@ -82,9 +82,9 @@ if true; then
   touch "${HOME}/.bash_history"
 # cat "${HOME}/.bash_history" | sort -u > "${HOME}/.bash_history.tmp"; mv "${HOME}/.bash_history.tmp" "${HOME}/.bash_history"
 
-  HISTSIZE=131072
-  HISTFILESIZE="${HISTSIZE}"
-  HISTCONTROL=ignorespace:erasedups
+  HISTSIZE='-1'
+  HISTFILESIZE='-1'
+  HISTCONTROL='ignorespace:erasedups'
   HISTIGNORE='pwd:top:htop:history:history *:bg:bg *:fg:fg *:cd *:ls:ls *:la:la *:ll:ll *:fpr:fpr *'
 # HISTTIMEFORMAT='%F %T '
 

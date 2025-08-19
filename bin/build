@@ -8,6 +8,18 @@ set -o pipefail
 
   tag='latest'
 
+  # list...
+  if [[ "${PWD}" =~ ^${HOME}$ ]]; then
+    find './src' -name 'Makefile' -or -name 'build.xml' -or -name 'pom.xml' -or -name 'build.gradle' -or -name 'package.json' -or -name 'Dockerfile' 2> /dev/null | while read target; do
+      pushd "${target%/*}" &> /dev/null
+        build
+#       test
+#       push
+      popd &> /dev/null
+    done
+    exit
+  fi
+
   if [[ "${PWD}" =~ ^${HOME}/src/.*$ ]]; then
 
     name="$(echo "${PWD}" | sed -r "s|^${HOME}/src/||g")"
@@ -22,7 +34,8 @@ set -o pipefail
   fi
 
   echo '---'
-  echo "${PWD}"
+  echo "pwd:  ${PWD}"
+  echo "name: ${name}"
 
   if [[ -f './Makefile' ]]; then
     (

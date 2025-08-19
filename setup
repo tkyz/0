@@ -28,7 +28,7 @@ set -o pipefail
 
 (
 
-  source <(cat /etc/os-release | sed 's/^/readonly /g')
+  source '/etc/os-release'
   test 'debian' == "${ID_LIKE:-${ID}}"
   test 'bash'   == "${SHELL##*/}"
 
@@ -43,8 +43,9 @@ set -o pipefail
   function _apt() {
     (
 
-#     cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > /dev/null
-      cat << EOS | ${SUDO} tee '/etc/apt/sources.list'                   > /dev/null
+#     echo 'APT::Default-Release "stable";' | ${SUDO} tee '/etc/apt/apt.conf.d/00default' > /dev/null
+
+      cat << EOS | ${SUDO} tee '/etc/apt/sources.list' > /dev/null
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
