@@ -6,6 +6,8 @@ RUN \
   apk update && \
   apk upgrade && \
   apk add --no-cache \
+    php84-pdo_sqlite \
+    php84-sqlite3 \
     libpq \
     libjpeg-turbo \
     libpng \
