@@ -111,6 +111,9 @@ set -o pipefail
   elif [[ "${uri}" =~ ^docker\.io/[^/]+/[^:]+:.+$ ]]; then
     type_container "${uri}"
 
+  elif [[ "${uri}" =~ ^ghcr\.io/[^/]+/[^:]+:.+$ ]]; then
+    type_container "${uri}"
+
   elif [[ "${uri}" =~ ^https://github\.com/.+\.git$ ]]; then
 
     git_dir="${HOME}/src"

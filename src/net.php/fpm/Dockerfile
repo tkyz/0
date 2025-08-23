@@ -33,4 +33,7 @@ RUN \
     mbstring \
     exif \
     gd && \
-  apk del --purge .build
+  apk del --purge .build && \
+  sed -i 's/www-data/root/g' /usr/local/etc/php-fpm.d/www.conf
+
+ENTRYPOINT ["php-fpm", "--allow-to-run-as-root"]
