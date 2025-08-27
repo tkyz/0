@@ -130,7 +130,6 @@ entrypoint:
 
   pip:
     pkg:
-      - podman-compose
 
   mnt:
 

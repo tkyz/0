@@ -1,5 +1,5 @@
 container.tld/0.rtorrent:latest
-container.tld/com.git-scm/git-daemon:latest
+container.tld/com.git-scm:latest
 container.tld/io.coredns:latest
 container.tld/net.minecraft:latest
 container.tld/net.php/fpm:latest
