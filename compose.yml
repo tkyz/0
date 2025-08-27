@@ -157,8 +157,8 @@ services:
 
   git:
 #   build:
-#     context: '${HOME}/src/0.git'
-    image: 'container.${domain}/0.git:${tag}'
+#     context: '${HOME}/src/com.git-scm'
+    image: 'container.${domain}/com.git-scm:${tag}'
     container_name: git
     expose:
       - 8080
