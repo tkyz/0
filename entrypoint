@@ -162,6 +162,9 @@ set -o pipefail
       podman volume  prune --force || true
       podman network prune --force || true
 
+    else
+      tmux display-message -p '#S.#I.#P'
+      false
     fi
 
   popd &> /dev/null
