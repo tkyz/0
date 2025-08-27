@@ -44,6 +44,7 @@ services:
       - {type: bind, source: '${HOME}/src/0.proxy/default.conf',   target: /etc/nginx/conf.d/default.conf,   read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/apt.conf',       target: /etc/nginx/conf.d/apt.conf,       read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/container.conf', target: /etc/nginx/conf.d/container.conf, read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/git.conf',       target: /etc/nginx/conf.d/git.conf,       read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/doc.conf',       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/setup.conf',     target: /etc/nginx/conf.d/setup.conf,     read_only: true}
 #     - {type: bind, source: '${HOME}/src/0.proxy/concourse.conf', target: /etc/nginx/conf.d/concourse.conf, read_only: true}
@@ -56,6 +57,7 @@ services:
     depends_on:
       - apt
       - container
+      - git
       - doc
       - setup
 #     - concourse
@@ -136,7 +138,8 @@ services:
   # repo
 
   apt:
-#   build: '${HOME}/src/org.debian/apt-cacher-ng'
+#   build:
+#     context: '${HOME}/src/org.debian/apt-cacher-ng'
     image: 'container.${domain}/org.debian/apt-cacher-ng:${tag}'
     container_name: apt
     expose:
@@ -153,9 +156,12 @@ services:
       - {type: bind, source: '${HOME}/lib/0.container', target: /var/lib/registry/docker/registry}
 
   git:
-#   build: '${HOME}/src/com.git-scm/git-daemon'
-    image: 'container.${domain}/com.git-scm/git-daemon:${tag}'
+#   build:
+#     context: '${HOME}/src/0.git'
+    image: 'container.${domain}/0.git:${tag}'
     container_name: git
+    expose:
+      - 8080
     ports:
       - '${external_ip}:9418:9418'
     volumes:
@@ -172,16 +178,9 @@ services:
     ports:
       - '${external_ip}:11434:11434'
     volumes:
-      - {type: bind, source: '${HOME}/.ollama', target: /root/.ollama}
-#   entrypoint:
-#     - /bin/bash
-#     - -c
-#     - |
-#       echo 'FROM ./xxx.gguf' | ollama create xxx -f '/dev/stdin'
-#       ollama pull llama3.3:70b
-#       ollama pull gemma3:27b
-#       ollama pull gpt-oss:20b
-#       ollama pull gpt-oss:120b
+      - {type: bind, source: '${HOME}/.ollama',                target: /root/.ollama}
+      - {type: bind, source: '${HOME}/lib/co.huggingface',     target: /root/lib/co.huggingface, read_only: true}
+      - {type: bind, source: '${HOME}/lib/com.civitai/models', target: /root/lib/com.civitai,    read_only: true}
 
   minecraft:
 #   build:
@@ -192,7 +191,7 @@ services:
       - '${external_ip}:25565:25565'
 
   #----------------------------------------------------------------
-  # gui
+  # webui
 
   doc:
     image: docker.io/nginx:latest
@@ -244,8 +243,8 @@ services:
       - {type: bind, source: '${HOME}/src/com.github/samuelet/indexmenu',                      target: /usr/share/nginx/html/lib/plugins/indexmenu}
       - {type: bind, source: '${HOME}/src/com.github/lejmr/dokuwiki-plugin-drawio',            target: /usr/share/nginx/html/lib/plugins/drawio}
       - {type: bind, source: '${HOME}/src/com.github/giterlizzi/dokuwiki-template-bootstrap3', target: /usr/share/nginx/html/lib/tpl/bootstrap3}
-    depends_on:
-      - ollama
+#   depends_on:
+#     - ollama
 
   setup:
     image: docker.io/nginx:latest
@@ -253,7 +252,7 @@ services:
     expose:
       - 80
     volumes:
-      - {type: bind, source: '${HOME}/src/0.setup/nginx.conf', target: /etc/nginx/conf.d/default.conf}
+      - {type: bind, source: '${HOME}/src/0.setup/nginx.conf', target: /etc/nginx/conf.d/default.conf, read_only: true}
       - {type: bind, source: '${HOME}/setup',                  target: /usr/share/nginx/html/setup,    read_only: true}
 
   concourse:
@@ -343,7 +342,7 @@ services:
       - {type: bind, source: '${HOME}/src/com.github/kijai/ComfyUI-FramePackWrapper',                                                                      target: /comfyui/custom_nodes/ComfyUI-FramePackWrapper}
       - {type: bind, source: '${HOME}/src/com.github/kijai/ComfyUI-KJNodes',                                                                               target: /comfyui/custom_nodes/ComfyUI-KJNodes}
       - {type: bind, source: '${HOME}/src/com.github/cubiq/ComfyUI_essentials',                                                                            target: /comfyui/custom_nodes/ComfyUI_essentials}
-      - {type: bind, source: '${HOME}/src/com.github//Kosinkadink/ComfyUI-VideoHelperSuite',                                                               target: /comfyui/custom_nodes/ComfyUI-VideoHelperSuite}
+      - {type: bind, source: '${HOME}/src/com.github/Kosinkadink/ComfyUI-VideoHelperSuite',                                                                target: /comfyui/custom_nodes/ComfyUI-VideoHelperSuite}
       - {type: bind, source: '${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors',                             target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors,       read_only: true}
       - {type: bind, source: '${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors',                       target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors, read_only: true}
       - {type: bind, source: '${HOME}/lib/co.huggingface/stabilityai/stable-video-diffusion-img2vid/svd.safetensors',                                      target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-video-diffusion-img2vid/svd.safetensors,                read_only: true}

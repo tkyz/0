@@ -122,28 +122,6 @@ if true; then
 
 fi
 
-# tmux
-if [[ -t 0 && -t 1 && -t 2 ]] && type tmux &> /dev/null; then
-
-  scnt="$(tmux list-sessions 2> /dev/null | wc -l)"
-  wcnt="$(tmux list-windows  2> /dev/null | wc -l)"
-  pcnt="$(tmux list-panes    2> /dev/null | wc -l)"
-
-  if   [[ '0' == "${scnt}" && '0' == "${wcnt}" && '0' == "${pcnt}" && ! -v TMUX ]]; then
-    tmux new-session
-  elif [[ '1' == "${scnt}" && '1' == "${wcnt}" && '1' == "${pcnt}" ]]; then
-    tmux split-window -h
-    tmux split-window -v
-    tmux select-pane -t 0
-  fi
-# tmux attach-session
-
-  unset scnt
-  unset wcnt
-  unset pcnt
-
-fi
-
 # completion
 if true; then
   type podman   &> /dev/null && source <(podman   completion bash)

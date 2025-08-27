@@ -1,0 +1,169 @@
+entrypoint:
+
+  apt:
+
+    repo:
+#     - {name: com.docker,                pub: 'https://download.docker.com/linux/${ID}/gpg',                       source: 'https://download.docker.com/linux/${ID}                          ${VERSION_CODENAME}         stable'}  # https://docs.docker.com/engine/install/debian/
+      - {name: com.nvidia,                pub: 'https://nvidia.github.io/libnvidia-container/gpgkey',               source: 'https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH) /'}                                   # https://nvidia.github.io/nvidia-container-runtime/
+      - {name: com.google.cloud.packages, pub: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg',             source: 'https://packages.cloud.google.com/apt                            cloud-sdk                   main'}    # https://cloud.google.com/storage/docs/gcsfuse-install
+#     - {name: com.google.cloud.packages, pub: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg',             source: 'https://packages.cloud.google.com/apt                            gcsfuse-${VERSION_CODENAME} main'}    # TODO: append
+#     - {name: com.google,                pub: 'https://dl-ssl.google.com/linux/linux_signing_key.pub',             source: 'https://dl.google.com/linux/chrome/deb                           stable                      main'}
+#     - {name: com.microsoft,             pub: 'https://packages.microsoft.com/keys/microsoft.asc',                 source: 'https://packages.microsoft.com/${ID}/${VERSION_ID}/prod          ${VERSION_CODENAME}         main'}    # https://learn.microsoft.com/ja-jp/dotnet/core/install/linux-debian
+      - {name: com.unity,                 pub: 'https://hub.unity3d.com/linux/keys/public',                         source: 'https://hub.unity3d.com/linux/repos/deb                          stable                      main'}    # https://docs.unity3d.com/hub/manual/InstallHub.html
+      - {name: com.nordvpn,               pub: 'https://repo.nordvpn.com/gpg/nordvpn_public.asc',                   source: 'https://repo.nordvpn.com/deb/nordvpn/${ID}                       stable                      main'}    # https://support.nordvpn.com/hc/ja/articles/20196094470929
+      - {name: io.k8s.pkgs,               pub: 'https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key',           source: 'https://pkgs.k8s.io/core:/stable:/v1.33/deb/                     /'}                                   # https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+#     - {name: org.virtualbox,            pub: 'https://www.virtualbox.org/download/oracle_vbox_2016.asc',          source: 'https://download.virtualbox.org/virtualbox/${ID}                 ${VERSION_CODENAME}         contrib'} # https://www.virtualbox.org/wiki/Linux_Downloads
+      - {name: org.virtualbox,            pub: 'https://www.virtualbox.org/download/oracle_vbox_2016.asc',          source: 'https://download.virtualbox.org/virtualbox/${ID}                 bookworm                    contrib'} # TODO: ${VERSION_CODENAME}
+      - {name: org.winehq,                pub: 'https://dl.winehq.org/wine-builds/winehq.key',                      source: 'https://dl.winehq.org/wine-builds/${ID}                          ${VERSION_CODENAME}         main'}    # https://gitlab.winehq.org/wine/wine/-/wikis/Debian-Ubuntu
+#     - {name: org.apache.bigtop,         pub: 'https://dlcdn.apache.org/bigtop/bigtop-3.3.0/repos/GPG-KEY-bigtop', source: 'http://repos.bigtop.apache.org/releases/3.3.0/${ID}/11/\$(ARCH)  bigtop                      contrib'}
+#     - {name: org.torproject,            pub: null,                                                                source: null}                                                                                                   # https://support.torproject.org/apt/
+#     - {name: build.bazel,               pub: 'https://bazel.build/bazel-release.pub.gpg',                         source: 'http://storage.googleapis.com/bazel-apt                          stable                      jdk1.8'}
+
+    pkg:
+
+      # shell
+      - bash-completion
+#     - zsh
+#     - fish
+
+      # hw
+      - lshw
+      - lsscsi
+      - usbutils
+
+      # fw
+      - firmware-linux
+      - firmware-realtek
+      - firmware-iwlwifi
+
+      # vol
+      - parted
+      - cryptsetup
+      - lvm2
+
+      # nw
+      - openssl
+      - openssh-client
+      - openssh-server
+      - ncat
+      - nmap
+      - tcpdump
+
+      # fuse
+      - fuse
+      - archivemount
+      - cifs-utils
+
+      # gpu
+      - nvidia-container-toolkit
+      - nvidia-kernel-dkms
+      - nvidia-driver
+      - nvidia-detect
+      - nvidia-smi
+
+      # archive
+      - libarchive-tools
+      - unar
+      - zip
+
+      # vm
+      - qemu-system
+      - qemu-kvm
+      - libvirt-daemon-system
+      - libvirt-daemon
+      - virtinst
+      - virt-manager
+      - bridge-utils
+      - libosinfo-bin
+
+      # container
+      - podman
+      - containerd.io
+
+      # k8s
+      - kubectl
+#     - kubelet
+#     - kubeadm
+
+      # locale
+      - locales-all
+      - task-japanese
+      - fonts-dejavu-core
+
+      # cloud
+#     - google-cloud-cli
+#     - awscli
+#     - nordvpn
+
+      - util-linux
+      - procps
+      - faketime
+      - pkg-config
+      - gettext-base
+
+      - ufw
+      - rkhunter
+      - clamav
+
+      - rsync
+      - xsel
+      - parallel
+      - nkf
+      - htop
+      - tmux
+      - qrencode
+      - cups
+
+      - vim
+#     - emacs
+
+      - moreutils
+      - aria2
+      - ffmpeg
+      - webp-pixbuf-loader
+      - libcairo2
+      - build-essential
+      - libglfw3-dev
+      - libgles2-mesa-dev
+      - libcairo2-dev
+#     - winehq-stable
+
+  pip:
+    pkg:
+      - podman-compose
+
+  mnt:
+
+  lib:
+
+  opt:
+
+  src:
+
+    # pki
+    - https://github.com/OpenSC/OpenSC.git
+    - https://github.com/jpki/OpenSC.git
+    - https://github.com/jpki/myna.git
+
+    # wiki
+    - https://github.com/splitbrain/dokuwiki.git
+    - https://github.com/splitbrain/dokuwiki-plugin-gallery.git
+    - https://github.com/splitbrain/dokuwiki-plugin-translation.git
+    - https://github.com/splitbrain/dokuwiki-plugin-vshare.git
+    - https://github.com/Chris--S/dokuwiki-plugin-iframe.git
+    - https://github.com/Chris--S/dokuwiki-plugin-xbr.git
+    - https://github.com/selfthinker/dokuwiki_plugin_wrap.git
+    - https://github.com/hanche/dokuwiki_color_plugin.git
+    - https://github.com/lejmr/dokuwiki-plugin-drawio.git
+    - https://github.com/samuelet/indexmenu.git
+    - https://github.com/cosmocode/dokuwiki-plugin-aichat.git
+    - https://github.com/giterlizzi/dokuwiki-template-bootstrap3.git
+
+    # comfyui
+    - https://github.com/comfyanonymous/ComfyUI.git
+    - https://github.com/ltdrdata/ComfyUI-Manager.git
+    - https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git
+    - https://github.com/asagi4/comfyui-prompt-control.git
+    - https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
+    - https://github.com/space-nuko/ComfyUI-OpenPose-Editor.git
+    - https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git

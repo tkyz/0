@@ -170,9 +170,13 @@ EOS
   }
 
   pushd "${HOME}" &> '/dev/null'
+
     _apt
     _git
     _venv
+
+#   './entrypoint'
+
   popd &> '/dev/null'
 
 )
