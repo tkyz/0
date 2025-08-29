@@ -9,7 +9,7 @@ set -o pipefail
 
     is_venv
 
-    mkdir -p './blob'
+    mkdir -p './doc'
 
     source '/etc/os-release'
 
@@ -33,7 +33,7 @@ set -o pipefail
     done
 
     # machine_id
-    if [[ ! -f "./blob/${machine_id}" ]]; then
+    if [[ ! -e "./doc/machine_id/${machine_id}" ]]; then
 
       sudo -v -n
 
@@ -80,18 +80,18 @@ set -o pipefail
 
       build
 
-      touch "./blob/${machine_id}"
+      touch "./doc/machine_id/${machine_id}"
 
     fi
 
     # boot_id
-    if [[ ! -f "./blob/${boot_id}" ]]; then
+    if [[ ! -e "./doc/boot_id/${boot_id}" ]]; then
 
       sudo -v -n
 
       sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
 
-      touch "./blob/${boot_id}"
+      touch "./doc/boot_id/${boot_id}"
 
     fi
 
@@ -112,14 +112,11 @@ set -o pipefail
     if ! type tmux &> /dev/null || [[ -v TMUX && '0.0.0' == "$(tmux display-message -p '#S.#I.#P')" ]]; then
 
       # fpr
+      mkdir -p "./doc/openpgp4fpr"
 #     gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
       gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
-
-        mkdir -p "./blob/${fpr}"
-
-#       gpg --batch --yes --export-secret-keys --armor --output "./blob/${fpr}/key" "0x${fpr}" 2> /dev/null || true
-        gpg --batch --yes --export             --armor --output "./blob/${fpr}/pub" "0x${fpr}"
-
+#       gpg --batch --yes --export-secret-keys --armor --output "./doc/openpgp4fpr/${fpr}.key" "0x${fpr}" 2> /dev/null || true
+        gpg --batch --yes --export             --armor --output "./doc/openpgp4fpr/${fpr}"     "0x${fpr}"
       done
 
       # git

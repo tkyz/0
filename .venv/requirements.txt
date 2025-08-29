@@ -68,10 +68,12 @@ opentelemetry-semantic-conventions
 orjson
 overrides
 packaging
+podman
 podman-compose
 posthog
 propcache
 protobuf
+psutil
 pyasn1
 pyasn1_modules
 pybase64
@@ -83,6 +85,7 @@ PyPika
 pyproject_hooks
 python-dateutil
 python-dotenv
+python-nmap
 PyYAML
 referencing
 requests
