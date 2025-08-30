@@ -24,7 +24,7 @@ set -o pipefail
     mime="$(file --mime-type --brief "${target_file}")"
     dir="${name%.*}"
 
-    pushd "${path}"
+    pushd "${path}" &> /dev/null
 
       if [[ 'application/zip' == "${mime}" ]]; then
 
@@ -32,11 +32,17 @@ set -o pipefail
 
         unar -output-directory "${dir}" "${name}"
 
+      elif [[ 'application/vnd.microsoft.portable-executable' == "${mime}" ]]; then
+
+        mkdir -p "${dir}"
+
+        7z x "${name}" "-o${dir}"
+
       else
         echo "unsupported. ${mime}" >&2
       fi
 
-    popd
+    popd &> /dev/null
 
   fi
 

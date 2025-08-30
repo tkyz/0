@@ -1,3 +1,5 @@
+定期的に[``rebase``](https://git-scm.com/docs/git-rebase)->[``force-push``](https://git-scm.com/docs/git-push)します。
+
 ```bash
 ( curl "file://${HOME}/setup" || curl "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 ```

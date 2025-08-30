@@ -1,6 +1,9 @@
+<wrap round important>定期的に[[https://git-scm.com/docs/git-rebase|rebase]]->[[https://git-scm.com/docs/git-push|force-push]]します。</wrap>
+
 <code bash>
 ( curl "file://${HOME}/setup" || curl "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 </code>
+
 ----
 <WRAP group>
 <WRAP column box round centeralign>{{btc:logo.png?nolink&0x20}} btc \\ {{btc:bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0.svg?nolink&64}}</WRAP>
@@ -8,5 +11,6 @@
 <WRAP column box round centeralign>{{sol:logo.png?nolink&0x20}} sol \\ {{sol:BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu.svg?nolink&64}}</WRAP>
 <WRAP column box round centeralign>{{xrp:logo.png?nolink&0x20}} xrp \\ {{xrp:rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL.svg?nolink&64}}</WRAP>
 </WRAP>
+
 ----
 <aichat></aichat>
