@@ -1,4 +1,4 @@
-entrypoint:
+setup:
 
   apt:
 
@@ -128,10 +128,8 @@ entrypoint:
       - libcairo2-dev
 #     - winehq-stable
 
-  pip:
-    pkg:
-
   mnt:
+#   - {key: null, dir: null}
 
   lib:
 
