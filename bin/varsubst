@@ -20,7 +20,7 @@ set -o pipefail
 
   sed_opts+=('-e' "s|\${uid}|$(id -u)|g")
   sed_opts+=('-e' "s|\${gid}|$(id -g)|g")
-  sed_opts+=('-e' "s|\${USER}|${USER}|g")
+  sed_opts+=('-e' "s|\${USER}|${USER:-root}|g")
   sed_opts+=('-e' "s|\${HOME}|${HOME}|g")
 
   sed_opts+=('-e' "s|\${domain}|${domain}|g")

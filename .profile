@@ -19,9 +19,6 @@ chmod -R go-rwx "${HOME}/.ssh"   &> /dev/null || true
 # git
 export GIT_DISCOVERY_ACROSS_FILESYSTEM=1
 
-# python
-test -f "${HOME}/.venv/bin/activate" && source "${HOME}/.venv/bin/activate"
-
 # java
 if [[ -d "${HOME}/opt/net.java.jdk" ]]; then
 
@@ -38,3 +35,6 @@ if [[ -d "${HOME}/opt/net.java.jdk" ]]; then
   done < <(find "${HOME}/.m2/repository/0" -mindepth 3 -maxdepth 3 -type f -name '*-latest.jar')
 
 fi
+
+# python
+test -f "${HOME}/.venv/bin/activate" && source "${HOME}/.venv/bin/activate"
