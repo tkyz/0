@@ -26,11 +26,10 @@ home      = os.environ.get('HOME')
 doc_path  = Path(home + '/doc')
 blob_path = Path(home + '/blob')
 
-mime = magic.Magic(mime=True)
-
+#mime = magic.Magic(mime=True)
 #conn = sqlite3.connect(dbname)
-emb  = OllamaEmbeddings(model='mxbai-embed-large', base_url='http://ollama.' + domain + ':11434')
-vdb  = Chroma(host='chroma.' + domain, port=8000, embedding_function=emb)
+#emb  = OllamaEmbeddings(model='mxbai-embed-large', base_url='http://ollama.' + domain + ':11434')
+#vdb  = Chroma(host='chroma.' + domain, port=8000, embedding_function=emb)
 
 def mksrc():
 
@@ -49,7 +48,7 @@ def mkpod():
     name = pod['Names'][0]
     port = pod['Ports']
 
-    touch(doc_path.joinpath(name, 'start.txt'))
+    touch(doc_path.joinpath('pod', name, 'start.txt'))
 
 def mkip():
 
@@ -62,10 +61,48 @@ def mkip():
         mask = snic.netmask
 
         if socket.AF_INET == snic.family:
-          touch(doc_path.joinpath('ipv4', addr.replace('.', '/'), 'start.txt'))
+          addr_dir = addr.replace('.', '/')
+          touch(doc_path.joinpath('ipv4', addr_dir, 'start.txt'))
+
+        elif socket.AF_INET6 == snic.family:
+          addr_dir = ipaddress.IPv6Address(re.sub('%.*', '', addr)).exploded.replace(':', '/')
+          touch(doc_path.joinpath('ipv6', addr_dir, 'start.txt'))
 
         else:
           print(snic)
+
+def mkblob():
+
+  queue = [str(blob_path)]
+
+  while 0 < len(queue):
+
+    q = queue.pop()
+
+    # walk
+    files = []
+    dirs  = []
+    for item in os.listdir(q):
+
+      item_path = q + '/' + item
+
+      if os.path.islink(item_path):
+        continue
+
+      # ignore
+      if q == str(blob_path) and re.search(r'^[0-9a-fA-F]{2}$', item):
+        continue
+      if re.search(r'^\..*$', item):
+        continue
+      if re.search(r'(^_.*|.*_$)', item):
+        continue
+
+      if os.path.isfile(item_path):
+        files.append(item)
+
+      elif os.path.isdir(item_path):
+        dirs.append(item)
+        queue.append(item_path)
 
 def touch(path):
   path.parent.mkdir(parents=True, exist_ok=True)
@@ -76,7 +113,8 @@ def run():
   mksrc()
   mkpod()
   mkip()
-  touch(Path(home + '/src/0.doc/conf/local.php'))
+  mkblob()
+  touch(Path(home, 'src/0.doc/conf/local.php'))
 
 if __name__ == '__main__':
   run()

@@ -14,7 +14,7 @@ set -o pipefail
   # list...
   if [[ -z "${mnt_key}" ]]; then
     {
-      find "${HOME}/boot" -mindepth 1 -maxdepth 1 | sed 's|.*/||g'
+#     find "${HOME}/boot" -mindepth 1 -maxdepth 1 | sed 's|.*/||g'
       lsblk --all --fs --json --paths | jq -cr '.. | objects | .uuid | select(. != null)'
     } 2> /dev/null | sort --unique | while read item; do
       "${BASH_SOURCE}" "${item}"
