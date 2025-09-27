@@ -319,6 +319,7 @@ EOS
     boot_id="$(boot_id)"
     openpgp4fpr="$(openpgp4fpr)"
 
+    test ! -e "${blob_dir}/${boot_id}"    && true  && true           && license > './LICENSE'
     test ! -e './.venv/bin/activate'      && true  && true           && _venv
     ! is_venv                             && true  && true           && source './.venv/bin/activate'
     test ! -e "${blob_dir}/${machine_id}" && _sudo && ! is_container && _apt2

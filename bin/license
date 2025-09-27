@@ -4,8 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-(
-  cat << EOS | tee "${home}/LICENSE"
+cat << EOS
 MIT License
 
 Copyright (c) $(date +'%Y') openpgp4fpr:$(openpgp4fpr)
@@ -28,4 +27,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 EOS
-) 2> /dev/null
