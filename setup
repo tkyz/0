@@ -2,6 +2,7 @@
 : << 'END_OF_BATCH'
 @rem ================================ windows batch [ms932, crlf] ================================
 @echo off
+
 setlocal
 
   cd /d "%USERPROFILE%"
@@ -22,6 +23,7 @@ endlocal
 exit /b
 END_OF_BATCH
 # ================================ linux shell script [utf8, lf] ================================
+
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -50,7 +52,7 @@ set -o pipefail
   function _apt() {
     (
 
-      echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
+#     echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
 
       cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
