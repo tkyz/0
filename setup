@@ -50,7 +50,7 @@ set -o pipefail
   function _apt() {
     (
 
-#     echo 'APT::Default-Release "stable";' | ${SUDO} tee '/etc/apt/apt.conf.d/00default' > '/dev/null'
+      echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
 
       cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
@@ -157,7 +157,6 @@ EOS
 #     git init --object-format=sha256 .
       git init .
 
-      domain="$(hostname -d)"
       repopath='tkyz/0.git'
       git_remote='origin';    git_uri="${HOME}/lib/0.git/0.git";          git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
       git_remote="${domain}"; git_uri="git://git.${domain}/0.git";        git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
@@ -308,6 +307,8 @@ EOS
   # main
 
   pushd "${HOME}" &> '/dev/null'
+
+    domain="$(hostname -d)"
 
     test ! -e './.git' && _sudo && _apt
     test ! -e './.git' && true  && _git

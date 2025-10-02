@@ -43,7 +43,6 @@ services:
     volumes:
 #     - {type: bind, source: '${HOME}/src/0.proxy',                target: /etc/nginx/conf.d,                read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/default.conf',   target: /etc/nginx/conf.d/default.conf,   read_only: true}
-#     - {type: bind, source: '${HOME}/src/0.proxy/apt.conf',       target: /etc/nginx/conf.d/apt.conf,       read_only: true}
 #     - {type: bind, source: '${HOME}/src/0.proxy/container.conf', target: /etc/nginx/conf.d/container.conf, read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/git.conf',       target: /etc/nginx/conf.d/git.conf,       read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/doc.conf',       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
@@ -53,7 +52,6 @@ services:
 #     - {type: bind, source: '${HOME}/src/0.proxy/comfyui.conf',   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
 #     - {type: bind, source: '${HOME}/src/0.proxy/chat.conf',      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
     depends_on:
-#     - apt
 #     - container
       - git
       - doc
@@ -150,13 +148,12 @@ services:
   # repo
 
   apt:
-#   build:
-#     context: '${HOME}/src/org.debian/apt-cacher-ng'
-#   image: 'container.${domain}/org.debian/apt-cacher-ng:${tag}'
-    image: docker.io/library/busybox:latest
+    build:
+      context: '${HOME}/src/org.debian/apt-cacher-ng'
+    image: 'container.${domain}/org.debian/apt-cacher-ng:${tag}'
     container_name: apt
-    expose:
-      - 3142
+    ports:
+      - '${external_ip}:3142:3142'
     volumes:
       - {type: bind, source: '${HOME}/lib/0.apt', target: /var/cache/apt-cacher-ng}
 
