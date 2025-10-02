@@ -230,17 +230,22 @@ EOS
     )
   }
 
-  function _exp() {
-
-    # cdi
+  function _cdi() {
     ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
+  }
+
+  function _exp() {
 
     # gpg
 #   gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
     gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
-      mkdir -p "${blob_dir}/${fpr}"
-#     gpg --batch --yes --export-secret-keys --armor --output "${blob_dir}/${fpr}/key" "0x${fpr}" 2> '/dev/null' || true
-      gpg --batch --yes --export             --armor --output "${blob_dir}/${fpr}/pub" "0x${fpr}"
+
+      exp_dir="${blob_dir}/${fpr}"
+      mkdir -p "${exp_dir}"
+
+#     gpg --batch --yes --export-secret-keys --armor --output "${exp_dir}/key" "0x${fpr}" 2> '/dev/null' || true
+      gpg --batch --yes --export             --armor --output "${exp_dir}/pub" "0x${fpr}"
+
     done
 
     # git
@@ -291,7 +296,7 @@ EOS
   }
 
   function _tmux() {
-    if ! is_tmux && ! tmux list-sessions &> '/dev/null'; then
+    if ! tmux list-sessions &> '/dev/null'; then
       tmux new-session -d
 #     tmux split-window -h htop
       tmux select-pane -t 0
@@ -321,16 +326,15 @@ EOS
     test ! -e "${blob_dir}/${boot_id}"    && true  && true           && license > './LICENSE'
     test ! -e './.venv/bin/activate'      && true  && true           && _venv
     ! is_venv                             && true  && true           && source './.venv/bin/activate'
-
     test ! -e "${blob_dir}/${machine_id}" && _sudo && ! is_container && _apt2
+    test ! -e "${blob_dir}/${boot_id}"    && _sudo && ! is_container && _cdi
     test ! -e "${blob_dir}/${boot_id}"    && _sudo && ! is_container && _mnt
-
     test ! -e "${blob_dir}/${machine_id}" && true  && ! is_container && _src
     test ! -e "${blob_dir}/${machine_id}" && true  && ! is_container && _lib
     test ! -e "${blob_dir}/${machine_id}" && true  && ! is_container && _opt
     test ! -e "${blob_dir}/${machine_id}" && true  && ! is_container && _build
-    test ! -e "${blob_dir}/${boot_id}"    && _sudo && ! is_container && _exp
-    true                                  && true  && ! is_container && _tmux
+    test ! -e "${blob_dir}/${boot_id}"    && true  && ! is_container && _exp
+    ! is_tmux                             && true  && ! is_container && _tmux
 
     mkdir -p "${blob_dir}/${machine_id}"
     mkdir -p "${blob_dir}/${boot_id}"
