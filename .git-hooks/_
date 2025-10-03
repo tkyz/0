@@ -47,7 +47,7 @@ set -o pipefail
   }
 
   #----------------------------------------------------------------
-  # client hook
+  # local hook
 
   if [[ 'pre-commit' == "${hook_name}" ]]; then
     _debug
