@@ -8,25 +8,40 @@ set -o pipefail
 
   hook_name="${0##*/}"
 
+  stdin=($(cat /dev/stdin))
+
   function _debug() {
+    printf "\e[2m"
+    echo '---'
+    echo "${0}:"
+    echo '  env:'
+    export | sed 's/declare -x /    - /g'
+    echo '  args:'
+    for item in "${@}"; do
+      echo "    - ${item}"
+    done
+    echo '  stdin:'
+    for item in "${stdin[@]}"; do
+      echo "    - ${item}"
+    done
+    printf "\e[0m"
+  }
+
+  function _validate() {
     (
 
-      stdin=($(cat /dev/stdin))
+      grep_opts=()
+      grep_opts+=('-n')
+      grep_opts+=('-E')
+      grep_opts+=('-e' "${USER}")
+      grep_opts+=('-e' "${HOME}")
 
-      printf "\e[2m"
-      echo '---'
-      echo "${0}:"
-      echo '  env:'
-      export | sed 's/declare -x /    - /g'
-      echo '  args:'
-      for item in "${@}"; do
-        echo "    - ${item}"
+      {
+#       git diff          --name-only
+        git diff --cached --name-only
+      } | sort --unique | while read file; do
+        ! git show ":${file}" | grep "${grep_opts[@]}" | awk -v f="${file}" '{print f " #" $0}'
       done
-      echo '  stdin:'
-      for item in "${stdin[@]}"; do
-        echo "    - ${item}"
-      done
-      printf "\e[0m"
 
     )
   }
@@ -36,21 +51,8 @@ set -o pipefail
 
 # post-checkout
   if [[ 'pre-commit' == "${hook_name}" ]]; then
-
     _debug
-
-    grep_opts=()
-    grep_opts+=('-n')
-    grep_opts+=('-E')
-    grep_opts+=('-e' "${USER}")
-    grep_opts+=('-e' "${HOME}")
-
-    {
-#     git diff          --name-only
-      git diff --cached --name-only
-    } | sort --unique | while read file; do
-      ! git show ":${file}" | grep "${grep_opts[@]}" | awk -v f="${file}" '{print f " #" $0}'
-    done
+    _validate
 
   elif [[ 'prepare-commit-msg' == "${hook_name}" ]]; then
     _debug
@@ -69,6 +71,7 @@ set -o pipefail
 
   elif [[ 'pre-receive' == "${hook_name}" ]]; then
     _debug
+    _validate
 
   elif [[ 'update' == "${hook_name}" ]]; then
     _debug
