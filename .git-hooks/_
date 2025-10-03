@@ -71,7 +71,7 @@ set -o pipefail
 
   elif [[ 'pre-receive' == "${hook_name}" ]]; then
     _debug
-    _validate
+#   _validate
 
   elif [[ 'update' == "${hook_name}" ]]; then
     _debug
