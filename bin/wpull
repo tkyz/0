@@ -94,17 +94,6 @@ set -o pipefail
       "${BASH_SOURCE}" "${item}"
     done
 
-# elif [[ "${uri}" =~ ^.*\.tar\.gz$ || "${uri}" =~ ^.*\.tgz$ ]]; then
-#   curl -fsSL "${uri}" | tar zxf - --strip-components 1 --no-same-permissions --no-same-owner
-
-# elif [[ "${uri}" =~ ^.*\.zip$ ]]; then
-#   curl -fsSL "${uri}" | bsdtar xf - --strip-components 0
-
-# elif [[ "${uri}" =~ ^.*\.7z$ ]]; then
-#   curl -fsSL  "${url}" 2> /dev/null > file
-#   7z x file
-#   rm file
-
   elif [[ "${uri}" =~ ^docker\.io/[^/]+/[^:]+:.+$ ]]; then
     type_container "${uri}"
 
@@ -134,6 +123,17 @@ set -o pipefail
     git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
 
     type_git "${git_dir}" 'huggingface' "${uri}"
+
+# elif [[ "${uri}" =~ ^.*\.tar\.gz$ || "${uri}" =~ ^.*\.tgz$ ]]; then
+#   curl -fsSL "${uri}" | tar zxf - --strip-components 1 --no-same-permissions --no-same-owner
+
+# elif [[ "${uri}" =~ ^.*\.zip$ ]]; then
+#   curl -fsSL "${uri}" | bsdtar xf - --strip-components 0
+
+# elif [[ "${uri}" =~ ^.*\.7z$ ]]; then
+#   curl -fsSL  "${url}" 2> /dev/null > file
+#   7z x file
+#   rm file
 
   fi
 

@@ -3,6 +3,7 @@ setup:
   apt:
 
     repo:
+#     - ppa:obsproject/obs-studio
 #     - {name: com.docker,                pub: 'https://download.docker.com/linux/${ID}/gpg',                       source: 'https://download.docker.com/linux/${ID}                         ${VERSION_CODENAME}         stable'}  # https://docs.docker.com/engine/install/debian/
       - {name: com.nvidia,                pub: 'https://nvidia.github.io/libnvidia-container/gpgkey',               source: 'https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH) /'}                                   # https://nvidia.github.io/nvidia-container-runtime/
       - {name: com.google.cloud.packages, pub: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg',             source: 'https://packages.cloud.google.com/apt                           cloud-sdk                   main'}    # https://cloud.google.com/storage/docs/gcsfuse-install
@@ -120,16 +121,19 @@ setup:
       - moreutils
       - aria2
       - ffmpeg
-      - webp-pixbuf-loader
       - libcairo2
       - build-essential
       - libglfw3-dev
       - libgles2-mesa-dev
       - libcairo2-dev
+
+      # x11
+#     - obs-studio
 #     - winehq-stable
+      - webp-pixbuf-loader
 
   mnt:
-#   - {key: null, dir: null}
+#   - {key: 00000000-0000-0000-0000-000000000000, dir: null}
 
   lib:
 
