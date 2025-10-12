@@ -61,15 +61,15 @@ set -o pipefail
           true
         fi
 
-        git branch --set-upstream-to="${remote}/main"   ||
-        git branch --set-upstream-to="${remote}/master" ||
-        git branch --set-upstream-to="${remote}/trunk"  ||
+        git branch --set-upstream-to="${remote}/main"   2> '/dev/null' ||
+        git branch --set-upstream-to="${remote}/master" 2> '/dev/null' ||
+        git branch --set-upstream-to="${remote}/trunk"                 ||
         true
 
         git gc
         git status
 
-      } 2> /dev/null
+      }
 
     popd &> /dev/null
 

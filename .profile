@@ -22,17 +22,17 @@ export GIT_DISCOVERY_ACROSS_FILESYSTEM=1
 # java
 if [[ -d "${HOME}/opt/net.java.jdk" ]]; then
 
-# test -d "${HOME}/opt/org.apache.ant"   && PATH="${HOME}/opt/org.apache.ant/bin:${PATH}"
-# test -d "${HOME}/opt/org.apache.maven" && PATH="${HOME}/opt/org.apache.maven/bin:${PATH}"
-# test -d "${HOME}/opt/org.gradle"       && PATH="${HOME}/opt/org.gradle/bin:${PATH}"
-  true                                   && PATH="${JAVA_HOME}/bin:${PATH}"
-
   export JAVA_HOME="${HOME}/opt/net.java.jdk"
 
   export CLASSPATH='.:./*'
   test -d "${HOME}/.m2/repository/0" && while read item; do
     CLASSPATH="${item}:${CLASSPATH}"
   done < <(find "${HOME}/.m2/repository/0" -mindepth 3 -maxdepth 3 -type f -name '*-latest.jar')
+
+# test -d "${HOME}/opt/org.apache.ant/bin"   && PATH="${HOME}/opt/org.apache.ant/bin:${PATH}"
+# test -d "${HOME}/opt/org.apache.maven/bin" && PATH="${HOME}/opt/org.apache.maven/bin:${PATH}"
+# test -d "${HOME}/opt/org.gradle/bin"       && PATH="${HOME}/opt/org.gradle/bin:${PATH}"
+  true                                       && PATH="${JAVA_HOME}/bin:${PATH}"
 
 fi
 

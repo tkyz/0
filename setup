@@ -95,7 +95,6 @@ EOS
   function _apt() {
     (
 
-      # TODO: add-apt-repository
       echo "${setup_yml}" | yq -rc '.setup.apt.repo[]?' | while read item; do
 
         name="$(  echo "${item}" | yq -rc .name)"
@@ -263,6 +262,10 @@ EOS
 
   }
 
+  function _wine() {
+    winetricks cjkfonts
+  }
+
   function _build() {
     build
     echo "${compose_yml}" | podman-compose --file '/dev/stdin' build
@@ -327,7 +330,7 @@ EOS
     test ! -e "${dat_dir}/${machine_id}" && is_setup=
     test ! -e "${dat_dir}/${boot_id}"    && is_boot=
 
-    # sudo
+    _sudo || true
     test -v is_setup && _sudo
     test -v is_boot  && _sudo
 
@@ -341,6 +344,7 @@ EOS
     test -v is_setup && ! is_container && _lib
     test -v is_setup && ! is_container && _opt
     test -v is_setup && ! is_container && _build
+    test -v is_setup && ! is_container && _wine
     test -v is_boot  && true           && _exp
 
     mkdir -p './doc'
@@ -350,14 +354,13 @@ EOS
     mkdir -p "${dat_dir}/${machine_id}"
     mkdir -p "${dat_dir}/${boot_id}"
 
-    if ! tmux list-sessions &> '/dev/null'; then
-      tmux new-session -d
-#     tmux split-window -h htop
-      tmux select-pane -t 0
-      tmux send-keys './setup' C-m
-      tmux attach-session
-
-    elif ! is_tmux; then
+    if ! is_tmux; then
+      if ! tmux list-sessions &> '/dev/null'; then
+        tmux new-session -d
+#       tmux split-window -h htop
+        tmux select-pane -t 0
+        tmux send-keys './setup' C-m
+      fi
       tmux attach-session
 
     elif [[ '0.0.0' != "$(tmux display-message -p '#S.#I.#P' 2> '/dev/null')" ]]; then
@@ -369,6 +372,7 @@ EOS
       echo "openpgp4fpr: ${openpgp4fpr}"
 
     elif [[ '+' == "${1:-}" ]]; then
+      shift
       _sudo
       _compose down "${@}"
       _compose up   "${@}"

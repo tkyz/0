@@ -123,8 +123,7 @@ fi
 
 # completion
 if true; then
-  type podman   &> /dev/null && source <(podman   completion bash)
-  type kubectl  &> /dev/null && source <(kubectl  completion bash)
-  type kind     &> /dev/null && source <(kind     completion bash)
-  type usacloud &> /dev/null && source <(usacloud completion bash)
+  type podman  &> /dev/null && source <(podman  completion bash)
+  type kubectl &> /dev/null && source <(kubectl completion bash)
+  type kind    &> /dev/null && source <(kind    completion bash)
 fi
