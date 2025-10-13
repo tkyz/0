@@ -37,18 +37,6 @@ set -o pipefail
   #----------------------------------------------------------------
   # function
 
-  function _sudo() {
-    if [[ ! -v SUDO ]]; then
-      if [[ '0' == "$(id -u)" ]]; then
-        SUDO=
-      elif type sudo &> '/dev/null' && sudo -v -n > '/dev/null'; then
-        SUDO='sudo'
-      else
-        false
-      fi
-    fi
-  }
-
   function _deps() {
     (
 
@@ -311,9 +299,16 @@ EOS
 
     domain="$(hostname -d)"
 
+    if [[ '0' == "$(id -u)" ]]; then
+      SUDO=
+    elif type sudo &> '/dev/null' && sudo -v -n &> '/dev/null'; then
+      SUDO='sudo'
+    fi
+
     # .git
-    test ! -e './.git' && _sudo && _deps
-    test ! -e './.git' && true  && _git
+    test ! -e './.git' && test -v SUDO
+    test ! -e './.git' && _deps
+    test ! -e './.git' && _git
     PATH="${HOME}/bin:${PATH}"
 
     # venv
@@ -330,9 +325,8 @@ EOS
     test ! -e "${dat_dir}/${machine_id}" && is_setup=
     test ! -e "${dat_dir}/${boot_id}"    && is_boot=
 
-    _sudo || true
-    test -v is_setup && _sudo
-    test -v is_boot  && _sudo
+    test -v is_setup && test -v SUDO
+    test -v is_boot  && test -v SUDO
 
     setup_yml="$(  cat './setup.yml'   | varsubst)"
     compose_yml="$(cat './compose.yml' | varsubst)"
@@ -340,12 +334,13 @@ EOS
     test -v is_boot  && ! is_container && _mnt
     test -v is_setup && ! is_container && _apt
     test -v is_boot  && ! is_container && _cdi
-    test -v is_setup && ! is_container && _src
-    test -v is_setup && ! is_container && _lib
-    test -v is_setup && ! is_container && _opt
-    test -v is_setup && ! is_container && _build
     test -v is_setup && ! is_container && _wine
     test -v is_boot  && true           && _exp
+    test -v is_setup && ! is_container && _build
+
+#   test -v is_setup && ! is_container && _src
+#   test -v is_setup && ! is_container && _lib
+#   test -v is_setup && ! is_container && _opt
 
     mkdir -p './doc'
     mkdir -p "${dat_dir}/blob"
@@ -373,7 +368,7 @@ EOS
 
     elif [[ '+' == "${1:-}" ]]; then
       shift
-      _sudo
+      test -v SUDO
       _compose down "${@}"
       _compose up   "${@}"
 
