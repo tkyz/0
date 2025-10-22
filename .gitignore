@@ -45,10 +45,6 @@
 #----------------------------------------------------------------
 # 0
 
-/doc/
-/lib/
-/mnt/
-/opt/
 /src/0.playground/**/.settings/
 /src/0.playground/**/.classpath
 /src/0.playground/**/.project

@@ -368,14 +368,14 @@ services:
       - {type: bind, source: '${HOME}/tmp/.${boot_id}/input',                                                                                              target: /comfyui/input}
       - {type: bind, source: '${HOME}/tmp/.${boot_id}/output',                                                                                             target: /comfyui/output}
     working_dir: /comfyui
-    # TODO: deps
     entrypoint:
       - /bin/bash
       - -c
       - |
+        # TODO: apt-proxy
         apt update
         apt install -y ffmpeg
-        cat << EOS | sed -r 's/[=<>~].*//g' | sort -u | pip install --requirement /dev/stdin
+        cat << EOS | sed -r 's/[=<>~].*//g' | sort -u | pip install --requirement '/dev/stdin'
         $(cat requirements.txt)
         imageio-ffmpeg
         accelerate

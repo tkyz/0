@@ -94,6 +94,12 @@ setup:
 #     - awscli
 #     - nordvpn
 
+      # card
+#     - pcscd
+#     - pcsc-tools
+#     - libccid
+#     - libnfc-bin
+
       - util-linux
       - procps
       - faketime
@@ -133,7 +139,6 @@ setup:
 #     - obs-studio
 
   mnt:
-#   - {key: 00000000-0000-0000-0000-000000000000, dir: null}
 
   lib:
 

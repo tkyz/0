@@ -203,24 +203,12 @@ EOS
     done
   }
 
-  function _mnt() {
-    (
-
-      echo "${setup_yml}" | yq -rc '.setup.mnt[]?' | while read item; do
-
-        key="$(echo "${item}" | yq -rc .key)"
-        dir="$(echo "${item}" | yq -rc .dir)"
-
-        mnt "${key}" "${dir}"
-
-      done
-#     mnt
-
-    )
-  }
-
   function _cdi() {
     ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
+  }
+
+  function _myna() {
+    ${SUDO} modprobe -r pn533_usb pn533 nfc
   }
 
   function _exp() {
@@ -229,7 +217,7 @@ EOS
 #   gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
     gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
 
-      exp_dir="${dat_dir}/${fpr}"
+      exp_dir="${mnt_dir}/${fpr}"
       mkdir -p "${exp_dir}"
 
 #     gpg --batch --yes --export-secret-keys --armor --output "${exp_dir}/key" "0x${fpr}" 2> '/dev/null' || true
@@ -305,54 +293,44 @@ EOS
       SUDO='sudo'
     fi
 
-    # .git
-    test ! -e './.git' && test -v SUDO
-    test ! -e './.git' && _deps
-    test ! -e './.git' && _git
-    PATH="${HOME}/bin:${PATH}"
-
-    # venv
+    test ! -e './.git'               && test -v SUDO
+    test ! -e './.git'               && _deps
+    test ! -e './.git'               && _git
     test ! -e './.venv/bin/activate' && _venv
-    ! is_venv                        && source './.venv/bin/activate'
 
-    dat_dir='./.0'
-    mkdir -p "${dat_dir}"
+#   exec bash -l
+    PATH="${HOME}/bin:${PATH}"
+    ! is_venv && source './.venv/bin/activate'
+
+    mnt_dir='./mnt'
+    mkdir -p "${mnt_dir}"
 
     machine_id="$(machine_id)"
     boot_id="$(boot_id)"
     openpgp4fpr="$(openpgp4fpr)"
 
-    test ! -e "${dat_dir}/${machine_id}" && is_setup=
-    test ! -e "${dat_dir}/${boot_id}"    && is_boot=
-
-    test -v is_setup && test -v SUDO
-    test -v is_boot  && test -v SUDO
-
     setup_yml="$(  cat './setup.yml'   | varsubst)"
     compose_yml="$(cat './compose.yml' | varsubst)"
 
-    test -v is_boot  && ! is_container && _mnt
-    test -v is_setup && ! is_container && _apt
-    test -v is_boot  && ! is_container && _cdi
-    test -v is_setup && ! is_container && _wine
-    test -v is_boot  && true           && _exp
-    test -v is_setup && ! is_container && _build
-
-#   test -v is_setup && ! is_container && _src
-#   test -v is_setup && ! is_container && _lib
-#   test -v is_setup && ! is_container && _opt
-
-    mkdir -p './doc'
-    mkdir -p "${dat_dir}/blob"
-    mkdir -p "${dat_dir}/ref"
-    ln -fsn  "${dat_dir}/ref" './ref'
-    mkdir -p "${dat_dir}/${machine_id}"
-    mkdir -p "${dat_dir}/${boot_id}"
+    test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO && ! is_container && mnt
+    test ! -e "${mnt_dir}/${machine_id}" && test -v SUDO && ! is_container && _apt
+    test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO && ! is_container && _cdi
+    test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO && ! is_container && _myna
+    test ! -e "${mnt_dir}/${boot_id}"    && true         && true           && _exp   # exp
+    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _wine
+    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _build # build
+    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _src   # wpull
+    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _lib   # wpull
+    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _opt   # wpull
+    mkdir -p  "${mnt_dir}/${machine_id}"
+    mkdir -p  "${mnt_dir}/${boot_id}"
 
     if ! is_tmux; then
       if ! tmux list-sessions &> '/dev/null'; then
         tmux new-session -d
 #       tmux split-window -h htop
+#       tmux split-window -v pcsc_scan
+        tmux split-window -v watch -bctd podman ps --all
         tmux select-pane -t 0
         tmux send-keys './setup' C-m
       fi

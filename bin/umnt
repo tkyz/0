@@ -6,12 +6,16 @@ set -o pipefail
 
 (
 
+  mnt_root="${HOME}/mnt"
+
   mnt_key="${1:-}"
-  mnt_dir="${HOME}/mnt/${mnt_key}"
+  mnt_dir="${mnt_root}/${mnt_key}"
 
   # list...
   if [[ -z "${mnt_key}" ]]; then
-    find "${HOME}/mnt" -mindepth 1 -maxdepth 1 -type d | sed 's|.*/||g' | sort --unique | while read item; do
+
+    # ${mnt_root}/*
+    find "${mnt_root}" -mindepth 1 -maxdepth 1 -printf '%f\n' | while read item; do
       "${BASH_SOURCE}" "${item}"
     done
 
@@ -19,23 +23,17 @@ set -o pipefail
   elif ! is_mnt "${mnt_dir}"; then
     true
 
-  # uuid
-  elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+  # unlink
+  elif [[ -L "${mnt_dir}" ]]; then
+    unlink "${mnt_dir}"
 
-    uuid="${mnt_key}"
-    blk_info="$(lsblk --all --fs --json --paths | jq -cr ".. | objects | select(.uuid == \"${uuid}\")")"
-    fstype="$(echo "${blk_info}" | jq -cr '.fstype')"
+  # umount
+  else
 
-    if [[ 'crypto_LUKS' == "${fstype}" ]]; then
-      sudo cryptsetup close "${uuid}" || true
+    fusermount -u "${mnt_dir}" 2> '/dev/null' || sudo fusermount -u "${mnt_dir}"
 
-    else
-      sudo fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
-    fi
+    rm -d "${mnt_dir}" 2> '/dev/null' || true
 
-  # fpr
-  elif [[ "${mnt_key}" =~ ^[0-9a-fA-F]{40}$ ]]; then
-    fusermount -u "${mnt_dir}" && rm -d "${mnt_dir}" || true
   fi
 
 )

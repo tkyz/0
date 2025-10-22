@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import hashlib
+
+ghash     = '0000000000000000000000000000000000000000000000000000000000000000'
+vhash_dir = None
+
+def run():
+
+  if 1 < len(sys.argv):
+    dat = ' '.join(sys.argv[1:]).encode()
+  elif not sys.stdin.isatty():
+    dat = sys.stdin.read().encode()
+  else:
+    dat = ''.encode()
+
+  lf    = '\n'.encode()
+  vhash = hashlib.sha256(ghash.encode() + lf + dat + lf).hexdigest()
+  print(vhash)
+
+  if None != vhash_dir:
+    touch(vhash_dir + '/' + vhash)
+
+def touch(obj):
+  if os.path.exists(obj):
+    os.utime(obj, None)
+
+if __name__ == '__main__':
+  run()
