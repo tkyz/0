@@ -4,14 +4,13 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# TODO: cmake
 (
 
   tag='latest'
 
   # list...
   if [[ "${PWD}" =~ ^${HOME}$ ]]; then
-    find './src' -name 'Makefile' -or -name 'build.xml' -or -name 'pom.xml' -or -name 'build.gradle' -or -name 'package.json' -or -name 'Dockerfile' 2> /dev/null | while read target; do
+    find './src' -name 'Makefile' -or -name 'go.mod' -or -name 'build.xml' -or -name 'pom.xml' -or -name 'build.gradle' -or -name 'package.json' -or -name 'Dockerfile' 2> /dev/null | while read target; do
       pushd "${target%/*}" &> /dev/null
         build
 #       test
@@ -59,6 +58,18 @@ set -o pipefail
       opts+=('jar')
 
       ant "${opts[@]}" || true
+
+    )
+  fi
+
+  if [[ -f './go.mod' ]]; then
+    (
+
+      opts=()
+      opts+=('build')
+#     opts+=('install')
+
+      go "${opts[@]}" || true
 
     )
   fi

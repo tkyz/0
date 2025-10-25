@@ -56,10 +56,15 @@ kiwisolver
 kubernetes
 langchain
 langchain-chroma
+langchain-classic
 langchain-community
 langchain-core
 langchain-ollama
 langchain-text-splitters
+langgraph
+langgraph-checkpoint
+langgraph-prebuilt
+langgraph-sdk
 langsmith
 markdown-it-py
 marshmallow
@@ -84,6 +89,7 @@ nvidia-cusparse-cu12
 nvidia-cusparselt-cu12
 nvidia-nccl-cu12
 nvidia-nvjitlink-cu12
+nvidia-nvshmem-cu12
 nvidia-nvtx-cu12
 oauthlib
 ollama
@@ -95,6 +101,7 @@ opentelemetry-proto
 opentelemetry-sdk
 opentelemetry-semantic-conventions
 orjson
+ormsgpack
 overrides
 packaging
 pandas
@@ -153,6 +160,7 @@ watchfiles
 websocket-client
 websockets
 xmltodict
+xxhash
 yarl
 yq
 zipp

@@ -203,45 +203,6 @@ EOS
     done
   }
 
-  function _cdi() {
-    ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
-  }
-
-  function _myna() {
-    ${SUDO} modprobe -r pn533_usb pn533 nfc
-  }
-
-  function _exp() {
-
-    # gpg
-#   gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
-    gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
-
-      exp_dir="${mnt_dir}/${fpr}"
-      mkdir -p "${exp_dir}"
-
-#     gpg --batch --yes --export-secret-keys --armor --output "${exp_dir}/key" "0x${fpr}" 2> '/dev/null' || true
-      gpg --batch --yes --export             --armor --output "${exp_dir}/pub" "0x${fpr}"
-
-    done
-
-    # git
-#   git config --global user.name       "$(gpg --with-colons --list-keys        "0x${openpgp4fpr}" |                 grep ^uid: | cut -d : -f 10 | sed -r 's/.../\1/g')"
-#   git config --global user.email      "$(gpg --with-colons --list-keys        "0x${openpgp4fpr}" |                 grep ^uid: | cut -d : -f 10 | sed -r 's/.../\2/g')"
-    git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
-
-    # pip
-    pip freeze | sed -e 's/[!=<> #].*//g' | sort --unique --output './.venv/requirements.txt'
-
-    # license
-    license > './LICENSE'
-
-  }
-
-  function _wine() {
-    winetricks cjkfonts
-  }
-
   function _build() {
     build
     echo "${compose_yml}" | podman-compose --file '/dev/stdin' build
@@ -302,9 +263,6 @@ EOS
     PATH="${HOME}/bin:${PATH}"
     ! is_venv && source './.venv/bin/activate'
 
-    mnt_dir='./mnt'
-    mkdir -p "${mnt_dir}"
-
     machine_id="$(machine_id)"
     boot_id="$(boot_id)"
     openpgp4fpr="$(openpgp4fpr)"
@@ -312,16 +270,21 @@ EOS
     setup_yml="$(  cat './setup.yml'   | varsubst)"
     compose_yml="$(cat './compose.yml' | varsubst)"
 
-    test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO && ! is_container && mnt
-    test ! -e "${mnt_dir}/${machine_id}" && test -v SUDO && ! is_container && _apt
-    test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO && ! is_container && _cdi
-    test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO && ! is_container && _myna
-    test ! -e "${mnt_dir}/${boot_id}"    && true         && true           && _exp   # exp
-    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _wine
-    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _build # build
-    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _src   # wpull
-    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _lib   # wpull
-    test ! -e "${mnt_dir}/${machine_id}" && true         && ! is_container && _opt   # wpull
+    mnt_dir='./mnt'
+    mkdir -p  "${mnt_dir}"
+    test ! -e "${mnt_dir}/${machine_id}" && test -v SUDO
+    test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO
+    test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && mnt
+    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _apt
+    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _src   # wpull
+    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _lib   # wpull
+    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _opt   # wpull
+    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _build # build
+    test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
+    test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} modprobe -r pn533_usb pn533 nfc
+    test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+    test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && winetricks cjkfonts
+    test ! -e "${mnt_dir}/${boot_id}"    && true           && exp
     mkdir -p  "${mnt_dir}/${machine_id}"
     mkdir -p  "${mnt_dir}/${boot_id}"
 
@@ -329,8 +292,6 @@ EOS
       if ! tmux list-sessions &> '/dev/null'; then
         tmux new-session -d
 #       tmux split-window -h htop
-#       tmux split-window -v pcsc_scan
-        tmux split-window -v watch -bctd podman ps --all
         tmux select-pane -t 0
         tmux send-keys './setup' C-m
       fi

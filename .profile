@@ -1,8 +1,9 @@
 umask 0022
 
-# bin
 test -d "${HOME}/.local/bin" && PATH="${HOME}/.local/bin:${PATH}"
 test -d "${HOME}/bin"        && PATH="${HOME}/bin:${PATH}"
+test -d '/usr/local/lib'     && LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH
 
 test -n "${BASH_VERSION}" && test -f "${HOME}/.bashrc" && source "${HOME}/.bashrc"
 

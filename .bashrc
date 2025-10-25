@@ -41,7 +41,7 @@ if [[ -t 0 ]]; then
     if [[ -v SSH_TTY ]]; then
       scheme+="${txtylw_blink}ssh${txtrst}:"
     fi
-    if [[ -d '/mnt/c' ]] && type wslpath &> /dev/null; then
+    if [[ -d '/mnt/c' ]] && type wslpath &> '/dev/null'; then
       scheme+="${txtgrn_blink}wsl${txtrst}:"
     fi
 #   if is_k8s; then
@@ -52,7 +52,7 @@ if [[ -t 0 ]]; then
     fi
     scheme+="tty:$(tty | sed -e 's,^/dev/,,' -e 's,/,,')"
 
-    local fqdn="$(hostname -f 2> /dev/null)"
+    local fqdn="$(hostname -f 2> '/dev/null')"
     if [[ -z "${fqdn}" ]]; then
       fqdn='\h'
     fi
@@ -123,7 +123,8 @@ fi
 
 # completion
 if true; then
-  type podman  &> /dev/null && source <(podman  completion bash)
-  type kubectl &> /dev/null && source <(kubectl completion bash)
-  type kind    &> /dev/null && source <(kind    completion bash)
+  type podman  &> '/dev/null' && source <(podman  completion bash)
+  type kubectl &> '/dev/null' && source <(kubectl completion bash)
+  type kind    &> '/dev/null' && source <(kind    completion bash)
+  type myna    &> '/dev/null' && source <(myna    completion bash)
 fi

@@ -6,8 +6,6 @@ import re
 def ignore(path, name):
 
   r  = False
-# r |= bool(re.search(r'^\..*$',     name))
-# r |= bool(re.search('(^_.*|.*_$)', name))
 
   return r
 
@@ -27,12 +25,14 @@ def run():
         item_path = q + '/' + item
 
         if ignore(q, item):
-          continue
-
-        if os.path.islink(item_path):
           pass
+
+        elif os.path.islink(item_path):
+          pass
+
         elif os.path.isdir(item_path):
           queue.append(item_path)
+
         elif os.path.isfile(item_path):
           cnt += 1
           print(item_path)

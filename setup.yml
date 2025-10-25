@@ -4,16 +4,17 @@ setup:
 
     repo:
       - {name: com.nvidia,                pub: 'https://nvidia.github.io/libnvidia-container/gpgkey',               source: 'https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH) /'}                                   # https://nvidia.github.io/nvidia-container-runtime/
-      - {name: jp.usacloud,               pub: 'https://releases.usacloud.jp/usacloud/repos/GPG-KEY-usacloud',      source: 'https://releases.usacloud.jp/usacloud/repos/debian              /'}                                   # https://knowledge.sakura.ad.jp/10875/
+      - {name: org.virtualbox,            pub: 'https://www.virtualbox.org/download/oracle_vbox_2016.asc',          source: 'https://download.virtualbox.org/virtualbox/${ID}                ${VERSION_CODENAME}         contrib'} # https://www.virtualbox.org/wiki/Linux_Downloads
 #     - {name: com.docker,                pub: 'https://download.docker.com/linux/${ID}/gpg',                       source: 'https://download.docker.com/linux/${ID}                         ${VERSION_CODENAME}         stable'}  # https://docs.docker.com/engine/install/debian/
-#     - {name: com.google.cloud.packages, pub: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg',             source: 'https://packages.cloud.google.com/apt                           cloud-sdk                   main'}    # https://cloud.google.com/storage/docs/gcsfuse-install
-#     - {name: com.google.cloud.packages, pub: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg',             source: 'https://packages.cloud.google.com/apt                           gcsfuse-${VERSION_CODENAME} main'}    # TODO: append
-#     - {name: com.google,                pub: 'https://dl-ssl.google.com/linux/linux_signing_key.pub',             source: 'https://dl.google.com/linux/chrome/deb                          stable                      main'}
-#     - {name: com.microsoft,             pub: 'https://packages.microsoft.com/keys/microsoft.asc',                 source: 'https://packages.microsoft.com/${ID}/${VERSION_ID}/prod         ${VERSION_CODENAME}         main'}    # https://learn.microsoft.com/ja-jp/dotnet/core/install/linux-debian
-#     - {name: com.unity,                 pub: 'https://hub.unity3d.com/linux/keys/public',                         source: 'https://hub.unity3d.com/linux/repos/deb                         stable                      main'}    # https://docs.unity3d.com/hub/manual/InstallHub.html
+      - {name: io.k8s.pkgs,               pub: 'https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key',           source: 'https://pkgs.k8s.io/core:/stable:/v1.34/deb/                    /'}                                   # https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+      - {name: jp.usacloud,               pub: 'https://releases.usacloud.jp/usacloud/repos/GPG-KEY-usacloud',      source: 'https://releases.usacloud.jp/usacloud/repos/debian              /'}                                   # https://knowledge.sakura.ad.jp/10875/
+      - {name: com.google.cloud-sdk,      pub: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg',             source: 'https://packages.cloud.google.com/apt                           cloud-sdk                   main'}    # https://cloud.google.com/sdk/docs/install#deb
+      - {name: com.google.gcsfuse,        pub: 'https://packages.cloud.google.com/apt/doc/apt-key.gpg',             source: 'https://packages.cloud.google.com/apt                           gcsfuse-${VERSION_CODENAME} main'}    # TODO: append
+#     - {name: com.google.chrome,         pub: 'https://dl-ssl.google.com/linux/linux_signing_key.pub',             source: 'https://dl.google.com/linux/chrome/deb                          stable                      main'}
+      - {name: com.microsoft.code,        pub: 'https://packages.microsoft.com/keys/microsoft.asc',                 source: 'https://packages.microsoft.com/repos/code                       stable                      main'}    # https://code.visualstudio.com/docs/setup/linux
+#     - {name: com.microsoft.dotnet,      pub: 'https://packages.microsoft.com/keys/microsoft.asc',                 source: 'https://packages.microsoft.com/${ID}/${VERSION_ID}/prod         ${VERSION_CODENAME}         main'}    # https://learn.microsoft.com/ja-jp/dotnet/core/install/linux-debian
+      - {name: com.unity,                 pub: 'https://hub.unity3d.com/linux/keys/public',                         source: 'https://hub.unity3d.com/linux/repos/deb                         stable                      main'}    # https://docs.unity3d.com/hub/manual/InstallHub.html
 #     - {name: com.nordvpn,               pub: 'https://repo.nordvpn.com/gpg/nordvpn_public.asc',                   source: 'https://repo.nordvpn.com/deb/nordvpn/${ID}                      stable                      main'}    # https://support.nordvpn.com/hc/ja/articles/20196094470929
-#     - {name: io.k8s.pkgs,               pub: 'https://pkgs.k8s.io/core:/stable:/v1.33/deb/Release.key',           source: 'https://pkgs.k8s.io/core:/stable:/v1.33/deb/                    /'}                                   # https://kubernetes.io/ja/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
-#     - {name: org.virtualbox,            pub: 'https://www.virtualbox.org/download/oracle_vbox_2016.asc',          source: 'https://download.virtualbox.org/virtualbox/${ID}                bookworm                    contrib'} # TODO: ${VERSION_CODENAME}
 #     - {name: org.winehq,                pub: 'https://dl.winehq.org/wine-builds/winehq.key',                      source: 'https://dl.winehq.org/wine-builds/${ID}                         ${VERSION_CODENAME}         main'}    # https://gitlab.winehq.org/wine/wine/-/wikis/Debian-Ubuntu
 #     - {name: org.torproject,            pub: null,                                                                source: null}                                                                                                  # https://support.torproject.org/apt/
 
@@ -59,6 +60,19 @@ setup:
       - nvidia-detect
       - nvidia-smi
 
+      # dev
+      - autoconf
+      - libtool
+      - libssl-dev
+
+      # pcsc
+      - pcscd
+      - pcsc-tools
+      - libpcsclite-dev
+      - opensc
+      - libccid
+      - libnfc-bin
+
       # archive
       - libarchive-tools
       - unar
@@ -94,12 +108,6 @@ setup:
 #     - awscli
 #     - nordvpn
 
-      # card
-#     - pcscd
-#     - pcsc-tools
-#     - libccid
-#     - libnfc-bin
-
       - util-linux
       - procps
       - faketime
@@ -118,9 +126,12 @@ setup:
       - tmux
       - qrencode
       - cups
+      - imagemagick
 
       - vim
 #     - emacs
+
+      - golang
 
       - moreutils
       - aria2
