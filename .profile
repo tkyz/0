@@ -1,8 +1,15 @@
 umask 0022
 
-test -d "${HOME}/.local/bin" && PATH="${HOME}/.local/bin:${PATH}"
-test -d "${HOME}/bin"        && PATH="${HOME}/bin:${PATH}"
-test -d '/usr/local/lib'     && LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+# bin
+test -d "${HOME}/.local/bin"             && PATH="${HOME}/.local/bin:${PATH}"
+test -d "${HOME}/bin"                    && PATH="${HOME}/bin:${PATH}"
+test -d "${HOME}/mnt/$(openpgp4fpr)/bin" && PATH="${HOME}/mnt/$(openpgp4fpr)/bin:${PATH}"
+
+# lib
+test -d '/usr/local/lib'                 && LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+test -d "${HOME}/.local/lib"             && LD_LIBRARY_PATH="${HOME}/.local/lib:${LD_LIBRARY_PATH}"
+test -d "${HOME}/lib"                    && LD_LIBRARY_PATH="${HOME}/lib:${LD_LIBRARY_PATH}"
+test -d "${HOME}/mnt/$(openpgp4fpr)/lib" && LD_LIBRARY_PATH="${HOME}/mnt/$(openpgp4fpr)/lib:${LD_LIBRARY_PATH}"
 export LD_LIBRARY_PATH
 
 test -n "${BASH_VERSION}" && test -f "${HOME}/.bashrc" && source "${HOME}/.bashrc"
