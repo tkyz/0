@@ -1,0 +1,52 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  # gpg
+# gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
+  gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
+
+    exp_dir="${HOME}/mnt/${fpr}"
+    mkdir -p "${exp_dir}"
+
+#   gpg --batch --yes --export-secret-keys --armor --output "${exp_dir}/key" "0x${fpr}" 2> '/dev/null' || true
+    gpg --batch --yes --export             --armor --output "${exp_dir}/pub" "0x${fpr}"
+
+  done
+
+  # jpki
+  if type myna &> '/dev/null' && myna test | grep 'STATE_PRESENT' &> '/dev/null' && ! myna test | grep 'STATE_INUSE' &> '/dev/null'; then
+
+#   mynumber="$(myna text mynumber --pin "${pin4}" | awk '{print substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
+    mynumber='0000-0000-0000'
+
+    exp_dir="${HOME}/mnt/${mynumber}"
+    mkdir -p "${exp_dir}"
+
+    # ca
+    myna jpki cert authca --form der | tee "${exp_dir}/認証用CA証明書.der" | openssl x509 -text -noout > "${exp_dir}/認証用CA証明書.der.txt"
+    myna jpki cert signca --form der | tee "${exp_dir}/署名用CA証明書.der" | openssl x509 -text -noout > "${exp_dir}/署名用CA証明書.der.txt"
+
+    # ssh
+#   myna jpki cert auth   --form ssh                                                                   | awk '{print $1 " " $2}' > "${exp_dir}/pub"
+    ssh-keygen -D '/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so' | grep 'User Authentication Public Key' | awk '{print $1 " " $2}' > "${exp_dir}/pub"
+
+  fi
+
+  # authorized_keys
+  keys_file="${HOME}/.ssh/authorized_keys"
+  touch "${keys_file}"
+  {
+    cat "${keys_file}"
+    cat "${HOME}/mnt/0000-0000-0000/pub"
+#   curl 'https://github.com/tkyz.keys'
+  } | awk '{print $1 " " $2}' | sort --unique --output "${keys_file}"
+
+  # pip
+  pip freeze | sed -e 's/[!=<> #].*//g' | sort --unique --output "${HOME}/doc/requirements-py.txt"
+
+)
