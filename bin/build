@@ -9,26 +9,33 @@ set -o pipefail
   tag='latest'
 
   # list...
-  if [[ "${PWD}" =~ ^${HOME}$ ]]; then
-    find './src' -name 'Makefile' -or -name 'go.mod' -or -name 'build.xml' -or -name 'pom.xml' -or -name 'build.gradle' -or -name 'package.json' -or -name 'Dockerfile' 2> /dev/null | while read target; do
-      pushd "${target%/*}" &> /dev/null
+  if [[ "${PWD}" == "${HOME}" ]]; then
+
+    find "${HOME}/src" -name 'Makefile' -or -name 'go.mod' -or -name 'build.xml' -or -name 'pom.xml' -or -name 'build.gradle' -or -name 'package.json' -or -name 'Dockerfile' 2> /dev/null | sort --unique | while read target; do
+
+      name="$(echo "${target%/}" | sed -r "s|^${HOME}/src/||g")"
+
+      [[ "${name}" =~ ^com\.github/.*$   ]] && continue
+      [[ "${name}" =~ ^com\.gitlab/.*$   ]] && continue
+      [[ "${name}" =~ ^org\.golang/.*$   ]] && continue
+      [[ "${name}" =~ ^0\.playground/.*$ ]] && continue
+
+      pushd "${target%/*}" &> '/dev/null'
         build
 #       test
 #       push
-      popd &> /dev/null
+      popd &> '/dev/null'
+
     done
+
+#   podman-compose build
+
     exit
+
   fi
 
   if [[ "${PWD}" =~ ^${HOME}/src/.*$ ]]; then
-
     name="$(echo "${PWD}" | sed -r "s|^${HOME}/src/||g")"
-
-    [[ "${name}" =~ ^com\.github/.*$   ]] && exit || true
-    [[ "${name}" =~ ^com\.gitlab/.*$   ]] && exit || true
-    [[ "${name}" =~ ^org\.golang/.*$   ]] && exit || true
-    [[ "${name}" =~ ^0\.playground/.*$ ]] && exit || true
-
   else
     name="$(echo "${PWD}" | sha256sum | cut -b 1-64)"
   fi

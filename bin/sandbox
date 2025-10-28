@@ -32,6 +32,7 @@ set -o pipefail
   opts+=('--volume'   "$(printf '%s:%s:ro' "${HOME}/.bashrc"         '/root/.bashrc')")
   opts+=('--volume'   "$(printf '%s:%s:ro' "${HOME}/.profile"        '/root/.profile')")
   opts+=('--volume'   "$(printf '%s:%s:ro' "${HOME}/bin"             '/root/bin')")
+  opts+=('--volume'   "$(printf '%s:%s:ro' "${HOME}/doc"             '/root/doc')")
   opts+=('--volume'   "$(printf '%s:%s:ro' "${HOME}/setup"           '/root/setup')")
 
   podman run "${opts[@]}" "${image}" bash -l

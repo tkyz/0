@@ -190,11 +190,6 @@ EOS
     done
   }
 
-  function _build() {
-    build
-    echo "${compose_yml}" | podman-compose --file '/dev/stdin' build
-  }
-
   #----------------------------------------------------------------
   # main
 
@@ -231,17 +226,16 @@ EOS
     mkdir -p  "${mnt_dir}"
     test ! -e "${mnt_dir}/${machine_id}" && test -v SUDO
     test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO
-    test ! -e "${mnt_dir}/${machine_id}" && true           && _requirements_py
-    ! is_venv                            && true           && source './.venv/bin/activate'
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && mnt
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} modprobe -r pn533_usb pn533 nfc
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && winetricks cjkfonts
+    test ! -e "${mnt_dir}/${machine_id}" && true           && _requirements_py
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _requirements_src
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _requirements_lib
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _requirements_opt
-    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _build # build
+    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && build
     test ! -e "${mnt_dir}/${boot_id}"    && true           && exp
     test ! -e "${mnt_dir}/${boot_id}"    && true           && license > "${HOME}/LICENSE"
     mkdir -p  "${mnt_dir}/${machine_id}"

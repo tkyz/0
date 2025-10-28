@@ -28,6 +28,7 @@
   openssl
   openssh-client
   openssh-server
+  curl
 
 # pcsc
   pcscd
@@ -39,9 +40,8 @@
 
 # util
   uuid-runtime
-  openssl
+  gettext
   gnupg2
-  curl
   jq
 
 # git

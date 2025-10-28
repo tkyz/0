@@ -31,45 +31,41 @@ set -o pipefail
       echo '---'
       echo "${PWD}"
 
-      {
+#     git init --object-format=sha256
+      git init
 
-#       git init --object-format=sha256
-        git init
+      git remote add     "${remote}" "${uri}" ||
+      git remote set-url "${remote}" "${uri}" ||
+      true
 
-        git remote add     "${remote}" "${uri}" ||
-        git remote set-url "${remote}" "${uri}" ||
+      git fetch --prune "${remote}"
+
+      git remote set-head "${remote}" 'main'   ||
+      git remote set-head "${remote}" 'master' ||
+      git remote set-head "${remote}" 'trunk'  ||
+      true
+
+      if git checkout --orphan 'main'; then
+        git checkout -b 'main' "${remote}/main"   ||
+        git checkout -b 'main' "${remote}/master" ||
+        git checkout -b 'main' "${remote}/trunk"  ||
         true
+      fi
 
-        git fetch --prune "${remote}"
-
-        git remote set-head "${remote}" 'main'   ||
-        git remote set-head "${remote}" 'master' ||
-        git remote set-head "${remote}" 'trunk'  ||
+      if ! git rebase --no-autostash "${remote}"; then
+        git reset --mixed "${remote}/main"   ||
+        git reset --mixed "${remote}/master" ||
+        git reset --mixed "${remote}/trunk"  ||
         true
+      fi
 
-        if git checkout --orphan 'main'; then
-          git checkout -b 'main' "${remote}/main"   ||
-          git checkout -b 'main' "${remote}/master" ||
-          git checkout -b 'main' "${remote}/trunk"  ||
-          true
-        fi
+      git branch --set-upstream-to="${remote}/main"   2> '/dev/null' ||
+      git branch --set-upstream-to="${remote}/master" 2> '/dev/null' ||
+      git branch --set-upstream-to="${remote}/trunk"                 ||
+      true
 
-        if ! git rebase --no-autostash "${remote}"; then
-          git reset --mixed "${remote}/main"   ||
-          git reset --mixed "${remote}/master" ||
-          git reset --mixed "${remote}/trunk"  ||
-          true
-        fi
-
-        git branch --set-upstream-to="${remote}/main"   2> '/dev/null' ||
-        git branch --set-upstream-to="${remote}/master" 2> '/dev/null' ||
-        git branch --set-upstream-to="${remote}/trunk"                 ||
-        true
-
-        git gc
-        git status
-
-      }
+      git gc
+      git status
 
     popd &> /dev/null
 

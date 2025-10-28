@@ -27,16 +27,6 @@ set -o pipefail
       "${BASH_SOURCE}" "${item}"
     done
 
-    # setup.yml
-    cat "${HOME}/setup.yml" | varsubst | yq -rc '.setup.mnt[]?' | while read item; do
-
-      key="$(echo "${item}" | yq -rc .key)"
-      dir="$(echo "${item}" | yq -rc .dir)"
-
-      "${BASH_SOURCE}" "${key}" "${dir}"
-
-    done
-
   # skip
   elif [[ -L "${mnt_dir}" ]]; then
     true
