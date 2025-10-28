@@ -45,21 +45,22 @@ set -o pipefail
 
 #     echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
 
+      keyring='/usr/share/keyrings/debian-archive-keyring.pgp'
       cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
-deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
-deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
-deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
-deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
-deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
-deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
-deb     http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
-deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
-#deb     http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
-#deb-src http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
-#deb     http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
-#deb-src http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
-#deb     http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
-#deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+deb     [signed-by=${keyring}] http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb-src [signed-by=${keyring}] http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb     [signed-by=${keyring}] http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb-src [signed-by=${keyring}] http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb     [signed-by=${keyring}] http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb-src [signed-by=${keyring}] http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb     [signed-by=${keyring}] http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+deb-src [signed-by=${keyring}] http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+#deb     [signed-by=${keyring}] http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb-src [signed-by=${keyring}] http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb     [signed-by=${keyring}] http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb-src [signed-by=${keyring}] http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb     [signed-by=${keyring}] http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+#deb-src [signed-by=${keyring}] http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
 EOS
 
       ${SUDO} apt-get update
@@ -152,7 +153,7 @@ EOS
 
       ${SUDO} apt-get update
       ${SUDO} apt-get upgrade -y
-      ${SUDO} apt-get install -y $(cat './doc/requirements-apt-ext.txt' | sed 's/#.*//' | xargs)
+#     ${SUDO} apt-get install -y $(cat './doc/requirements-apt-ext.txt' | sed 's/#.*//' | xargs)
 
     )
   }
@@ -207,19 +208,21 @@ EOS
       SUDO='sudo'
     fi
 
+    # 0.git
     if [[ ! -e './.git' ]]; then
+
       test -v SUDO
+
       _deps
       _git
       _requirements_apt
-    fi
 
-    if [[ ! -e './.venv/bin/activate' ]]; then
-      _requirements_py
-    fi
+      git checkout '.profile' || true
+      git checkout '.bashrc'  || true
 
-    # PATH
-    ! is_venv && source './.profile'
+      source './.profile'
+
+    fi
 
     machine_id="$(machine_id)"
     boot_id="$(boot_id)"
@@ -228,6 +231,8 @@ EOS
     mkdir -p  "${mnt_dir}"
     test ! -e "${mnt_dir}/${machine_id}" && test -v SUDO
     test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO
+    test ! -e "${mnt_dir}/${machine_id}" && true           && _requirements_py
+    ! is_venv                            && true           && source './.venv/bin/activate'
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && mnt
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} modprobe -r pn533_usb pn533 nfc
