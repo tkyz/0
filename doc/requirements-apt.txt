@@ -43,6 +43,9 @@
   gettext
   gnupg2
   jq
+  qrencode
+  imagemagick
+  tmux
 
 # git
   git
