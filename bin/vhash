@@ -4,8 +4,8 @@ import os
 import sys
 import hashlib
 
-ghash     = '0000000000000000000000000000000000000000000000000000000000000000'
-vhash_dir = None
+ghash     = os.environ.get('GENESIS_HASH')
+vhash_dir = os.environ.get('HOME') + '/mnt'
 
 def run():
 

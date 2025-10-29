@@ -14,15 +14,18 @@ test -d "${HOME}/mnt/$(openpgp4fpr)/bin" && PATH="${HOME}/mnt/$(openpgp4fpr)/bin
 
 test -n "${BASH_VERSION}" && test -f "${HOME}/.bashrc" && source "${HOME}/.bashrc"
 
-test 0 == "$(id -u)" && mesg n &> /dev/null || true
+test 0 == "$(id -u)" && mesg n &> '/dev/null' || true
 
 #----------------------------------------------------------------
 # ...
 
 # perm
-chmod    go-rwx "${HOME}"        &> /dev/null || true
-chmod -R go-rwx "${HOME}/.gnupg" &> /dev/null || true
-chmod -R go-rwx "${HOME}/.ssh"   &> /dev/null || true
+chmod    go-rwx "${HOME}"        &> '/dev/null' || true
+chmod -R go-rwx "${HOME}/.gnupg" &> '/dev/null' || true
+chmod -R go-rwx "${HOME}/.ssh"   &> '/dev/null' || true
+
+# GENESIS_HASH
+export GENESIS_HASH="$(ghash)"
 
 # git
 export GIT_DISCOVERY_ACROSS_FILESYSTEM=1
