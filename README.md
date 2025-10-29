@@ -1,16 +1,16 @@
-# 0.git
+# [0.git](.)
 
 個人的な実験環境です。
 
 ⚠️不定期で[``squash``](./bin/git-autofixup)します。
 
-## setup
+## [setup](./setup)
 
 ```bash
 ( curl "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 ```
 
-## jpki
+## [jpki](https://www.jpki.go.jp/)
 
 - [署名用CA証明書](./mnt/0000-0000-0000/jpki-sign-ca.der)
 - [認証用CA証明書](./mnt/0000-0000-0000/jpki-auth-ca.der)
