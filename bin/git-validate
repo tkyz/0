@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  mapfile -t ngwords << EOS
+-----BEGIN PRIVATE KEY-----
+-----BEGIN PRIVATE KEY-----
+-----BEGIN RSA PRIVATE KEY-----
+-----BEGIN PGP PRIVATE KEY BLOCK-----
+-----BEGIN OPENSSH PRIVATE KEY-----
+TODO:
+${USER}
+${HOME}
+$(hostname)
+$(hostname -d)
+$(machine_id)
+$(boot_id)
+${GENESIS_HASH}
+$(openpgp4fpr)
+EOS
+
+  # TODO: 一括
+  # TODO: 自己参照
+  for w in "${ngwords[@]}"; do
+    git grep --cached --line-number --ignore-case -- "${w}" || true
+  done
+
+)
