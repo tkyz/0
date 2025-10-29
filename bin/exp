@@ -28,8 +28,8 @@ set -o pipefail
     mkdir -p "${exp_dir}"
 
     # ca
-    myna jpki cert authca --form der | tee "${exp_dir}/認証用CA証明書.der" | openssl x509 -text -noout > "${exp_dir}/認証用CA証明書.der.txt"
-    myna jpki cert signca --form der | tee "${exp_dir}/署名用CA証明書.der" | openssl x509 -text -noout > "${exp_dir}/署名用CA証明書.der.txt"
+    myna jpki cert authca --form der | tee "${exp_dir}/jpki-auth-ca.der" | openssl x509 -inform der -out "${exp_dir}/jpki-auth-ca.pem" # https://www.jpki.go.jp/ca/pdf/auth_fingerprint.pdf
+    myna jpki cert signca --form der | tee "${exp_dir}/jpki-sign-ca.der" | openssl x509 -inform der -out "${exp_dir}/jpki-sign-ca.pem" # https://www.jpki.go.jp/ca/pdf/sign_fingerprint.pdf
 
     # ssh
 #   myna jpki cert auth   --form ssh                                                                   | awk '{print $1 " " $2}' > "${exp_dir}/pub"

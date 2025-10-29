@@ -149,6 +149,7 @@ torch
 tqdm
 triton
 typer
+typer-slim
 typing-inspect
 typing-inspection
 typing_extensions
