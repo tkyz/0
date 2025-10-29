@@ -53,13 +53,13 @@ set -o pipefail
     # x509
     myna jpki cert authca --form der                                                                                                     > "${exp_dir}/jpki-auth-ca.der" # https://www.jpki.go.jp/ca/pdf/auth_fingerprint.pdf
     myna jpki cert signca --form der                                                                                                     > "${exp_dir}/jpki-sign-ca.der" # https://www.jpki.go.jp/ca/pdf/sign_fingerprint.pdf
-    myna jpki cert auth   --form der                  | openssl x509 -inform der -pubkey -noout | ssh-keygen -f '/dev/stdin' -i -m PKCS8 > "${exp_dir}/pub"
+    myna jpki cert auth   --form der                  | openssl x509 -inform der -pubkey -noout | ssh-keygen -f '/dev/stdin' -i -m pkcs8 > "${exp_dir}/pub"
 #   myna jpki cert sign   --form der --pin "${pin16}" | openssl x509 -inform der -text   -noout
 
     # sign
 #   sign_file=
-#   myna jpki cms sign   --form der --detached --md sha512 --in      "${sign_file}" --out '/dev/stdout'      --pin "${pin16}" > "${sign_file}.der"
-#   myna jpki cms verify --form der --detached             --content "${sign_file}"       "${sign_file}.der"
+#   myna jpki cms sign   --form der --detached --md sha512 --in      "${sign_file}" --out '/dev/stdout' --pin "${pin16}" > "${sign_file}.der"
+#   myna jpki cms verify --form der --detached             --content "${sign_file}"                                        "${sign_file}.der"
 
 #   myna pin change card ...
 #   myna pin change auth ...
