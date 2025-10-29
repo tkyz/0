@@ -237,7 +237,7 @@ EOS
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _requirements_opt
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && build
     test ! -e "${mnt_dir}/${boot_id}"    && true           && exp
-    test ! -e "${mnt_dir}/${boot_id}"    && true           && license > "${HOME}/LICENSE"
+    test ! -e "${mnt_dir}/${boot_id}"    && true           && license > './LICENSE'
     mkdir -p  "${mnt_dir}/${machine_id}"
     mkdir -p  "${mnt_dir}/${boot_id}"
 

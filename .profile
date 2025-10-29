@@ -49,3 +49,5 @@ fi
 
 # python
 test -f "${HOME}/.venv/bin/activate" && source "${HOME}/.venv/bin/activate"
+
+true
