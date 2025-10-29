@@ -25,8 +25,11 @@ set -o pipefail
     is_sudoer
     sudo systemctl restart pcscd
 
-      myna test | grep 'STATE_PRESENT' &> '/dev/null'
-    ! myna test | grep 'STATE_INUSE'   &> '/dev/null'
+    test="$(myna test)"
+#   echo "${test}"
+    echo "${test}" | grep 'STATE_EMPTY'   &> '/dev/null' && false
+    echo "${test}" | grep 'STATE_PRESENT' &> '/dev/null' && true
+    echo "${test}" | grep 'STATE_INUSE'   &> '/dev/null' && false
 
 #   pin4=
 #   pin16=
@@ -47,17 +50,16 @@ set -o pipefail
     # photo
 #   myna visual photo --output '/dev/stdout' --pin "${pin4}" | convert '/dev/stdin' "${exp_dir}/.face.png"
 
-    # ca
-    myna jpki cert authca --form der | tee "${exp_dir}/jpki-auth-ca.der" | openssl x509 -inform der -out "${exp_dir}/jpki-auth-ca.pem" # https://www.jpki.go.jp/ca/pdf/auth_fingerprint.pdf
-    myna jpki cert signca --form der | tee "${exp_dir}/jpki-sign-ca.der" | openssl x509 -inform der -out "${exp_dir}/jpki-sign-ca.pem" # https://www.jpki.go.jp/ca/pdf/sign_fingerprint.pdf
-
-    # ssh
-#   myna jpki cert auth   --form ssh                                                                   | awk '{print $1 " " $2}' > "${exp_dir}/pub"
-    ssh-keygen -D '/usr/lib/x86_64-linux-gnu/opensc-pkcs11.so' | grep 'User Authentication Public Key' | awk '{print $1 " " $2}' > "${exp_dir}/pub"
+    # x509
+    myna jpki cert authca --form der                                                                                                     > "${exp_dir}/jpki-auth-ca.der" # https://www.jpki.go.jp/ca/pdf/auth_fingerprint.pdf
+    myna jpki cert signca --form der                                                                                                     > "${exp_dir}/jpki-sign-ca.der" # https://www.jpki.go.jp/ca/pdf/sign_fingerprint.pdf
+    myna jpki cert auth   --form der                  | openssl x509 -inform der -pubkey -noout | ssh-keygen -f '/dev/stdin' -i -m PKCS8 > "${exp_dir}/pub"
+#   myna jpki cert sign   --form der --pin "${pin16}" | openssl x509 -inform der -text   -noout
 
     # sign
-#   myna jpki cms sign   --form der --md sha512 --in "${in_file}" --out "${out_file}" --pin "${pin16}"
-#   myna jpki cms verify --form der                                     "${out_file}"
+#   sign_file=
+#   myna jpki cms sign   --form der --detached --md sha512 --in      "${sign_file}" --out '/dev/stdout'      --pin "${pin16}" > "${sign_file}.der"
+#   myna jpki cms verify --form der --detached             --content "${sign_file}"       "${sign_file}.der"
 
 #   myna pin change card ...
 #   myna pin change auth ...
