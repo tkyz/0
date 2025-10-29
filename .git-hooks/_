@@ -27,31 +27,12 @@ set -o pipefail
     printf "\e[0m"
   }
 
-  function _validate() {
-    (
-
-      grep_opts=()
-      grep_opts+=('-n')
-      grep_opts+=('-E')
-      grep_opts+=('-e' "${USER}")
-      grep_opts+=('-e' "${HOME}")
-
-      {
-#       git diff          --name-only
-        git diff --cached --name-only
-      } | sort --unique | while read file; do
-        ! git show ":${file}" | grep "${grep_opts[@]}" | awk -v f="${file}" '{print f " #" $0}'
-      done
-
-    )
-  }
-
   #----------------------------------------------------------------
   # local hook
 
   if [[ 'pre-commit' == "${hook_name}" ]]; then
     _debug
-    _validate
+    git validate
 
   elif [[ 'post-commit' == "${hook_name}" ]]; then
     _debug
