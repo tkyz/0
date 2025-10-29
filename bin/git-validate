@@ -24,8 +24,8 @@ $(openpgp4fpr)
 EOS
 
   # TODO: 一括
-  # TODO: 自己参照
   for w in "${ngwords[@]}"; do
+    # TODO: 自己参照
     git grep --cached --line-number --ignore-case -- "${w}" || true
   done
 
