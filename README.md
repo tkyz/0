@@ -16,8 +16,8 @@
 
 ### 🗾[公的個人認証サービス](https://www.jpki.go.jp/) ([jpki](https://github.com/jpki))
 
-- [署名用CA証明書](./mnt/0000-0000-0000/jpki-sign-ca.der)
-- [認証用CA証明書](./mnt/0000-0000-0000/jpki-auth-ca.der)
+- [署名用CA証明書](./mnt/0000-0000-0000/jp.go.jpki_sign_ca.der)
+- [認証用CA証明書](./mnt/0000-0000-0000/jp.go.jpki_auth_ca.der)
 - [認証用公開鍵(ssh)](./mnt/0000-0000-0000/pub)
 
 ## 🙏donation
