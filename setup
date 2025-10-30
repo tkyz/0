@@ -131,6 +131,34 @@ EOS
     )
   }
 
+  function _etc() {
+
+    # /etc/default/keyboard
+    cat << EOS | ${SUDO} tee '/etc/default/keyboard' > '/dev/null'
+XKBMODEL=pc105
+XKBLAYOUT=jp
+XKBVARIANT=
+XKBOPTIONS=ctrl:nocaps
+BACKSPACE=guess
+EOS
+
+    # /etc/wsl.conf
+    if is_wsl; then
+      cat << EOS | ${SUDO} tee '/etc/wsl.conf' > '/dev/null'
+[automount]
+options            = "uid=0,gid=0,umask=0077,fmask=0177,metadata"
+[network]
+#generateResolvConf = false
+[interop]
+enabled            = false
+appendWindowsPath  = false
+[user]
+default            = root
+EOS
+    fi
+
+  }
+
   function _requirements_apt() {
     (
 
@@ -227,6 +255,7 @@ EOS
     mkdir -p  "${mnt_dir}"
     test ! -e "${mnt_dir}/${machine_id}" && test -v SUDO
     test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO
+    test ! -e "${mnt_dir}/${machine_id}" && true           && _etc
     test ! -e "${mnt_dir}/${machine_id}" && true           && _requirements_py
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _requirements_src
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && mnt
