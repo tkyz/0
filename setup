@@ -221,6 +221,7 @@ EOS
 
     machine_id="$(machine_id)"
     boot_id="$(boot_id)"
+    openpgp4fpr="$(openpgp4fpr)"
 
     mnt_dir='./mnt'
     mkdir -p  "${mnt_dir}"
@@ -232,7 +233,7 @@ EOS
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} modprobe -r pn533_usb pn533 nfc
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
-    test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && winetricks cjkfonts
+    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && winetricks cjkfonts
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _requirements_lib
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _requirements_opt
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && build
