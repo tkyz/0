@@ -56,7 +56,7 @@ set -o pipefail
       myna jpki cert signca --form der > "${exp_dir}/jp.go.jpki_sign_ca.der" # https://www.jpki.go.jp/ca/pdf/sign_fingerprint.pdf
 
       # ssh
-      myna jpki cert auth --form ssh                                                                                    > "${exp_dir}/pub"
+#     myna jpki cert auth --form ssh                                                                                    > "${exp_dir}/pub"
       myna jpki cert auth --form der | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 > "${exp_dir}/pub"
 
       # sign
