@@ -28,7 +28,7 @@ EOS
 
   # TODO: 一括
   echo "${list}" | sort --unique | while read i; do
-#   # TODO: 自己参照
+    # TODO: 自己参照
     git grep --cached --line-number --ignore-case -- "${i}" || true
   done
 
