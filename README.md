@@ -4,7 +4,7 @@
 
 個人的な実験環境です。
 
-⚠️不定期で[``squash``](./bin/git-autofixup)します。
+⚠️不定期で[``squash``](./bin/git-autofixup)します⚠️
 
 ## 💻[setup](./setup)
 
@@ -12,9 +12,9 @@
 ( curl "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 ```
 
-## 👤[公的個人認証サービス](https://www.jpki.go.jp/)
+## 🔐pki
 
-### [jpki](https://github.com/jpki)
+### 🗾[公的個人認証サービス](https://www.jpki.go.jp/) ([jpki](https://github.com/jpki))
 
 - [署名用CA証明書](./mnt/0000-0000-0000/jpki-sign-ca.der)
 - [認証用CA証明書](./mnt/0000-0000-0000/jpki-auth-ca.der)
