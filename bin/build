@@ -44,7 +44,7 @@ set -o pipefail
   echo "pwd:  ${PWD}"
   echo "name: ${name}"
 
-  if [[ -f './Makefile' ]]; then
+  if [[ -f './Makefile' && ! -f './go.mod' ]]; then
     (
 
       test -f './autogen.sh' && './autogen.sh' || true
@@ -56,6 +56,11 @@ set -o pipefail
     )
   fi
 
+  if [[ -f './go.mod' ]]; then
+    go build
+    go install
+  fi
+
   if [[ -f './build.xml' ]]; then
     (
 
@@ -65,18 +70,6 @@ set -o pipefail
       opts+=('jar')
 
       ant "${opts[@]}" || true
-
-    )
-  fi
-
-  if [[ -f './go.mod' ]]; then
-    (
-
-      opts=()
-      opts+=('build')
-#     opts+=('install')
-
-      go "${opts[@]}" || true
 
     )
   fi

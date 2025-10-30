@@ -1,0 +1,74 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+
+  # TODO: Error: scard: Sharing violation.
+  is_sudoer
+  sudo systemctl restart pcscd
+
+  if ! myna test | grep ': NG' &> '/dev/null'; then
+
+    ca_dir="${HOME}/mnt/0000-0000-0000"
+    mkdir -p "${ca_dir}"
+
+    # CA証明書
+    myna jpki cert authca --form der > "${ca_dir}/jp.go.jpki_auth_ca.der" # https://www.jpki.go.jp/ca/ca_rules4.html
+    myna jpki cert signca --form der > "${ca_dir}/jp.go.jpki_sign_ca.der" # https://www.jpki.go.jp/ca/ca_rules3.html
+
+    # 検証
+    ! myna jpki cert auth --form der                  | openssl verify -CAfile "${ca_dir}/jp.go.jpki_auth_ca.der" '/dev/stdin' >&2 && verify_err=
+#   ! myna jpki cert sign --form der --pin "${pin16}" | openssl verify -CAfile "${ca_dir}/jp.go.jpki_sign_ca.der" '/dev/stdin' >&2 && verify_err=
+    if [[ ! -v verify_err ]]; then
+
+#     pin4=
+#     pin16=
+
+#     mynumber="$(myna text mynumber --pin "${pin4}")"
+      mynumber='000000000000'
+
+      exp_dir="${HOME}/mnt/$(echo "${mynumber}" | awk '{print substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
+
+      # info
+#     myna text cert # cert
+#     myna text info # apinfo keyid version extapdu vendor option
+#     myna pin  status
+
+      # attr
+#     myna pin change card --pin "${pin4}" # --newpin=
+      if false; then
+        myna text   attr      --pin "${pin4}" # ヘッダ、氏名、住所、生年月日、性別
+        myna text   signature --pin "${pin4}" # mynum-hash attr-hash signature
+        myna visual photo     --pin "${pin4}" --output '/dev/stdout' | convert '/dev/stdin' "${exp_dir}/photo.png"
+      fi
+
+      # auth
+#     myna pin change auth --pin "${pin4}" # --newpin=
+      if true; then
+#       myna jpki cert auth --form ssh                                                                                    > "${exp_dir}/pub" # TODO: 違う公開鍵が出力される
+        myna jpki cert auth --form der | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 > "${exp_dir}/pub"
+      fi
+
+      # sign
+#     myna pin change sign --pin "${pin16}" # --newpin=
+#     if false; then
+#       sign_file=
+#       myna jpki cert sign   --form der                                                                     --pin "${pin16}" | openssl x509 -inform der -noout -text
+#       myna jpki cms  sign   --form der --detached --md sha512 --in      "${sign_file}" --out '/dev/stdout' --pin "${pin16}" > "${sign_file}.der"
+#       myna jpki cms  verify --form der --detached             --content "${sign_file}"                                        "${sign_file}.der"
+#     fi
+
+      # delegation
+#     if false; then
+#       myna jpki cert auth --form der                  > "${exp_dir}/jp.go.jpki_auth_user.der"
+#       myna jpki cert sign --form der --pin "${pin16}" > "${exp_dir}/jp.go.jpki_sign_user.der"
+#     fi
+
+    fi
+
+  fi
+
+)

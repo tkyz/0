@@ -126,8 +126,8 @@ set -o pipefail
       mnt_opts="$(IFS=,; echo "${mnt_opts[*]}")"
 
       mkdir -p "${mnt_dir}"
-      sudo mount --type "${fstype}" --options "${mnt_opts}" "${mnt_uri}" "${mnt_dir}" || rm -d "${mnt_dir}" 2> '/dev/null'
-#     echo "${mnt_uri} ${mnt_dir} ${fstype} ${mnt_opts} 0 0" | sudo tee --append /etc/fstab
+      sudo mount --type "${fstype}" --options "${mnt_opts}" "${mnt_uri}" "${mnt_dir}_${share_name}" || rm -d "${mnt_dir}" 2> '/dev/null'
+#     echo "${mnt_uri} ${mnt_dir}_${share_name} ${fstype} ${mnt_opts} 0 0" | sudo tee --append /etc/fstab
 
       test -v credentials && rm "${credentials}" || true
 

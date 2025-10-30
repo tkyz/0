@@ -2,7 +2,7 @@
 
 ## 💬Hello World!
 
-個人的な実験環境です。
+独り言コード、実験環境
 
 ⚠️不定期で[``squash``](./bin/git-autofixup)します⚠️
 
@@ -12,13 +12,19 @@
 ( curl "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 ```
 
-## 🔐pki
+## 👤pki
 
-### 🗾[公的個人認証サービス](https://www.jpki.go.jp/) ([jpki](https://github.com/jpki))
+### [公的個人認証サービス](https://www.jpki.go.jp/) ([jpki](https://github.com/jpki))🗾
 
 - [署名用CA証明書](./mnt/0000-0000-0000/jp.go.jpki_sign_ca.der)
-- [認証用CA証明書](./mnt/0000-0000-0000/jp.go.jpki_auth_ca.der)
-- [認証用公開鍵(ssh)](./mnt/0000-0000-0000/pub)
+- [認証用CA証明書](./mnt/0000-0000-0000/jp.go.jpki_auth_ca.der) / [認証用公開鍵(ssh)](./mnt/0000-0000-0000/pub)
+
+#### [番号法](https://laws.e-gov.go.jp/law/425AC0000000027)📄
+
+- TODO: マイナンバー(pk)を公開情報として扱えるようにしてほしい
+- TODO: マイナンバー参照時にpinを不要にしてほしい
+- TODO: 署名用証明書、認証用証明書にマイナンバーを含めるようにしてほしい
+- TODO: 署名用証明書、認証用証明書に属性情報を含めないようにしてほしい
 
 ## 🙏donation
 

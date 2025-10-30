@@ -6,27 +6,30 @@ set -o pipefail
 
 (
 
-  mapfile -t ngwords << EOS
------BEGIN PRIVATE KEY-----
+  list="$(cat << EOS
 -----BEGIN PRIVATE KEY-----
 -----BEGIN RSA PRIVATE KEY-----
 -----BEGIN PGP PRIVATE KEY BLOCK-----
 -----BEGIN OPENSSH PRIVATE KEY-----
 TODO:
+$(id -u)
+$(id -g)
 ${USER}
 ${HOME}
 $(hostname)
 $(hostname -d)
+$(hostname -d | tr '.' $'\n' | tac | paste -s -d '.')
 $(machine_id)
 $(boot_id)
 ${GENESIS_HASH}
 $(openpgp4fpr)
 EOS
+)"
 
   # TODO: 一括
-  for w in "${ngwords[@]}"; do
-    # TODO: 自己参照
-    git grep --cached --line-number --ignore-case -- "${w}" || true
+  echo "${list}" | sort --unique | while read i; do
+#   # TODO: 自己参照
+    git grep --cached --line-number --ignore-case -- "${i}" || true
   done
 
 )

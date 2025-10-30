@@ -243,8 +243,10 @@ EOS
       git checkout '.profile' || true
       git checkout '.bashrc'  || true
 
-      source './.profile'
+    fi
 
+    if [[ ! -v GENESIS_HASH ]]; then
+      source './.profile'
     fi
 
     machine_id="$(machine_id)"
