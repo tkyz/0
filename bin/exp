@@ -21,6 +21,10 @@ set -o pipefail
   # jpki
   if type myna &> '/dev/null'; then
 
+    # TODO: Error: scard: Sharing violation.
+    is_sudoer
+    sudo systemctl restart pcscd
+
     test="$(myna test)"
 #   echo "${test}"
 
