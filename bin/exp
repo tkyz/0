@@ -52,12 +52,15 @@ set -o pipefail
 #     myna visual photo --output '/dev/stdout' --pin "${pin4}" | convert '/dev/stdin' "${exp_dir}/photo.png"
 
       # CA証明書
-      myna jpki cert authca --form der > "${exp_dir}/jp.go.jpki_auth_ca.der" # https://www.jpki.go.jp/ca/pdf/auth_fingerprint.pdf
-      myna jpki cert signca --form der > "${exp_dir}/jp.go.jpki_sign_ca.der" # https://www.jpki.go.jp/ca/pdf/sign_fingerprint.pdf
+      myna jpki cert authca --form der > "${exp_dir}/jp.go.jpki_auth_ca.der" # https://www.jpki.go.jp/ca/ca_rules4.html
+      myna jpki cert signca --form der > "${exp_dir}/jp.go.jpki_sign_ca.der" # https://www.jpki.go.jp/ca/ca_rules3.html
+
+#     myna jpki cert auth   --form der                  | openssl verify -CAfile "${exp_dir}/jp.go.jpki_auth_ca.der" '/dev/stdin' || true
+#     myna jpki cert sign   --form der --pin "${pin16}" | openssl verify -CAfile "${exp_dir}/jp.go.jpki_sign_ca.der" '/dev/stdin' || true
 
       # ssh
-#     myna jpki cert auth --form ssh                                                                                    > "${exp_dir}/pub"
-      myna jpki cert auth --form der | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 > "${exp_dir}/pub"
+#     myna jpki cert auth   --form ssh                                                                                    > "${exp_dir}/pub" # TODO: 違う公開鍵が出力される
+      myna jpki cert auth   --form der | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 > "${exp_dir}/pub"
 
       # sign
 #     sign_file=
