@@ -1,25 +1,49 @@
 # [0.git](.)
 
-## 💬Hello World!
+## 💬 Hello World!
 
 独り言コード、実験環境
 
-⚠️不定期で[``squash``](./bin/git-autofixup)します⚠️
+⚠️不定期で[``squash``](./bin/git-autofixup)と[``force-push``](https://git-scm.com/docs/git-push#Documentation/git-push.txt---force)します⚠️
 
-## 💻[setup](./setup)
+## 💻 [setup](./setup)
 
 ```bash
 ( curl "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 ```
 
-## 👤pki
+## 👤 auther
 
-### [jpki](https://github.com/jpki)🗾
+### gpg
 
-- [署名用CA証明書](./mnt/0000-0000-0000/jp.go.jpki_sign_ca.der)
-- [認証用CA証明書](./mnt/0000-0000-0000/jp.go.jpki_auth_ca.der) / [認証用公開鍵(ssh)](./mnt/0000-0000-0000/pub)
+- [``openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9``](./mnt/091373E51DDFEA289C93C7C460C125552C827AF9/pub)
 
-## 🙏donation
+### pki
+
+#### [jpki](https://github.com/jpki) ([公的個人認証サービス](https://www.jpki.go.jp/)) 🗾
+
+##### 公的個人認証AP
+
+- ``EF0001`` 署名用証明書
+- ``EF0002`` [署名用CA証明書](./mnt/0000-0000-0000/jp.go.jpki_sign_ca.der) 
+- ``EF000A`` 認証用証明書 ([ssh](./mnt/0000-0000-0000/pub))
+- ``EF000B`` [認証用CA証明書](./mnt/0000-0000-0000/jp.go.jpki_auth_ca.der)
+
+主体を、<br>
+<u>**個人(利用者)とマイナンバーカード**</u>とするのではなく<br>
+<u>**総務省と個人番号**</u>とする制度設計となっているため利用者の選択肢が狭い。<br>
+[番号法](https://laws.e-gov.go.jp/law/425AC0000000027)とやらに縛られている模様。
+
+行政効率化、民間・個人利用するためには、世間一般で言われる個人番号の一般公開だけではなく、<br>
+<u>**個人番号のみを証明する証明書**</u>の導入が必要。
+- 個人情報を含むため廃止
+  - ``EF0001`` 署名用証明書 ⚠️発行元自治体情報、生年月日の年月(有効期限)、氏名、住所、性別、生年月日
+  - ``EF000A`` 認証用証明書 ⚠️発行元自治体情報、生年月日の年月(有効期限)
+- 個人番号のみを含む証明書を追加
+  - ``EF0003`` 署名用証明書
+  - ``EF000C`` 認証用証明書
+
+### 🙏 donation
 
 |<img src='./mnt/00000000-0000-0000-0000-000000000000/btc.png'       height=20> btc|<img src='./mnt/00000000-0000-0000-0000-000000000000/eth.png'       height=20> eth|<img src='./mnt/00000000-0000-0000-0000-000000000000/sol.png'         height=20> sol|<img src='./mnt/00000000-0000-0000-0000-000000000000/xrp.png' height=20> xrp|
 |-|-|-|-|
