@@ -4,7 +4,7 @@
 
 独り言コード、実験環境
 
-⚠️不定期で[``squash``](./bin/git-autofixup)と[``force-push``](https://git-scm.com/docs/git-push#Documentation/git-push.txt---force)します⚠️
+⚠️不定期で[``squash``](./bin/git-autofixup)します⚠️
 
 ## 💻 [setup](./setup)
 

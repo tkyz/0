@@ -43,8 +43,6 @@ set -o pipefail
   function _deps() {
     (
 
-#     echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
-
       keyring='/usr/share/keyrings/debian-archive-keyring.pgp'
       cat << EOS | ${SUDO} tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
 deb     [signed-by=${keyring}] http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
@@ -110,20 +108,27 @@ EOS
         git remote set-head "${remote}" 'main' || true
       done
 
-      if git checkout --orphan 'main'; then
-        git checkout -b 'main' 'origin/main'    ||
-        git checkout -b 'main' "${domain}/main" ||
-        git checkout -b 'main' 'public/main'    || true
-      fi
+      git checkout -b 'main' 'origin/main'          2> '/dev/null' ||
+      git checkout -b 'main' "${domain}/main"       2> '/dev/null' ||
+      git checkout -b 'main' 'github/main'          2> '/dev/null' ||
+      git checkout -b 'main' 'public/main'          2> '/dev/null' ||
+      git rebase --no-autostash 'origin'            2> '/dev/null' ||
+      git rebase --no-autostash "${domain}"         2> '/dev/null' ||
+      git rebase --no-autostash 'github'            2> '/dev/null' ||
+      git rebase --no-autostash 'public'            2> '/dev/null' ||
+      git reset --mixed 'origin/main'               2> '/dev/null' ||
+      git reset --mixed "${domain}/main"            2> '/dev/null' ||
+      git reset --mixed 'public/main'               2> '/dev/null' ||
+      git reset --mixed 'github/main'               2> '/dev/null' ||
+      true
 
-      ( git reset --mixed 'origin/main'    && git branch --set-upstream-to='origin/main'    ) ||
-      ( git reset --mixed "${domain}/main" && git branch --set-upstream-to="${domain}/main" ) ||
-      ( git reset --mixed 'public/main'    && git branch --set-upstream-to='public/main'    )
+      git branch --set-upstream-to='origin/main'    2> '/dev/null' ||
+      git branch --set-upstream-to="${domain}/main" 2> '/dev/null' ||
+      git branch --set-upstream-to='public/main'    2> '/dev/null' ||
+      git branch --set-upstream-to='github/main'    2> '/dev/null' ||
+      true
 
       git diff --name-only -z --diff-filter=D | xargs -0 git checkout
-      git remote | while read remote; do
-        git rebase --no-autostash "${remote}" || true
-      done
 
       git gc
       git status
@@ -218,6 +223,46 @@ EOS
     done
   }
 
+  function _compose() {
+    (
+
+      export machine_id  # ="$(machine_id)"
+      export boot_id     # ="$(boot_id)"
+      export openpgp4fpr # ="$(openpgp4fpr)"
+      export uid="$(id -u)"
+      export gid="$(id -g)"
+      export domain      # ="$(hostname -d)"
+      export namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
+      export external_ip="$(ip a | grep inet | grep -v inet6 | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1 || echo 127.0.0.1)"
+      export resolve="$(cat /etc/resolv.conf | grep ^nameserver | head -n 1 | cut -d ' ' -f 2)"
+      export tag='latest'
+
+      compose_yml="$(cat "./compose.yml" | envsubst)"
+
+      echo "${compose_yml}" | podman-compose --file '/dev/stdin' down
+
+#     ${SUDO} sysctl --write fs.inotify.max_user_instances=1024
+#     ${SUDO} sysctl --write fs.inotify.max_user_watches=65536
+      ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=53
+
+#     echo "${compose_yml}" | podman-compose --file '/dev/stdin' up & # --detach
+
+#     while [[ 'running' != "$(echo "${compose_yml}" | podman-compose --file /dev/stdin ps --format json | jq -r '.[] | select(.Labels."com.docker.compose.service" == "proxy").State')" ]]; do
+#       sleep 1
+#     done
+
+#     ${SUDO} sysctl --write fs.inotify.max_user_instances=128
+#     ${SUDO} sysctl --write fs.inotify.max_user_watches=8192
+      ${SUDO} sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+
+      # clean
+      podman system  prune --force || true
+      podman volume  prune --force || true
+      podman network prune --force || true
+
+    )
+  }
+
   #----------------------------------------------------------------
   # main
 
@@ -265,13 +310,19 @@ EOS
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} modprobe -r pn533_usb pn533 nfc
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && winetricks cjkfonts
+#   test ! -e "${mnt_dir}/${machine_id}" && ! is_container && echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _requirements_lib
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _requirements_opt
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && build
     test ! -e "${mnt_dir}/${boot_id}"    && true           && exp
     test ! -e "${mnt_dir}/${boot_id}"    && true           && license > './LICENSE'
+#   test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && _compose
     mkdir -p  "${mnt_dir}/${machine_id}"
     mkdir -p  "${mnt_dir}/${boot_id}"
+
+    echo "machine_id:  ${machine_id}"
+    echo "boot_id:     ${boot_id}"
+    echo "openpgp4fpr: ${openpgp4fpr}"
 
   popd &> '/dev/null'
 
