@@ -1,15 +1,41 @@
-<wrap round important>不定期で[[src:bin:git-autofixup|squash]]します。</wrap>
+====== 0.git ======
+
+===== 💬 Hello World! =====
+
+独り言コード、実験環境
+
+<WRAP round important>不定期で[[src:bin:git-autofixup|squash]]します。</WRAP>
+
+===== 💻 setup =====
 
 <code bash>
 ( curl "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 </code>
 
+===== 👤 auther =====
+
+==== gpg ====
+
+- [[091373E51DDFEA289C93C7C460C125552C827AF9:pub|openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9]]
+
+==== pki ====
+
+* [[https://github.com/jpki|jpki]] ([[https://www.jpki.go.jp/|公的個人認証サービス]])
+  * 公的個人認証AP
+    * EF0001 署名用証明書
+    * EF0002 [[0000-0000-0000:jp.go.jpki_sign_ca.der|署名用CA証明書]]
+    * EF000A 認証用証明書 ([[0000-0000-0000/pub|ssh]])
+    * EF000B [[0000-0000-0000:jp.go.jpki_auth_ca.der|認証用CA証明書]]
+
+==== 🙏 donation ===
+
 <WRAP group>
-<WRAP column box round centeralign>{{ref:icon:btc.png?nolink&0x20}} btc \\ {{bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0:btc.svg?nolink&64}}</WRAP>
-<WRAP column box round centeralign>{{ref:icon:eth.png?nolink&0x20}} eth \\ {{0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea:eth.svg?nolink&64}}</WRAP>
-<WRAP column box round centeralign>{{ref:icon:sol.png?nolink&0x20}} sol \\ {{BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu:sol.svg?nolink&64}}</WRAP>
-<WRAP column box round centeralign>{{ref:icon:xrp.png?nolink&0x20}} xrp \\ {{rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL:xrp.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{00000000-0000-0000-0000-000000000000:btc.png?nolink&0x20}} btc \\ {{bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0:btc.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{00000000-0000-0000-0000-000000000000:eth.png?nolink&0x20}} eth \\ {{0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea:eth.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{00000000-0000-0000-0000-000000000000:sol.png?nolink&0x20}} sol \\ {{BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu:sol.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{00000000-0000-0000-0000-000000000000:xrp.png?nolink&0x20}} xrp \\ {{rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL:xrp.svg?nolink&64}}</WRAP>
 </WRAP>
 
 ----
+
 <aichat></aichat>
