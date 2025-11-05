@@ -17,7 +17,7 @@ def run():
     dat = ''.encode()
 
   lf    = '\n'.encode()
-  vhash = hashlib.sha256(ghash.encode() + lf + dat + lf).hexdigest()
+  vhash = hashlib.sha256(ghash.encode() + lf + dat).hexdigest()
   print(vhash)
 
   if None != vhash_dir:
