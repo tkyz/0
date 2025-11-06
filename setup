@@ -76,7 +76,7 @@ EOS
       git config --global core.autocrlf      false
       git config --global core.safecrlf      true
       git config --global core.filemode      true
-      git config --global core.hooksPath     '~/.git-hooks'
+      git config --global core.hooksPath     "${HOME}/.git-hooks"
       git config --global color.ui           auto
       git config --global color.diff         auto
       git config --global color.status       auto
@@ -161,6 +161,19 @@ default            = root
 EOS
     fi
 
+    # /etc/cdi/*
+    if type nvidia-ctk &> '/dev/null'; then
+      ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
+    fi
+
+    # /etc/containers/registries.conf
+    if [[ -f '/etc/containers/registries.conf' ]]; then
+      ${SUDO} sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
+    fi
+
+    # /etc/apt/apt.conf.d/*
+#   echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
+
   }
 
   function _apt() {
@@ -229,11 +242,8 @@ EOS
 
     domain="$(hostname -d)"
 
-    if [[ '0' == "$(id -u)" ]]; then
-      SUDO=
-    elif type sudo &> '/dev/null' && sudo -v -n &> '/dev/null'; then
-      SUDO='sudo'
-    fi
+    test ! -v SUDO && test '0' == "$(id -u)"                                && SUDO=
+    test ! -v SUDO && type sudo &> '/dev/null' && sudo -v -n &> '/dev/null' && SUDO='sudo'
 
     # 0.git
     if [[ ! -e './.git' ]]; then
@@ -258,27 +268,24 @@ EOS
     openpgp4fpr="$(openpgp4fpr)"
 
     mnt_dir='./mnt'
-    mkdir -p  "${mnt_dir}"
+    mkdir -p "${mnt_dir}"
 
     # TODO: ./bin/*
     test ! -e "${mnt_dir}/${machine_id}" && test -v SUDO
     test ! -e "${mnt_dir}/${boot_id}"    && test -v SUDO
-    test ! -e "${mnt_dir}/${machine_id}" && true           && _etc
+    test ! -e "${mnt_dir}/${boot_id}"    && true           && _etc
     test ! -e "${mnt_dir}/${machine_id}" && true           && _venv
-    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _src
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && mnt
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
-    test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
     test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && ${SUDO} modprobe -r pn533_usb pn533 nfc
-    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && ${SUDO} sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
-#   test ! -e "${mnt_dir}/${machine_id}" && ! is_container && echo "Acquire::http::Proxy \"http://apt.${domain}:3142/\";" | ${SUDO} tee '/etc/apt/apt.conf.d/00cache' > '/dev/null'
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && winetricks cjkfonts
+    test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _src
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _lib
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && _opt
     test ! -e "${mnt_dir}/${machine_id}" && ! is_container && build
+    test ! -e "${mnt_dir}/${boot_id}"    && ! is_container && deploy
     test ! -e "${mnt_dir}/${boot_id}"    && true           && exp
     test ! -e "${mnt_dir}/${boot_id}"    && true           && license > './LICENSE'
-#   test ! -e "${mnt_dir}/${boot_id}"    && test -v is_fpr && deploy
     mkdir -p  "${mnt_dir}/${machine_id}"
     mkdir -p  "${mnt_dir}/${boot_id}"
 
