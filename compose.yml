@@ -317,8 +317,8 @@ services:
       OLLAMA_API_BASE_URL: http://ollama:11434
       COMFYUI_BASE_URL:    http://comfyui:8188
     volumes:
-      - {type: bind, source: '${HOME}/0.lib/0.chat',          target: /app/backend/data}
-      - {type: bind, source: '${HOME}/mnt/${boot_id}/output', target: /app/backend/data/uploads}
+      - {type: bind, source: '${HOME}/0.lib/0.chat',   target: /app/backend/data}
+      - {type: bind, source: '${HOME}/mnt/${boot_id}', target: /app/backend/data/uploads}
 
   comfyui:
     image: docker.io/library/python:3.12
@@ -368,8 +368,9 @@ services:
       - {type: bind, source: '${HOME}/lib/com.civitai/models',                                                                                             target: /comfyui/models/animatediff_models/com.civitai,                                                                       read_only: true}
       - {type: bind, source: '${HOME}/lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl_lora.safetensors',                                   target: /comfyui/models/loras/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl_lora.safetensors,                   read_only: true}
       - {type: bind, source: '${HOME}/lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl_lora.safetensors',                            target: /comfyui/models/loras/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl_lora.safetensors,            read_only: true}
-      - {type: bind, source: '${HOME}/mnt/${boot_id}/input',                                                                                               target: /comfyui/input}
-      - {type: bind, source: '${HOME}/mnt/${boot_id}/output',                                                                                              target: /comfyui/output}
+      - {type: bind, source: '${HOME}/mnt/${boot_id}',                                                                                                     target: /comfyui/input}
+      - {type: bind, source: '${HOME}/mnt/${boot_id}',                                                                                                     target: /comfyui/output}
+      - {type: bind, source: '${HOME}/mnt/${boot_id}',                                                                                                     target: /comfyui/temp}
     working_dir: /comfyui
     entrypoint:
       - /bin/bash
