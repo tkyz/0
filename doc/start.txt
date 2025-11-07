@@ -1,7 +1,5 @@
 ====== 0.git ======
 
-===== 💬 Hello World! =====
-
 独り言コード、実験環境
 
 <WRAP round important>不定期で[[src:bin:git-autofixup|squash]]します。</WRAP>
@@ -16,18 +14,18 @@
 
 ==== gpg ====
 
-- [[091373E51DDFEA289C93C7C460C125552C827AF9:pub|openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9]]
+  * [[091373E51DDFEA289C93C7C460C125552C827AF9:pub|openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9]]
 
 ==== pki ====
 
-* [[https://github.com/jpki|jpki]] ([[https://www.jpki.go.jp/|公的個人認証サービス]])
-  * 公的個人認証AP
-    * EF0001 署名用証明書
-    * EF0002 [[0000-0000-0000:jp.go.jpki_sign_ca.der|署名用CA証明書]]
-    * EF000A 認証用証明書 ([[0000-0000-0000/pub|ssh]])
-    * EF000B [[0000-0000-0000:jp.go.jpki_auth_ca.der|認証用CA証明書]]
+  * [[https://github.com/jpki|jpki]] ([[https://www.jpki.go.jp/|公的個人認証サービス]])
+    * 公的個人認証AP
+      * EF0001 署名用証明書
+      * EF0002 [[0000-0000-0000:jp.go.jpki_sign_ca.der|署名用CA証明書]]
+      * EF000A 認証用証明書 ([[0000-0000-0000/pub|ssh]])
+      * EF000B [[0000-0000-0000:jp.go.jpki_auth_ca.der|認証用CA証明書]]
 
-==== 🙏 donation ===
+===== 🙏 donation ====
 
 <WRAP group>
 <WRAP column box round centeralign>{{00000000-0000-0000-0000-000000000000:btc.png?nolink&0x20}} btc \\ {{bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0:btc.svg?nolink&64}}</WRAP>

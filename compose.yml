@@ -213,9 +213,6 @@ services:
     volumes:
       - {type: bind, source: '${HOME}/src/0.doc/nginx.conf',                                   target: /etc/nginx/conf.d/default.conf}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki',                     target: /usr/share/nginx/html,                         read_only: true}
-#     - {type: bind, source: '${HOME}/src/0.doc/conf',                                         target: /usr/share/nginx/html/conf,                    read_only: true}
-#     - {type: bind, source: '${HOME}/mnt',                                                    target: /usr/share/nginx/html/data/media,              read_only: true}
-#     - {type: bind, source: '${HOME}/doc',                                                    target: /usr/share/nginx/html/data/pages,              read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-translation',  target: /usr/share/nginx/html/lib/plugins/translation, read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-vshare',       target: /usr/share/nginx/html/lib/plugins/vshare,      read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gallery',      target: /usr/share/nginx/html/lib/plugins/gallery,     read_only: true}
@@ -267,8 +264,7 @@ services:
     expose:
       - 8080
     volumes:
-#     - {type: bind, source: '${HOME}/.cache/pip', target: /root/.cache/pip}
-      - {type: bind, source: '${HOME}/setup',      target: /setup, read_only: true}
+      - {type: bind, source: '${HOME}/setup', target: /setup, read_only: true}
     entrypoint:
       - python
       - -c

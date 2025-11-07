@@ -1,7 +1,5 @@
 # [0.git](.)
 
-## 💬 Hello World!
-
 独り言コード、実験環境
 
 ⚠️不定期で[``squash``](./bin/git-autofixup)します⚠️
@@ -63,7 +61,7 @@
 >
 > ---
 
-### 🙏 donation
+## 🙏 donation
 
 |<img src='./mnt/00000000-0000-0000-0000-000000000000/btc.png'       height=20> btc|<img src='./mnt/00000000-0000-0000-0000-000000000000/eth.png'       height=20> eth|<img src='./mnt/00000000-0000-0000-0000-000000000000/sol.png'         height=20> sol|<img src='./mnt/00000000-0000-0000-0000-000000000000/xrp.png' height=20> xrp|
 |-|-|-|-|
