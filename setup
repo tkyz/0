@@ -163,7 +163,7 @@ EOS
 
     # /etc/cdi/*
     if type nvidia-ctk &> '/dev/null'; then
-      ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml'
+      ${SUDO} nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' || true
     fi
 
     # /etc/containers/registries.conf

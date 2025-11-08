@@ -42,7 +42,7 @@ httpcore
 httptools
 httpx
 httpx-sse
-huggingface-hub
+huggingface_hub
 humanfriendly
 idna
 importlib_metadata
