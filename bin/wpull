@@ -4,20 +4,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+# TODO: replace curi
 (
 
   uri="${1:-}"
-
-  function type_container() {
-
-    uri="${1}"
-
-    echo '---'
-    echo "${uri}"
-
-    podman pull "${uri}"
-
-  }
 
   function type_git() {
 
@@ -74,17 +64,22 @@ set -o pipefail
         git -C "${base_dir}" remote -v | awk '{ print $2 }'
       done | sort --unique | grep -E -e '^(https?)://.*\.git$' || true
 
-      podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>'
+#     podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>'
 
     } 2> '/dev/null' | sort --unique | while read item; do
       "${BASH_SOURCE}" "${item}"
     done
 
-  elif [[ "${uri}" =~ ^docker\.io/[^/]+/[^:]+:.+$ ]]; then
-    type_container "${uri}"
+  #----------------------------------------------------------------
+  # git
 
-  elif [[ "${uri}" =~ ^ghcr\.io/[^/]+/[^:]+:.+$ ]]; then
-    type_container "${uri}"
+  elif [[ "${uri}" =~ ^git://[^/]+/.+\.git$ ]]; then
+
+    git_dir="${HOME}/src"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^git://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    git_dir+="/$(echo "${uri}" | sed -E 's|^git://([^/]+)/(.+)\.git$|\2|g')"
+
+#   type_git "${git_dir}" 'upstream' "${uri}"
 
   elif [[ "${uri}" =~ ^https://github\.com/.+\.git$ ]]; then
 
@@ -109,6 +104,18 @@ set -o pipefail
     git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
 
     type_git "${git_dir}" 'huggingface' "${uri}"
+
+  #----------------------------------------------------------------
+  # container
+
+  elif [[ "${uri}" =~ ^docker\.io/[^/]+/[^:]+:.+$ ]]; then
+    curi "${uri}"
+
+  elif [[ "${uri}" =~ ^ghcr\.io/[^/]+/[^:]+:.+$ ]]; then
+    curi "${uri}"
+
+  #----------------------------------------------------------------
+  # ...
 
 # elif [[ "${uri}" =~ ^.*\.tar\.gz$ || "${uri}" =~ ^.*\.tgz$ ]]; then
 #   curl -fsSL "${uri}" | tar zxf - --strip-components 1 --no-same-permissions --no-same-owner

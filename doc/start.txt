@@ -14,16 +14,16 @@
 
 ==== gpg ====
 
-  * <wrap round box>[[091373E51DDFEA289C93C7C460C125552C827AF9:pub|openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9]]</wrap>
+  * <wrap round box>{{091373E51DDFEA289C93C7C460C125552C827AF9:pub|openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9}}</wrap>
 
 ==== pki ====
 
   * [[https://github.com/jpki|jpki]] ([[https://www.jpki.go.jp/|公的個人認証サービス]])
     * 公的個人認証AP
       * <wrap round box>EF0001</wrap> 署名用証明書
-      * <wrap round box>EF0002</wrap> [[0000-0000-0000:jp.go.jpki_sign_ca.der|署名用CA証明書]]
-      * <wrap round box>EF000A</wrap> 認証用証明書 ([[0000-0000-0000/pub|ssh]])
-      * <wrap round box>EF000B</wrap> [[0000-0000-0000:jp.go.jpki_auth_ca.der|認証用CA証明書]]
+      * <wrap round box>EF0002</wrap> {{0000-0000-0000:jp.go.jpki_sign_ca.der|署名用CA証明書}}
+      * <wrap round box>EF000A</wrap> 認証用証明書 ({{0000-0000-0000/pub|ssh}})
+      * <wrap round box>EF000B</wrap> {{0000-0000-0000:jp.go.jpki_auth_ca.der|認証用CA証明書}}
 
 ===== 🙏 donation ====
 

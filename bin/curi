@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import re
+import subprocess
+import git
+
+home = os.environ.get('HOME')
+
+def curl(*args):
+  return subprocess.run(['curl', *args], capture_output=True, check=True)
+
+def git_clone(base_dir, name, uri):
+
+  host = re.sub(r'^https?://([^/]+)/(.+)\.git$', r'\1', uri)
+  path = re.sub(r'^https?://([^/]+)/(.+)\.git$', r'\2', uri)
+
+  repo_dir = home + '/' + base_dir + '/' + '.'.join(host.split('.')[::-1]) + '/' + path
+  os.makedirs(repo_dir, exist_ok=True)
+
+  repo = git.Repo.init(repo_dir)
+
+  remote_map = {r.name: r for r in repo.remotes}
+  if name in remote_map:
+    remote_map[name].set_url(uri)
+  else:
+    repo.create_remote(name, uri)
+
+  # TODO: git clone ...
+
+def container_pull(uri):
+  return subprocess.run(['podman', 'pull', uri], capture_output=True, check=True)
+
+def run():
+
+  args = sys.argv[1:]
+  if 0 < len(args):
+
+    arg1 = args[0]
+
+    print('---')
+    print(arg1)
+
+    #----------------------------------------------------------------
+    # ./.local/share/containers/storage/*
+
+    if re.search(r'^docker\.io/([^/]+/[^:]+):(.+)$', arg1):
+      print(container_pull(arg1).stderr.decode())
+
+    elif re.search(r'^ghcr\.io/([^/]+/[^:]+):(.+)$', arg1):
+      print(container_pull(arg1).stderr.decode())
+
+    #----------------------------------------------------------------
+    # ./lib/*
+
+    elif re.search(r'^https://(huggingface\.co)/(.+)\.git$', arg1):
+      git_clone('lib', 'huggingface', arg1)
+
+    #----------------------------------------------------------------
+    # ./src/*
+
+    elif re.search(r'^git://([^/]+)/(.+)\.git$', arg1):
+      git_clone('src', 'upstream', arg1)
+
+    elif re.search(r'^https://(github\.com)/(.+)\.git$', arg1):
+      git_clone('src', 'github', arg1)
+
+    elif re.search(r'^https://(gitlab\.com)/(.+)\.git$', arg1):
+      git_clone('src', 'gitlab', arg1)
+
+if __name__ == '__main__':
+  run()
