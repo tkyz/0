@@ -3,9 +3,19 @@
 import os
 import sys
 import hashlib
+import subprocess
 
-ghash     = os.environ.get('GENESIS_HASH')
-vhash_dir = os.environ.get('HOME') + '/mnt'
+mnt_dir = os.environ.get('HOME') + '/mnt'
+
+def machine_id():
+  return subprocess.run(['machine_id'], capture_output=True, check=True).stdout.decode().strip()
+
+def boot_id():
+  return subprocess.run(['boot_id'], capture_output=True, check=True).stdout.decode().strip()
+
+def ghash():
+# return hashlib.sha256((machine_id() + '/' + boot_id()).encode()).hexdigest()
+  return '0000000000000000000000000000000000000000000000000000000000000000'
 
 def run():
 
@@ -17,11 +27,11 @@ def run():
     dat = ''.encode()
 
   lf    = '\n'.encode()
-  vhash = hashlib.sha256(ghash.encode() + lf + dat).hexdigest()
+  vhash = hashlib.sha256(ghash().encode() + lf + dat + lf).hexdigest()
   print(vhash)
 
-  if None != vhash_dir:
-    touch(vhash_dir + '/' + vhash)
+  if None != mnt_dir:
+    touch(mnt_dir + '/' + vhash)
 
 def touch(obj):
   if os.path.exists(obj):

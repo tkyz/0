@@ -64,7 +64,7 @@ set -o pipefail
         git -C "${base_dir}" remote -v | awk '{ print $2 }'
       done | sort --unique | grep -E -e '^(https?)://.*\.git$' || true
 
-#     podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>'
+      podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>'
 
     } 2> '/dev/null' | sort --unique | while read item; do
       "${BASH_SOURCE}" "${item}"

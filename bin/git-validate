@@ -21,8 +21,6 @@ $(hostname -d)
 $(hostname -d | tr '.' $'\n' | tac | paste -s -d '.')
 $(machine_id)
 $(boot_id)
-${GENESIS_HASH}
-$(ghash)
 $(openpgp4fpr)
 EOS
 )"
