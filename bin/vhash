@@ -13,9 +13,18 @@ def machine_id():
 def boot_id():
   return subprocess.run(['boot_id'], capture_output=True, check=True).stdout.decode().strip()
 
+def openpgp4fpr():
+  return subprocess.run(['openpgp4fpr'], capture_output=True, check=True).stdout.decode().strip()
+
 def ghash():
-# return hashlib.sha256((machine_id() + '/' + boot_id()).encode()).hexdigest()
-  return '0000000000000000000000000000000000000000000000000000000000000000'
+
+  l = []
+  l.append('0000000000000000000000000000000000000000000000000000000000000000')
+# l.append(machine_id())
+# l.append(boot_id())
+# l.append(openpgp4fpr())
+
+  return hashlib.sha256('/'.join(l).encode()).hexdigest()
 
 def run():
 
