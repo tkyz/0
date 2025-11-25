@@ -55,7 +55,12 @@ set -o pipefail
   }
 
   function type_container() {
+
+    echo '---'
+    echo "${1}"
+
     podman pull "${1}"
+
   }
 
   # list...

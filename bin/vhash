@@ -20,6 +20,6 @@ EOS
 
   echo "${vhash}"
 
-  test -e "${HOME}/mnt/${vhash}" && touch  "${HOME}/mnt/${vhash}" || true
+  test -e "${HOME}/map/${vhash}" && touch  "${HOME}/map/${vhash}" || true
 
 )

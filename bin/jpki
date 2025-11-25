@@ -12,7 +12,7 @@ set -o pipefail
 
   if ! myna test | grep ': NG' &> '/dev/null'; then
 
-    ca_dir="${HOME}/mnt/0000-0000-0000"
+    ca_dir="${HOME}/map/0000-0000-0000"
     mkdir -p "${ca_dir}"
 
     # ca証明書
@@ -38,7 +38,7 @@ set -o pipefail
     # TODO: 識別した認証用証明書から公開個人識別子を取得
     jpki_id="$(myna text mynumber --pin "${pin4}")"
 
-    exp_dir="${HOME}/mnt/$(echo "${jpki_id}" | awk '{print substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
+    exp_dir="${HOME}/map/$(echo "${jpki_id}" | awk '{print substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
     mkdir -p "${exp_dir}"
 
     # 登録

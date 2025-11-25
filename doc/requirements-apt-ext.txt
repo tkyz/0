@@ -7,6 +7,7 @@
   nvidia-container-toolkit
   nvidia-kernel-dkms
   nvidia-driver
+  nvidia-driver-libs:i386
   nvidia-detect
   nvidia-smi
 
@@ -71,8 +72,13 @@
   libcairo2-dev
 
 # x11
-  webp-pixbuf-loader
-  wine
-  winetricks
-# gimp
-# obs-studio
+
+  # wine
+    wine
+    winetricks
+
+  # ...
+    webp-pixbuf-loader
+#   gimp
+#   obs-studio
+#   steam

@@ -212,21 +212,21 @@ services:
       - 80
     volumes:
       - {type: bind, source: '${HOME}/src/0.doc/nginx.conf',                                   target: /etc/nginx/conf.d/default.conf}
-      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki',                     target: /usr/share/nginx/html,                                                 read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-translation',  target: /usr/share/nginx/html/lib/plugins/translation,                         read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-vshare',       target: /usr/share/nginx/html/lib/plugins/vshare,                              read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gallery',      target: /usr/share/nginx/html/lib/plugins/gallery,                             read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gchart',       target: /usr/share/nginx/html/lib/plugins/gchart,                              read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-xbr',            target: /usr/share/nginx/html/lib/plugins/xbr,                                 read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-iframe',         target: /usr/share/nginx/html/lib/plugins/iframe,                              read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/cosmocode/sqlite',                        target: /usr/share/nginx/html/lib/plugins/sqlite,                              read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/cosmocode/dokuwiki-plugin-aichat',        target: /usr/share/nginx/html/lib/plugins/aichat,                              read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/selfthinker/dokuwiki_plugin_wrap',        target: /usr/share/nginx/html/lib/plugins/wrap,                                read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/hanche/dokuwiki_color_plugin',            target: /usr/share/nginx/html/lib/plugins/color,                               read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/samuelet/indexmenu',                      target: /usr/share/nginx/html/lib/plugins/indexmenu,                           read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/lejmr/dokuwiki-plugin-drawio',            target: /usr/share/nginx/html/lib/plugins/drawio,                              read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/liffiton/dokuwiki-plugin-mathjax',        target: /usr/share/nginx/html/lib/plugins/mathjax,                             read_only: true}
-      - {type: bind, source: '${HOME}/src/com.github/giterlizzi/dokuwiki-template-bootstrap3', target: /usr/share/nginx/html/lib/tpl/bootstrap3,                              read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki',                     target: /usr/share/nginx/html,                         read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-translation',  target: /usr/share/nginx/html/lib/plugins/translation, read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-vshare',       target: /usr/share/nginx/html/lib/plugins/vshare,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gallery',      target: /usr/share/nginx/html/lib/plugins/gallery,     read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gchart',       target: /usr/share/nginx/html/lib/plugins/gchart,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-xbr',            target: /usr/share/nginx/html/lib/plugins/xbr,         read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-iframe',         target: /usr/share/nginx/html/lib/plugins/iframe,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/cosmocode/sqlite',                        target: /usr/share/nginx/html/lib/plugins/sqlite,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/cosmocode/dokuwiki-plugin-aichat',        target: /usr/share/nginx/html/lib/plugins/aichat,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/selfthinker/dokuwiki_plugin_wrap',        target: /usr/share/nginx/html/lib/plugins/wrap,        read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/hanche/dokuwiki_color_plugin',            target: /usr/share/nginx/html/lib/plugins/color,       read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/samuelet/indexmenu',                      target: /usr/share/nginx/html/lib/plugins/indexmenu,   read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/lejmr/dokuwiki-plugin-drawio',            target: /usr/share/nginx/html/lib/plugins/drawio,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/liffiton/dokuwiki-plugin-mathjax',        target: /usr/share/nginx/html/lib/plugins/mathjax,     read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/giterlizzi/dokuwiki-template-bootstrap3', target: /usr/share/nginx/html/lib/tpl/bootstrap3,      read_only: true}
     depends_on:
       - doc-php
 
@@ -238,12 +238,10 @@ services:
     expose:
       - 9000
     volumes:
-      - {type: bind, source: '${HOME}/src/0.doc/php.ini',                                      target: /usr/local/etc/php/php.ini,                                            read_only: true}
+      - {type: bind, source: '${HOME}/src/0.doc/php.ini',                                      target: /usr/local/etc/php/php.ini,                    read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki',                     target: /usr/share/nginx/html}
       - {type: bind, source: '${HOME}/src/0.doc/conf',                                         target: /usr/share/nginx/html/conf}
-#     - {type: bind, source: '${HOME}/mnt',                                                    target: /usr/share/nginx/html/data/media,                                      read_only: true}
-      - {type: bind, source: '${HOME}/mnt/0000-0000-0000',                                     target: /usr/share/nginx/html/data/media/0000-0000-0000,                       read_only: true}
-      - {type: bind, source: '${HOME}/mnt/00000000-0000-0000-0000-000000000000',               target: /usr/share/nginx/html/data/media/00000000-0000-0000-0000-000000000000, read_only: true}
+      - {type: bind, source: '${HOME}/map',                                                    target: /usr/share/nginx/html/data/media,              read_only: true}
       - {type: bind, source: '${HOME}/doc',                                                    target: /usr/share/nginx/html/data/pages}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-translation',  target: /usr/share/nginx/html/lib/plugins/translation}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-vshare',       target: /usr/share/nginx/html/lib/plugins/vshare}
@@ -315,7 +313,7 @@ services:
       COMFYUI_BASE_URL:    http://comfyui:8188
     volumes:
       - {type: bind, source: '${HOME}/lib/0.chat',     target: /app/backend/data}
-      - {type: bind, source: '${HOME}/mnt/${boot_id}', target: /app/backend/data/uploads}
+      - {type: bind, source: '${HOME}/map/${boot_id}', target: /app/backend/data/uploads}
 
   comfyui:
     image: docker.io/library/python:3.12
@@ -385,9 +383,9 @@ services:
       - {type: bind, source: '${HOME}/lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl_lora.safetensors',                                                target: /comfyui/models/loras/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl_lora.safetensors,                              read_only: true}
       - {type: bind, source: '${HOME}/lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl_lora.safetensors',                                         target: /comfyui/models/loras/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl_lora.safetensors,                       read_only: true}
       - {type: bind, source: '${HOME}/lib/com.civitai/models',                                                                                                          target: /comfyui/models/loras/com.civitai,                                                                                  read_only: true}
-      - {type: bind, source: '${HOME}/mnt/${boot_id}',                                                                                                                  target: /comfyui/input}
-      - {type: bind, source: '${HOME}/mnt/${boot_id}',                                                                                                                  target: /comfyui/output}
-      - {type: bind, source: '${HOME}/mnt/${boot_id}/temp',                                                                                                             target: /comfyui/temp} # ⚠️起動時に中身がクリアされる
+      - {type: bind, source: '${HOME}/map/${boot_id}',                                                                                                                  target: /comfyui/input}
+      - {type: bind, source: '${HOME}/map/${boot_id}',                                                                                                                  target: /comfyui/output}
+      - {type: bind, source: '${HOME}/map/${boot_id}/temp',                                                                                                             target: /comfyui/temp} # ⚠️起動時に中身がクリアされる
     working_dir: /comfyui
     entrypoint:
       - /bin/bash

@@ -48,7 +48,7 @@ set -o pipefail
       map_dir="/dev/mapper/${mnt_key}"
       if [[ ! -e "${map_dir}" ]]; then
 
-        gpw_file="${mnt_root}/$(vhash "${mnt_key}")"
+        gpw_file="${HOME}/map/$(vhash "${mnt_key}")"
         if [[ -f "${gpw_file}" ]]; then
           cat "${gpw_file}" | dec | sudo cryptsetup open --type luks "${name}" "${mnt_key}"
         fi
@@ -138,7 +138,7 @@ set -o pipefail
 
     enc_dir="${mnt_root}/${mnt_key}.enc"
 
-    gpw_file="${mnt_root}/$(vhash "${mnt_key}")"
+    gpw_file="${HOME}/map/$(vhash "${mnt_key}")"
     if [[ ! -f "${gpw_file}" ]]; then
       cat '/dev/urandom' | tr --complement --delete '[:graph:]' | head -c 2048 | enc > "${gpw_file}"
     fi
