@@ -2,7 +2,7 @@
 # https://github.com/ethereum/go-ethereum.git
 FROM golang:latest as builder
 
-ARG ETHEREUM_VERSION=v1.16.3
+ARG ETHEREUM_VERSION=v1.16.7
 
 WORKDIR /
 RUN \

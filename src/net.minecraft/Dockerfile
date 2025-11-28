@@ -2,7 +2,7 @@
 # https://www.minecraft.net/en-us/download/server
 FROM alpine/curl:latest as downloader
 
-ARG MINECRAFT_VERSION=05e4b48fbc01f0385adb74bcff9751d34552486c
+ARG MINECRAFT_VERSION=95495a7f485eedd84ce928cef5e223b757d2f764/server.jar
 
 RUN \
   curl -fsSLO "https://launcher.mojang.com/v1/objects/${MINECRAFT_VERSION}/server.jar" || \

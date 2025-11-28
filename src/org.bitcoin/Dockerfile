@@ -2,7 +2,7 @@
 # https://github.com/bitcoin/bitcoin.git
 FROM debian:latest as builder
 
-ARG BITCOIN_VERSION=v29.1
+ARG BITCOIN_VERSION=v30.0
 
 RUN \
   apt-get update && \
