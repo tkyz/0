@@ -44,8 +44,21 @@ set -o pipefail
   # remote hook
 
   elif [[ 'pre-receive' == "${hook_name}" ]]; then
+
     _debug
-#   _validate
+    git validate
+
+    oldrev="${stdin[0]}"
+    newrev="${stdin[1]}"
+    refname="${stdin[2]}"
+
+    # check sign
+    for commit in $(git rev-list "${oldrev}..${newrev}"); do
+      if ! git verify-commit "${commit}" &> '/dev/null'; then
+        echo "no valid gpg signature. ${commit} ${refname}" >&2
+        exit 1
+      fi
+    done
 
   elif [[ 'post-receive' == "${hook_name}" ]]; then
     _debug
