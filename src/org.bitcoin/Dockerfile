@@ -14,7 +14,9 @@ RUN \
     cmake \
     libboost-dev \
     libevent-dev \
-    libsqlite3-dev && \
+    libsqlite3-dev \
+    capnproto \
+    libcapnp-dev && \
   apt-get autoremove -y && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/* && \
