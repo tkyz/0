@@ -340,6 +340,7 @@ services:
       - {type: bind, source: '${HOME}/src/com.github/cubiq/ComfyUI_essentials',                                                                                         target: /comfyui/custom_nodes/ComfyUI_essentials}
       - {type: bind, source: '${HOME}/src/com.github/Kosinkadink/ComfyUI-AnimateDiff-Evolved',                                                                          target: /comfyui/custom_nodes/ComfyUI-AnimateDiff-Evolved}
       - {type: bind, source: '${HOME}/src/com.github/Kosinkadink/ComfyUI-VideoHelperSuite',                                                                             target: /comfyui/custom_nodes/ComfyUI-VideoHelperSuite}
+      - {type: bind, source: '${HOME}/src/com.github/jamesWalker55/comfyui-various',                                                                                    target: /comfyui/custom_nodes/comfyui-various}
       # checkpoint
       - {type: bind, source: '${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors',                                          target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors,                  read_only: true}
       - {type: bind, source: '${HOME}/lib/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors',                                    target: /comfyui/models/checkpoints/co.huggingface/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors,            read_only: true}
