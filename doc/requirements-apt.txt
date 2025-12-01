@@ -23,6 +23,7 @@
   fuse
   archivemount
   cifs-utils
+  smbclient
 
 # nw
   openssl
