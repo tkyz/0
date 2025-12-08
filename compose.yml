@@ -241,7 +241,7 @@ services:
       - {type: bind, source: '${HOME}/src/0.doc/php.ini',                                      target: /usr/local/etc/php/php.ini,                    read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki',                     target: /usr/share/nginx/html}
       - {type: bind, source: '${HOME}/src/0.doc/conf',                                         target: /usr/share/nginx/html/conf}
-      - {type: bind, source: '${HOME}/map',                                                    target: /usr/share/nginx/html/data/media}
+      - {type: bind, source: '${HOME}/dataset',                                                target: /usr/share/nginx/html/data/media}
       - {type: bind, source: '${HOME}/doc',                                                    target: /usr/share/nginx/html/data/pages}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-translation',  target: /usr/share/nginx/html/lib/plugins/translation}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-vshare',       target: /usr/share/nginx/html/lib/plugins/vshare}
@@ -312,8 +312,8 @@ services:
       OLLAMA_API_BASE_URL: http://ollama:11434
       COMFYUI_BASE_URL:    http://comfyui:8188
     volumes:
-      - {type: bind, source: '${HOME}/lib/0.chat',     target: /app/backend/data}
-      - {type: bind, source: '${HOME}/map/${boot_id}', target: /app/backend/data/uploads}
+      - {type: bind, source: '${HOME}/lib/0.chat',                 target: /app/backend/data}
+      - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}', target: /app/backend/data/uploads}
 
   comfyui:
     image: docker.io/library/python:3.12
@@ -384,9 +384,9 @@ services:
       - {type: bind, source: '${HOME}/lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl_lora.safetensors',                                                target: /comfyui/models/loras/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid_sdxl_lora.safetensors,                              read_only: true}
       - {type: bind, source: '${HOME}/lib/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl_lora.safetensors',                                         target: /comfyui/models/loras/co.huggingface/h94/IP-Adapter-FaceID/ip-adapter-faceid-plusv2_sdxl_lora.safetensors,                       read_only: true}
       - {type: bind, source: '${HOME}/lib/com.civitai/models',                                                                                                          target: /comfyui/models/loras/com.civitai,                                                                                  read_only: true}
-      - {type: bind, source: '${HOME}/map/${boot_id}',                                                                                                                  target: /comfyui/input}
-      - {type: bind, source: '${HOME}/map/${boot_id}',                                                                                                                  target: /comfyui/output}
-      - {type: bind, source: '${HOME}/map/${boot_id}/temp',                                                                                                             target: /comfyui/temp} # ⚠️起動時に中身がクリアされる
+      - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}',                                                                                                      target: /comfyui/input}
+      - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}',                                                                                                      target: /comfyui/output}
+      - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}/temp',                                                                                                 target: /comfyui/temp} # ⚠️起動時に中身がクリアされる
     working_dir: /comfyui
     entrypoint:
       - /bin/bash

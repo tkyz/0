@@ -269,24 +269,24 @@ EOS
     boot_id="$(boot_id)"
     openpgp4fpr="$(openpgp4fpr)"
 
-    map_dir='./map'
-    mkdir -p "${map_dir}"
+    dataset_dir='./dataset'
+    mkdir -p "${dataset_dir}"
 
     # TODO: ./bin/*
-    test ! -e "${map_dir}/${machine_id}" && test -v SUDO
-    test ! -e "${map_dir}/${boot_id}"    && test -v SUDO
-    test ! -e "${map_dir}/${boot_id}"    && _etc
-    test ! -e "${map_dir}/${machine_id}" && _venv
-    test ! -e "${map_dir}/${machine_id}" && _wine
-#   test ! -e "${map_dir}/${boot_id}"    && ${SUDO} modprobe -r pn533_usb pn533 nfc
-#   test ! -e "${map_dir}/${boot_id}"    && mnt
-#   test ! -e "${map_dir}/${machine_id}" && curi
-#   test ! -e "${map_dir}/${machine_id}" && build
-#   test ! -e "${map_dir}/${boot_id}"    && deploy
-    test ! -e "${map_dir}/${boot_id}"    && exp
-    test ! -e "${map_dir}/${boot_id}"    && license > './LICENSE'
-    mkdir -p  "${map_dir}/${machine_id}"
-    mkdir -p  "${map_dir}/${boot_id}"
+    test ! -e "${dataset_dir}/${machine_id}" && test -v SUDO
+    test ! -e "${dataset_dir}/${boot_id}"    && test -v SUDO
+    test ! -e "${dataset_dir}/${boot_id}"    && _etc
+    test ! -e "${dataset_dir}/${machine_id}" && _venv
+    test ! -e "${dataset_dir}/${machine_id}" && _wine
+#   test ! -e "${dataset_dir}/${boot_id}"    && ${SUDO} modprobe -r pn533_usb pn533 nfc
+#   test ! -e "${dataset_dir}/${boot_id}"    && mnt
+#   test ! -e "${dataset_dir}/${machine_id}" && curi
+#   test ! -e "${dataset_dir}/${machine_id}" && build
+#   test ! -e "${dataset_dir}/${boot_id}"    && deploy
+    test ! -e "${dataset_dir}/${boot_id}"    && exp
+    test ! -e "${dataset_dir}/${boot_id}"    && license > './LICENSE'
+    mkdir -p  "${dataset_dir}/${machine_id}"
+    mkdir -p  "${dataset_dir}/${boot_id}"
 
     echo "machine_id:  ${machine_id}"
     echo "boot_id:     ${boot_id}"

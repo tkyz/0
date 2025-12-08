@@ -25,3 +25,8 @@
   https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
   https://github.com/space-nuko/ComfyUI-OpenPose-Editor.git
   https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git
+
+# deepfacelab
+  https://github.com/iperov/DeepFaceLab.git
+  https://github.com/iperov/DeepFaceLive.git
+# https://github.com/MachineEditor/DeepFaceLab-MVE.git

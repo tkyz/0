@@ -15,16 +15,16 @@
 
 ### gpg
 
-- [``openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9``](./map/091373E51DDFEA289C93C7C460C125552C827AF9/pub)
+- [``openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9``](./dataset/openpgp4fpr/091373E51DDFEA289C93C7C460C125552C827AF9.pub)
 
 ### pki
 
 - [jpki](https://github.com/jpki) ([公的個人認証サービス](https://www.jpki.go.jp/))
   - 公的個人認証AP
     - ``EF0001`` 署名用証明書
-    - ``EF0002`` [署名用CA証明書](./map/0000-0000-0000/jp.go.jpki_sign_ca.der)
-    - ``EF000A`` 認証用証明書 ([ssh](./map/0000-0000-0000/pub))
-    - ``EF000B`` [認証用CA証明書](./map/0000-0000-0000/jp.go.jpki_auth_ca.der)
+    - ``EF0002`` [署名用CA証明書](./dataset/mynaid/jp.go.jpki_sign_ca.der)
+    - ``EF000A`` 認証用証明書 ([ssh](./dataset/mynaid/0000-0000-0000/pub))
+    - ``EF000B`` [認証用CA証明書](./dataset/mynaid/jp.go.jpki_auth_ca.der)
 
 > [!CAUTION]
 > 「署名用証明書」には以下の個人情報が含まれています。<br>
@@ -35,6 +35,6 @@
 
 ## 🙏 donation
 
-|<img src='./map/00000000-0000-0000-0000-000000000000/btc.png'       height=20> btc|<img src='./map/00000000-0000-0000-0000-000000000000/eth.png'       height=20> eth|<img src='./map/00000000-0000-0000-0000-000000000000/sol.png'         height=20> sol|<img src='./map/00000000-0000-0000-0000-000000000000/xrp.png' height=20> xrp|
+|<img src='./dataset/btc/bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0.png' height=20> btc|<img src='./dataset/eth/0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea.png' height=20> eth|<img src='./dataset/sol/BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu.png' height=20> sol|<img src='./dataset/xrp/rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL.png' height=20> xrp|
 |-|-|-|-|
-|<img src='./map/bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0/btc.svg' width=64>     |<img src='./map/0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea/eth.svg' width=64>     |<img src='./map/BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu/sol.svg' width=64>     |<img src='./map/rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL/xrp.svg'   width=64>     |
+|<img src='./dataset/btc/icon.svg'                                       width=64>     |<img src='./dataset/etc/icon.svg' width=64>                                           |<img src='./dataset/sol/icon/svg'                                         width=64>     |<img src='./dataset/xrp/icon.png'                               width=64>     |

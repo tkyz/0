@@ -10,11 +10,11 @@ set -o pipefail
 # gpg --with-colons --list-secret-keys | grep -A 1 ^sec: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
   gpg --with-colons --list-keys        | grep -A 1 ^pub: | grep ^fpr: | cut -d ':' -f 10 | while read fpr; do
 
-    exp_dir="${HOME}/map/${fpr}"
+    exp_dir="${HOME}/dataset/openpgp4fpr"
     mkdir -p "${exp_dir}"
 
-#   gpg --batch --yes --export-secret-keys --armor --output "${exp_dir}/key" "0x${fpr}" 2> '/dev/null' || true
-    gpg --batch --yes --export             --armor --output "${exp_dir}/pub" "0x${fpr}"
+#   gpg --batch --yes --export-secret-keys --armor --output "${exp_dir}/${fpr}.key" "0x${fpr}" 2> '/dev/null' || true
+    gpg --batch --yes --export             --armor --output "${exp_dir}/${fpr}.pub" "0x${fpr}"
 
   done
 
@@ -26,7 +26,7 @@ set -o pipefail
   touch "${keys_file}"
   {
     cat "${keys_file}"
-    cat "${HOME}/map/0000-0000-0000/pub"
+    cat "${HOME}/dataset/mynaid/0000-0000-0000/pub"
 #   curl 'https://github.com/tkyz.keys'
   } | awk '{print $1 " " $2}' | sort --unique --output "${keys_file}"
 
