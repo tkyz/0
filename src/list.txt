@@ -3,6 +3,9 @@
   https://github.com/jpki/OpenSC.git
   https://github.com/jpki/myna.git
 
+# k8s
+  https://github.com/kubernetes-sigs/kind
+
 # wiki
   https://github.com/splitbrain/dokuwiki.git
   https://github.com/splitbrain/dokuwiki-plugin-gallery.git
@@ -29,4 +32,5 @@
 # deepfacelab
   https://github.com/iperov/DeepFaceLab.git
   https://github.com/iperov/DeepFaceLive.git
+# https://github.com/Cregrant/DeepFaceLab-optimized.git
 # https://github.com/MachineEditor/DeepFaceLab-MVE.git

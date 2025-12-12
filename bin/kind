@@ -1,1 +1,1 @@
-../opt/io.k8s.sigs.kind/kind-linux-amd64
+../go/bin/kind
