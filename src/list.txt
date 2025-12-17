@@ -34,3 +34,6 @@
   https://github.com/iperov/DeepFaceLive.git
 # https://github.com/Cregrant/DeepFaceLab-optimized.git
 # https://github.com/MachineEditor/DeepFaceLab-MVE.git
+
+# face_id
+  https://github.com/deepinsight/insightface.git

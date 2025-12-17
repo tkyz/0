@@ -1,0 +1,62 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+  if ! is_container; then
+    sandbox 'node:20.18-bookworm' # "${BASH_SOURCE##*/}" "${@}"
+
+  else
+    pushd "${HOME}/.pwd" &> '/dev/null'
+
+      function _deps() {
+        (
+
+          apt-get update
+          apt-get upgrade -y
+          apt-get install -y \
+            python3 \
+            make \
+            g++ \
+            pkg-config \
+            libx11-dev \
+            libxkbfile-dev \
+            libsecret-1-dev \
+            libkrb5-dev \
+            libxss-dev \
+            libgbm-dev \
+            libasound2-dev \
+            libgtk-3-dev \
+            libnss3-dev \
+            curl \
+            ca-certificates
+
+          npm install
+          npm run postinstall
+
+        )
+      }
+
+      function _build() {
+        npm run buildreact
+        npm run compile
+      }
+
+      function _pkg() {
+        npm run gulp -- vscode-linux-x64
+      }
+
+      if [[ ! -f '../VSCode-linux-x64/void' ]]; then
+        _deps
+        _build
+        _pkg
+      fi
+
+      '../VSCode-linux-x64/void' --no-sandbox
+
+    popd &> '/dev/null'
+  fi
+
+)

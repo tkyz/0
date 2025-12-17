@@ -39,9 +39,11 @@ set -o pipefail
   opts+=('--workdir'    '/root')
   opts+=('--volume'     "$(printf '%s:%s'    '/tmp/.X11-unix/X0'       '/tmp/.X11-unix/X0')")
 # opts+=('--volume'     "$(printf '%s:%s:ro' '/var/cache/apt/archives' '/var/cache/apt/archives')") # TODO: apt-cache
+  opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/.cache/apt"      '/var/cache/apt/archives')")
   opts+=('--volume'     "$(printf '%s:%s'    "${PWD}"                  '/root/.pwd')")
   opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/.cache/pip"      '/root/.cache/pip')")
   opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/.m2"             '/root/.m2')")
+  opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/.npm"            '/root/.npm')")
   opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/.bashrc"         '/root/.bashrc')")
   opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/.profile"        '/root/.profile')")
   opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/bin"             '/root/bin')")
