@@ -79,6 +79,9 @@
 
   # ...
     webp-pixbuf-loader
+    tumbler
+    tumbler-plugins-extra
+    ffmpegthumbnailer
 #   gimp
 #   obs-studio
 #   steam

@@ -189,6 +189,7 @@ typing-inspection
 typing_extensions
 tzdata
 urllib3
+uuid_utils
 uvicorn
 uvloop
 watchfiles

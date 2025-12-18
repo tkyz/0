@@ -26,7 +26,7 @@ set -o pipefail
   touch "${keys_file}"
   {
     cat "${keys_file}"
-    cat "${HOME}/dataset/mynaid/0000-0000-0000/pub"
+    cat "${HOME}/dataset/myna_id/0000-0000-0000/pub"
 #   curl 'https://github.com/tkyz.keys'
   } | awk '{print $1 " " $2}' | sort --unique --output "${keys_file}"
 

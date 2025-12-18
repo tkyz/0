@@ -45,6 +45,8 @@
 #----------------------------------------------------------------
 # 0
 
+/dataset/*
+/mnt/*
 /src/0.playground/**/.settings/
 /src/0.playground/**/.classpath
 /src/0.playground/**/.project
