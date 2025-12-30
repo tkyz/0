@@ -50,6 +50,7 @@ set -o pipefail
   opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/dataset"         '/root/dataset')")
   opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/doc"             '/root/doc')")
   opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/src"             '/root/src')")
+  opts+=('--volume'     "$(printf '%s:%s'    "${HOME}/tmp"             '/root/tmp')")
   opts+=('--volume'     "$(printf '%s:%s:ro' "${HOME}/setup"           '/root/setup')")
 
   podman run "${opts[@]}" "${image}" "${cmd[@]}"
