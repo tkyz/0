@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import re
 import git
 import magic
-import tiktoken
 
 def main():
 
