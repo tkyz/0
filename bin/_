@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import subprocess
+
+def main():
+
+  args = sys.argv[1:]
+
+  subcommand      = None
+  subcommand_args = []
+  for i in range(len(args), 0, -1):
+
+    subcommand_name = '_-' + '-'.join(args[:i])
+    subcommand_path = os.environ.get('HOME') + '/bin/' + subcommand_name
+
+    if not os.path.isfile(subcommand_path):
+      continue
+
+    subcommand      = subcommand_path
+    subcommand_args = args[i:]
+    break
+
+  if not subcommand:
+    print(f"subcommand not found: {args}", file=sys.stderr)
+    sys.exit(1)
+
+  try:
+
+    result = subprocess.run(
+      [subcommand] + subcommand_args,
+      stdin  = sys.stdin,
+      stdout = sys.stdout,
+      stderr = sys.stderr
+    )
+
+    sys.exit(result.returncode)
+
+  except Exception as e:
+    print(e, file=sys.stderr)
+    sys.exit(1)
+
+if __name__ == '__main__':
+  main()
