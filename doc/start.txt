@@ -1,8 +1,8 @@
 ====== 0.git ======
 
-実験環境、コード、独り言
+個人環境です。
 
-<WRAP round info>不定期で''[[src:bin:git-autofixup|squash]]''します。</WRAP>
+<WRAP round important>不定期で''[[src:bin:git-autofixup|squash]]''します。</WRAP>
 
 ===== 💻 setup =====
 
@@ -12,36 +12,18 @@
 
 ===== 👤 auther =====
 
-==== gpg ====
-
-  * ''{{091373E51DDFEA289C93C7C460C125552C827AF9:pub|openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9}}''
-
-==== pki ====
-
-  * [[https://github.com/jpki|jpki]] ([[https://www.jpki.go.jp/|公的個人認証サービス]])
-    * 公的個人認証AP
-      * ''EF0001'' 署名用証明書
-      * ''EF0002'' {{0000-0000-0000:jp.go.jpki_sign_ca.der|署名用CA証明書}}
-      * ''EF000A'' 認証用証明書 ({{0000-0000-0000/pub|ssh}})
-      * ''EF000B'' {{0000-0000-0000:jp.go.jpki_auth_ca.der|認証用CA証明書}}
-
-<WRAP round alert>
-「署名用証明書」には以下の個人情報が含まれています。
-''発行元自治体情報''、''生年月日の年月''（有効期限）、''氏名''、''住所''、''性別''、''生年月日''
-
-「認証用証明書」には以下の個人情報が含まれています。
-''発行元自治体情報''、''生年月日の年月''（有効期限）
-</WRAP>
+  * gpg
+    * ''{{openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9.pub|openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9}}''
+  * pki
+    * [[https://github.com/jpki|jpki]] ([[https://www.jpki.go.jp/|公的個人認証サービス]])
+      * 署名用証明書((個人情報が含まれています。''発行元自治体情報''、''有効期限(生年月日の年月)''、''氏名''、''住所''、''性別''、''生年月日''))
+      * 認証用証明書((個人情報が含まれています。''発行元自治体情報''、''有効期限(生年月日の年月)'')) ({{myna_id:0000-0000-0000:pub|ssh}})
 
 ===== 🙏 donation ====
 
 <WRAP group>
-<WRAP column box round centeralign>{{00000000-0000-0000-0000-000000000000:btc.png?nolink&0x20}} btc \\ {{bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0:btc.svg?nolink&64}}</WRAP>
-<WRAP column box round centeralign>{{00000000-0000-0000-0000-000000000000:eth.png?nolink&0x20}} eth \\ {{0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea:eth.svg?nolink&64}}</WRAP>
-<WRAP column box round centeralign>{{00000000-0000-0000-0000-000000000000:sol.png?nolink&0x20}} sol \\ {{BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu:sol.svg?nolink&64}}</WRAP>
-<WRAP column box round centeralign>{{00000000-0000-0000-0000-000000000000:xrp.png?nolink&0x20}} xrp \\ {{rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL:xrp.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{btc:icon.png?nolink&0x20}} btc \\ {{btc:bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{eth:icon.png?nolink&0x20}} eth \\ {{eth:0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{sol:icon.png?nolink&0x20}} sol \\ {{sol:BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{xrp:icon.png?nolink&0x20}} xrp \\ {{xrp:rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL.svg?nolink&64}}</WRAP>
 </WRAP>
-
-----
-
-<aichat></aichat>
