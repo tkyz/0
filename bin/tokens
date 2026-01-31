@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import re
+import git
+import magic
+import tiktoken
+
+def main():
+
+  tokens = set()
+
+  # tokens <- git
+  repo = git.Repo('.', search_parent_directories=True)
+  for f in repo.git.ls_files().split('\n'):
+
+    f = os.path.join(repo.working_tree_dir, f)
+
+    # tokens <- path
+    tokens |= split(f)
+
+    # tokens <- *file
+    if os.path.isfile(f):
+
+      mime_type = magic.from_file(f, mime=True)
+      tokens |= split(mime_type)
+
+      read  = False
+      read |= mime_type.startswith("text/")
+      read |= mime_type.startswith("application/json")
+      if read:
+
+        with open(f, 'r') as f_:
+          text = f_.read()
+
+        tokens |= split(text)
+
+  for t in sorted(list(tokens)):
+    print(t)
+
+def split(s):
+
+  # TODO: regex
+  regexs  = list()
+  regexs += [r',\.'];          regexs += [r'、。']
+  regexs += [r';:'];           regexs += [r'；：']
+  regexs += [r'"\'']
+  regexs += [r'`']
+  regexs += [r'!']
+  regexs += [r'$']
+  regexs += [r'&']
+  regexs += [r'?']
+  regexs += [r'%']
+  regexs += [r'#']
+  regexs += [r'@']
+  regexs += [r'・']
+  regexs += [r'_']
+  regexs += [r'^']
+  regexs += [r'~']
+  regexs += [r'\+\-\*/=']
+  regexs += [r'\(\)\[\]{}<>']; regexs += [r'（）「」｛｝＜＞']
+  regexs += [r'\\\s']
+  regexs += [r'|']
+  regex   = '[' + ''.join(regexs) + ']'
+ 
+  tokens  = set()
+  tokens |= {t for t in re.split(regex, s) if t}
+
+  return tokens
+
+if __name__ == '__main__':
+  main()
