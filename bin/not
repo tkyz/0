@@ -2,7 +2,7 @@
 
 import sys
 
-def run():
+def main():
 
   while True:
 
@@ -17,4 +17,4 @@ def run():
     sys.stdout.flush()
 
 if __name__ == '__main__':
-  run()
+  main()

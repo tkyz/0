@@ -8,9 +8,16 @@ def main():
 
   args = sys.argv[1:]
 
-  subcommand      = None
-  subcommand_args = []
-  for i in range(len(args), 0, -1):
+  subcommand         = None
+  subcommand_args    = []
+  subcommand_end_idx = len(args)
+
+  for i, arg in enumerate(args):
+    if arg.startswith('-'):
+      subcommand_end_idx = i
+      break
+
+  for i in range(subcommand_end_idx, 0, -1):
 
     subcommand_name = '_-' + '-'.join(args[:i])
     subcommand_path = os.environ.get('HOME') + '/bin/' + subcommand_name
@@ -23,7 +30,7 @@ def main():
     break
 
   if not subcommand:
-    print(f"subcommand not found: {args}", file=sys.stderr)
+    print(f"subcommand not found: {args[:subcommand_end_idx]}", file=sys.stderr)
     sys.exit(1)
 
   try:

@@ -9,7 +9,7 @@ def ignore(path, name):
 
   return r
 
-def run():
+def main():
 
   queue = [os.getcwd()]
   cnt   = 0
@@ -42,6 +42,6 @@ def run():
 
 if __name__ == '__main__':
   try:
-    run()
+    main()
   except KeyboardInterrupt:
     pass

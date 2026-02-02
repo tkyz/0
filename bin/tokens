@@ -3,6 +3,7 @@
 import os
 import re
 import git
+import json
 import magic
 
 def main():
@@ -34,38 +35,43 @@ def main():
 
         tokens |= split(text)
 
-  for t in sorted(list(tokens)):
-    print(t)
+  # TODO: --format=raw
+  if False:
+    for t in sorted(list(tokens)):
+      print(t)
+
+  # TODO: --format=json
+  else:
+    print(json.dumps(sorted(list(tokens)), ensure_ascii=False))
 
 def split(s):
 
-  # TODO: regex
-  regexs  = list()
-  regexs += [r',\.'];          regexs += [r'、。']
-  regexs += [r';:'];           regexs += [r'；：']
-  regexs += [r'"\'']
-  regexs += [r'`']
-  regexs += [r'!']
-  regexs += [r'$']
-  regexs += [r'&']
-  regexs += [r'?']
-  regexs += [r'%']
-  regexs += [r'#']
-  regexs += [r'@']
-  regexs += [r'・']
-  regexs += [r'_']
-  regexs += [r'^']
-  regexs += [r'~']
-  regexs += [r'\+\-\*/=']
-  regexs += [r'\(\)\[\]{}<>']; regexs += [r'（）「」｛｝＜＞']
-  regexs += [r'\\\s']
-  regexs += [r'|']
-  regex   = '[' + ''.join(regexs) + ']'
- 
-  tokens  = set()
-  tokens |= {t for t in re.split(regex, s) if t}
+  # TODO: delims
+  delims = [
+    r',\.', r'、。',
+    r';:',  r'；：',
+    r'"\'',
+    r'`',
+    r'!',
+    r'$',
+    r'&',
+    r'?',
+    r'%',
+    r'#',
+    r'@',
+    r'・',
+    r'_',
+    r'^',
+    r'~',
+    r'\+\-\*/=',
+    r'\(\)\[\]{}<>', r'（）「」｛｝＜＞',
+    r'\\\s',
+    r'|',
+  ]
 
-  return tokens
+  regex = '[' + ''.join(delims) + ']'
+ 
+  return {t for t in re.split(regex, s) if t}
 
 if __name__ == '__main__':
   main()
