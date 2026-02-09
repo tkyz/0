@@ -17,13 +17,13 @@
   * pki
     * [[https://github.com/jpki|jpki]] ([[https://www.jpki.go.jp/|公的個人認証サービス]])
       * 署名用証明書((公開鍵に個人情報が含まれているため公開できない。''発行元自治体情報''、''有効期限(生年月日の年月)''、''氏名''、''住所''、''性別''、''生年月日''))
-      * 認証用証明書((公開鍵に個人情報が含まれているため公開できない。''発行元自治体情報''、''有効期限(生年月日の年月)'')) ({{myna_id:0000-0000-0000:pub|ssh}})
+      * 認証用証明書((公開鍵に個人情報が含まれているため公開できない。''発行元自治体情報''、''有効期限(生年月日の年月)'')) ({{jpki:EF000A:0000000000000000000000000000000000000000000000000000000000000000:auth.pub.ssh|ssh}})
 
 ===== 🙏 donation ====
 
 <WRAP group>
-<WRAP column box round centeralign>{{blockchain.btc:icon.png?nolink&0x20}} btc \\ {{blockchain.btc:bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0.svg?nolink&64}}</WRAP>
-<WRAP column box round centeralign>{{blockchain.eth:icon.png?nolink&0x20}} eth \\ {{blockchain.eth:0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea.svg?nolink&64}}</WRAP>
-<WRAP column box round centeralign>{{blockchain.sol:icon.png?nolink&0x20}} sol \\ {{blockchain.sol:BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu.svg?nolink&64}}</WRAP>
-<WRAP column box round centeralign>{{blockchain.xrp:icon.png?nolink&0x20}} xrp \\ {{blockchain.xrp:rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{blockchain:btc:icon.png?nolink&0x20}} btc \\ {{blockchain:btc:bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{blockchain:eth:icon.png?nolink&0x20}} eth \\ {{blockchain:eth:0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{blockchain:sol:icon.png?nolink&0x20}} sol \\ {{blockchain:sol:BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu.svg?nolink&64}}</WRAP>
+<WRAP column box round centeralign>{{blockchain:xrp:icon.png?nolink&0x20}} xrp \\ {{blockchain:xrp:rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL.svg?nolink&64}}</WRAP>
 </WRAP>

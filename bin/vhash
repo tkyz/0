@@ -6,14 +6,14 @@ set -o pipefail
 
 (
 
-  list=()
-  list+=('0000000000000000000000000000000000000000000000000000000000000000')
-# list+=("$(machine_id)")
-# list+=("$(boot_id)")
-# list+=("$(openpgp4fpr)")
-# list+=("$(ptinrf '' | sha256sum | cut -b 1-64)")
+  ghash_seeds=()
+  ghash_seeds+=('0000000000000000000000000000000000000000000000000000000000000000')
+# ghash_seeds+=("$(machine_id)")
+# ghash_seeds+=("$(boot_id)")
+# ghash_seeds+=("$(openpgp4fpr)")
+# ghash_seeds+=("$(ptinrf '' | sha256sum | cut -b 1-64)")
 
-  ghash="$(printf '/%s' "${list[@]}" | sed 's#^/##')"
+  ghash="$(printf '/%s' "${ghash_seeds[@]}" | sed 's#^/##')"
 
   vhash="$(cat << EOS | sha256sum | cut -b 1-64
 ${ghash}
