@@ -14,7 +14,7 @@ def walk(target_dir=ref_dir) -> None:
 
   os.makedirs(index_dir, exist_ok=True)
 
-  with duckdb.connect(index_dir + '/.duckdb') as con:
+  with duckdb.connect(":memory:") as con:
 
     for root, dirs, files in os.walk(target_dir):
 
@@ -50,7 +50,7 @@ def walk(target_dir=ref_dir) -> None:
             file_hash = file_entry.get('hash')
           else:
             file_mime = magic.from_file(full_path, mime=True)
-            if is_text(file_mime):
+            if is_hash(file_mime):
               h = hashlib.sha256()
               with open(full_path, "rb") as f_:
                 for chunk in iter(lambda: f_.read(65536), b""):
@@ -66,12 +66,13 @@ def walk(target_dir=ref_dir) -> None:
           print(line)
           f.write(line + '\n')
 
-def is_text(mime_type) -> bool:
-  is_text  = False
-  is_text |= mime_type.startswith('application/javascript')
-  is_text |= mime_type.startswith('application/json')
-  is_text |= mime_type.startswith('text/')
-  return is_text
+def is_hash(mime_type) -> bool:
+  is_hash  = False
+  is_hash |= mime_type.startswith('application/javascript')
+  is_hash |= mime_type.startswith('application/json')
+  is_hash |= mime_type.startswith('application/pdf')
+  is_hash |= mime_type.startswith('text/')
+  return is_hash
 
 def main() -> None:
   walk()

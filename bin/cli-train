@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+
+import os
+import gc
+import hashlib
+import re
+import git
+import magic
+import regex
+import torch
+import duckdb
+
+from pdfminer.high_level import extract_text
+from pdfminer.layout     import LAParams
+
+from dataclasses import dataclass
+from datasets import Dataset
+from transformers import (
+  AutoModelForCausalLM,
+  AutoTokenizer,
+  BitsAndBytesConfig,
+  TrainingArguments,
+)
+from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
+from trl  import SFTTrainer
+
+home = os.environ.get('HOME')
+
+index_dir      = home + '/dataset/index'
+base_model_dir = home + '/lib/co.huggingface/google/gemma-4-31B-it'
+tune_model_dir = home + '/tmp/gemma-4-31B'
+
+def load_tokenizer():
+
+  tokenizer = AutoTokenizer.from_pretrained(base_model_dir)
+  if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
+  return tokenizer
+
+def load_dataset(tokenizer, chunk_size):
+
+  train_txt = list()
+
+  # git
+  repo = git.Repo(home, search_parent_directories=True)
+  for path in repo.git.ls_files().split('\n'):
+
+    full_path = os.path.join(repo.working_tree_dir, path)
+    if not os.path.isfile(full_path):
+      continue
+
+    mime_type = magic.from_file(full_path, mime=True)
+
+    is_text  = False
+    is_text |= mime_type.startswith('text/')
+    is_text |= mime_type.startswith('application/json')
+    if not is_text:
+      continue
+
+    content = fread(full_path)
+
+    train_txt += [content]
+    print(full_path)
+
+  def entries(mime_type) -> list:
+
+    entries   = None
+
+    with duckdb.connect(":memory:") as con:
+      result  = con.execute(f"SELECT * FROM read_csv('{index_dir}/*', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path']) WHERE mime_type = '{mime_type}'")
+      columns = [desc[0] for desc in result.description]
+      entries = [dict(zip(columns, row)) for row in result.fetchall()]
+
+    return entries
+
+  # text/plain
+  for e in entries('text/plain'):
+
+    p = e.get('path')
+
+    content = None
+    for enc in ['utf8', 'sjis', 'eucjp', 'utf16']:
+      try:
+        content = fread(p, enc)
+        break
+      except UnicodeDecodeError:
+        enc = None
+
+    if content is None:
+      print('unknown', p)
+      continue
+
+#   if enc != 'utf8':
+#     fwrite(p, content)
+
+    train_txt += [content]
+    print(p)
+
+  # application/pdf
+  for e in entries('application/pdf'):
+
+    p = e.get('path')
+
+    laparams = LAParams(detect_vertical=True)
+    content = extract_text(p, laparams=laparams, codec='utf-8')
+
+    train_txt += [content]
+    print(p)
+
+  # chunk
+  train_txt = split_chunk(tokenizer, chunk_size, train_txt)
+
+  # distinct
+  train_txt = list(set(train_txt))
+
+  return Dataset.from_dict({'text': train_txt})
+
+def load_model_qlora():
+
+  quantization_config = BitsAndBytesConfig(
+    load_in_4bit              = True,
+    bnb_4bit_quant_type       = 'nf4',
+    bnb_4bit_compute_dtype    = torch.bfloat16,
+    bnb_4bit_use_double_quant = True,
+  )
+
+  lora_config = LoraConfig(
+    r                   = 16,
+    lora_alpha          = 32,
+    target_modules      = 'all-linear',
+    modules_to_save     = ['embed_tokens', 'lm_head'],
+    lora_dropout        = 0.05,
+    bias                = 'none',
+    task_type           = 'CAUSAL_LM',
+    ensure_weight_tying = True,
+  )
+
+  model = AutoModelForCausalLM.from_pretrained(base_model_dir, device_map='auto', quantization_config=quantization_config)
+  model = prepare_model_for_kbit_training(model)
+  model = get_peft_model(model, lora_config)
+  model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={'use_reentrant': False})
+
+  return model
+
+def train() -> None:
+
+  batch_size =    1
+  step_size  =   32
+  epoch_size =    4
+  token_size = 3072 # 4096
+
+  tokenizer = load_tokenizer()
+  dataset   = load_dataset(tokenizer, token_size)
+  model     = load_model_qlora()
+
+  training_args = TrainingArguments(
+    output_dir                  = tune_model_dir + '/train',
+    per_device_train_batch_size = batch_size,
+    gradient_accumulation_steps = step_size,
+    num_train_epochs            = epoch_size,
+    max_steps                   = -1,
+    learning_rate               = 2e-4,
+    logging_steps               = 1,
+    save_strategy               = 'steps',
+    save_steps                  = 100,
+    save_total_limit            = 2,
+    bf16                        = True,
+    lr_scheduler_type           = 'cosine',
+    warmup_ratio                = 0.03,
+    optim                       = 'paged_adamw_8bit',
+    report_to                   = 'none', # wandb
+    remove_unused_columns       = False,
+  )
+
+  @dataclass
+  class TextOnlyDataCollator:
+
+    tokenizer: any
+    mlm: bool = False
+
+    def __call__(self, features):
+
+      texts = [f['text'] for f in features]
+      batch = self.tokenizer(
+        texts,
+        return_tensors = 'pt',
+        padding        = True,
+        truncation     = True,
+        max_length     = token_size,
+      )
+
+      batch['mm_token_type_ids'] = torch.zeros_like(batch['input_ids'])
+      batch['labels']            = batch['input_ids'].clone()
+
+      batch['labels'][batch['labels'] == self.tokenizer.pad_token_id] = -100
+
+      return batch
+
+  trainer = SFTTrainer(
+    model            = model,
+    train_dataset    = dataset,
+    processing_class = tokenizer,
+    args             = training_args,
+    data_collator    = TextOnlyDataCollator(tokenizer=tokenizer)
+  )
+
+  result = trainer.train()
+  trainer.save_metrics('train', result.metrics)
+  trainer.save_state()
+
+  trainer.save_model(tune_model_dir + '/adapter')
+
+  del model
+
+def merge() -> None:
+  model  = AutoModelForCausalLM.from_pretrained(base_model_dir, device_map='cpu')
+  model  = PeftModel.from_pretrained(model, tune_model_dir + '/adapter')
+  merged = model.merge_and_unload()
+  merged.save_pretrained(tune_model_dir)
+
+def split_chunk(tokenizer, chunk_size, train_txt) -> list:
+
+  chunks = []
+
+  for text in train_txt:
+
+    token_ids = tokenizer.encode(text, add_special_tokens=False)
+    if len(token_ids) == 0:
+      continue
+
+    for start in range(0, len(token_ids), chunk_size):
+      chunk_ids  = token_ids[start : start + chunk_size]
+      chunk_text = tokenizer.decode(chunk_ids, skip_special_tokens=True)
+      if chunk_text.strip():
+        chunks.append(chunk_text)
+
+  return chunks
+
+def fread(file, encoding='utf8') -> str:
+
+  content = None
+
+  with open(file, 'r', encoding=encoding) as f:
+    content = f.read()
+
+  return content
+
+def fwrite(file, content) -> None:
+
+  with open(file, 'w') as f:
+    f.write(content)
+
+def main():
+  train()
+# merge()
+
+if __name__ == '__main__':
+  main()
