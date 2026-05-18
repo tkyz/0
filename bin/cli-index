@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+
+import os
+import hashlib
+import magic
+import duckdb
+
+home = os.environ.get('HOME')
+
+ref_dir   = home + '/dataset/ref'
+index_dir = home + '/dataset/index'
+
+def walk(target_dir=ref_dir) -> None:
+
+  os.makedirs(index_dir, exist_ok=True)
+
+  with duckdb.connect(index_dir + '/.duckdb') as con:
+
+    for root, dirs, files in os.walk(target_dir):
+
+      if 0 == len(files):
+        continue
+
+      dir_hash   = hashlib.sha256(root.encode()).hexdigest()
+      index_file = index_dir + '/' + dir_hash
+
+      entries = dict()
+      if os.path.exists(index_file):
+        try:
+          rel     = con.execute(f'SELECT * FROM read_csv("{index_file}", delim="\t", header=False, names=["hash", "size", "date", "mime_type", "path"])')
+          columns = [desc[0] for desc in rel.description]
+          entries = {row[-1]: dict(zip(columns, row)) for row in rel.fetchall()}
+        except (duckdb.BinderException, duckdb.InvalidInputException):
+          pass
+
+      with open(index_file, 'w') as f:
+        for path in files:
+
+          full_path = os.path.join(root, path)
+
+          file_entry = entries.get(full_path)
+          file_stat  = os.stat(full_path)
+          file_size  = file_stat.st_size
+          file_date  = int(max(file_stat.st_atime, file_stat.st_mtime, file_stat.st_ctime))
+          file_mime  = None
+          file_hash  = None
+
+          if file_entry is not None and file_entry.get('size') == file_size and file_entry.get('date') == file_date:
+            file_mime = file_entry.get('mime_type')
+            file_hash = file_entry.get('hash')
+          else:
+            file_mime = magic.from_file(full_path, mime=True)
+            if is_text(file_mime):
+              h = hashlib.sha256()
+              with open(full_path, "rb") as f_:
+                for chunk in iter(lambda: f_.read(65536), b""):
+                  h.update(chunk)
+                file_hash = h.hexdigest()
+
+          line  = ''   + str(file_hash if file_hash is not None else '')
+          line += '\t' + str(file_size)
+          line += '\t' + str(file_date)
+          line += '\t' + file_mime
+          line += '\t' + full_path
+
+          print(line)
+          f.write(line + '\n')
+
+def is_text(mime_type) -> bool:
+  is_text  = False
+  is_text |= mime_type.startswith('application/javascript')
+  is_text |= mime_type.startswith('application/json')
+  is_text |= mime_type.startswith('text/')
+  return is_text
+
+def main() -> None:
+  walk()
+
+if __name__ == '__main__':
+  main()

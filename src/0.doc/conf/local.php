@@ -4,7 +4,6 @@ $conf['lang'] = 'ja';
 $conf['template'] = 'bootstrap3';
 $conf['license'] = '';
 $conf['breadcrumbs'] = 0;
-$conf['youarehere'] = 1;
 $conf['dformat'] = '%F %T';
 $conf['useheading'] = '1';
 $conf['useacl'] = 1;

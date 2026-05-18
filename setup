@@ -61,7 +61,7 @@ EOS
 
       ${SUDO} apt-get update
       ${SUDO} apt-get upgrade -y
-      ${SUDO} apt-get install -y curl gnupg2 gettext-base
+      ${SUDO} apt-get install -y curl gnupg2
 
       cat << EOS | sed -e 's/#.*$//g' -e '/^$/d' | while read item; do
 com.nvidia           https://nvidia.github.io/libnvidia-container/gpgkey                                    https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH) /                                   # https://nvidia.github.io/nvidia-container-runtime/
@@ -197,7 +197,6 @@ EOS
     autoconf
     libtool
     libssl-dev
-
     ufw
     rkhunter
     clamav

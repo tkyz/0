@@ -66,8 +66,8 @@ services:
   tor:
     image: docker.io/library/alpine:latest
     container_name: tor
-    ports:
-      - '${external_ip}:9050:9050'
+#   ports:
+#     - '${external_ip}:9050:9050'
     volumes:
       - {type: bind, source: '${HOME}/lib/${namespace}.apk',  target: /etc/apk/cache}
     entrypoint:
@@ -83,25 +83,11 @@ services:
     container_name: setup
     expose:
       - 8080
-    depends_on:
-      - git
     entrypoint:
       - /bin/sh
       - -c
       - |
         echo 'P:/:http://git:8080/?p=0.git;a=blob_plain;f=setup;hb=HEAD' | httpd -f -p 8080 -c '/dev/stdin'
-
-  irc:
-    image: docker.io/busybox:latest
-    container_name: irc
-    ports:
-#     - '${external_ip}:194:194'
-#     - '${external_ip}:994:994'
-      - '${external_ip}:6665:6665'
-      - '${external_ip}:6666:6666'
-      - '${external_ip}:6667:6667'
-      - '${external_ip}:6668:6668'
-      - '${external_ip}:6669:6669'
 
   proxy:
     image: docker.io/nginx:latest
@@ -120,15 +106,6 @@ services:
       - {type: bind, source: '${HOME}/src/0.proxy/chat.conf',      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
 #     - {type: bind, source: '${HOME}/src/0.proxy/comfyui.conf',   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
 #     - {type: bind, source: '${HOME}/src/0.proxy/evidence.conf',  target: /etc/nginx/conf.d/evidence.conf,  read_only: true}
-    depends_on:
-      - apt
-      - container
-      - git
-      - doc
-      - setup
-      - chat
-#     - comfyui
-#     - evidence
 
   #----------------------------------------------------------------
   # blockchain
@@ -136,15 +113,13 @@ services:
   btc:
     image: docker.io/debian:latest
     container_name: btc
-#   ports:
+    ports:
 #     - '${external_ip}:8332:8332'
-#     - '${external_ip}:8333:8333'
+      - '${external_ip}:8333:8333'
     volumes:
       - {type: bind, source: '${HOME}/src/com.github/bitcoin/bitcoin', target: /org.bitcoin}
       - {type: bind, source: '${HOME}/lib/${namespace}.btc',           target: /root/.bitcoin}
 #     - {type: bind, source: '${HOME}/.bitcoin/wallet',                target: /root/.bitcoin/wallet}
-    depends_on:
-      - apt
     working_dir: /org.bitcoin
     entrypoint:
       - /bin/bash
@@ -166,7 +141,7 @@ services:
         cmake --build build -j $(nproc)
         cat << EOS | tee '/root/.bitcoin/bitcoin.conf'
         # proxy
-        #proxy=tor.${domain}:9050
+        #proxy=127.0.0.1:9050
         # node
         txindex=1
         port=8333
@@ -195,8 +170,6 @@ services:
       - {type: bind, source: '${HOME}/go',                                  target: /root/go}
       - {type: bind, source: '${HOME}/src/com.github/ethereum/go-ethereum', target: /org.ethereum}
       - {type: bind, source: '${HOME}/lib/${namespace}.eth',                target: /root/.ethereum}
-    depends_on:
-      - apt
     working_dir: /org.ethereum
     entrypoint:
       - /bin/bash
@@ -275,8 +248,8 @@ services:
       context: '${HOME}/src/org.debian/apt-cacher-ng'
     image: 'container.${domain}/org.debian/apt-cacher-ng:${tag}'
     container_name: apt
-    ports:
-      - '${external_ip}:3142:3142'
+    expose:
+      - 3142
     volumes:
       - {type: bind, source: '${HOME}/lib/${namespace}.apt', target: /var/cache/apt-cacher-ng}
 
@@ -345,8 +318,6 @@ services:
       - {type: bind, source: '${HOME}/src/com.github/Medieninformatik-Regensburg/dokuwiki-plugin-markdowku', target: /usr/share/nginx/html/lib/plugins/markdowku,   read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/dokufreaks/plugin-discussion',                          target: /usr/share/nginx/html/lib/plugins/discussion,  read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/giterlizzi/dokuwiki-template-bootstrap3',               target: /usr/share/nginx/html/lib/tpl/bootstrap3,      read_only: true}
-    depends_on:
-      - doc-php
 
   doc-php:
     build:
@@ -389,8 +360,6 @@ services:
       - {type: bind, source: '${HOME}/.npm',                                 target: /root/.npm}
       - {type: bind, source: '${HOME}/src/com.github/evidence-dev/template', target: /dev.evidence}
       - {type: bind, source: '${HOME}/doc',                                  target: /dev.evidence/pages, read_only: true}
-    depends_on:
-      - apt
     working_dir: /dev.evidence
     entrypoint:
       - /bin/bash
@@ -414,10 +383,8 @@ services:
     expose:
       - 8080
     volumes:
-      - {type: bind, source: '${HOME}/src/com.github/ggml-org/llama.cpp',                                                              target: /llama.cpp}
-      - {type: bind, source: '${HOME}/lib/co.huggingface/paperscarecrow/Gemma-4-31B-it-abliterated/gemma-4-31b-abliterated-Q8_0.gguf', target: /models/gemma4-31B-Q8.gguf, read_only: true}
-    depends_on:
-      - apt
+      - {type: bind, source: '${HOME}/src/com.github/ggml-org/llama.cpp', target: /llama.cpp}
+      - {type: bind, source: '${HOME}/tmp/models',                        target: /models, read_only: true}
     working_dir: /llama.cpp
     entrypoint:
       - /bin/bash
@@ -478,8 +445,6 @@ services:
       - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}',                                                                                target: /comfyui/input}
       - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}',                                                                                target: /comfyui/output}
       - {type: bind, source: '${HOME}/dataset/boot_id/${boot_id}/temp',                                                                           target: /comfyui/temp} # ⚠️起動時に中身がクリアされる
-    depends_on:
-      - apt
     working_dir: /comfyui
     entrypoint:
       - /bin/bash

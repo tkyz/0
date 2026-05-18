@@ -6,9 +6,9 @@
 
 ## 💻 setup
 
-```bash
+<code bash>
 ( curl "http://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
-```
+</code>
 
 ## 👤 author
 

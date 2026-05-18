@@ -104,6 +104,8 @@
   lib:
 
     # txt2txt
+#   - https://huggingface.co/google/gemma-4-31B.git
+    - https://huggingface.co/google/gemma-4-31B-it.git
 
     # txt2img
     - https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors.git
