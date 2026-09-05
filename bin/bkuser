@@ -32,20 +32,20 @@ set -o pipefail
      --archive \
      --verbose \
      --delete \
-     --exclude='.cache/' \
-     --exclude='.cargo/' \
-     --exclude='.local/share/containers/' \
-     --exclude='.local/share/Trash/' \
-     --exclude='.m2/' \
-     --exclude='.npm/' \
-     --exclude='.venv/' \
-     --exclude='dat/' \
-     --exclude='doc/' \
-     --exclude='go/' \
-     --exclude='lib/' \
-     --exclude='mnt/' \
-     --exclude='sbin/' \
-     --exclude='setup' \
+     --exclude='/.cache/' \
+     --exclude='/.cargo/' \
+     --exclude='/.local/share/containers/' \
+     --exclude='/.local/share/Trash/' \
+     --exclude='/.m2/' \
+     --exclude='/.npm/' \
+     --exclude='/.venv/' \
+     --exclude='/dat/' \
+     --exclude='/doc/' \
+     --exclude='/go/' \
+     --exclude='/lib/' \
+     --exclude='/mnt/' \
+     --exclude='/sbin/' \
+     --exclude='/setup' \
      "${src_dir}" \
      "${dst_dir}" || true
 #    --dry-run \

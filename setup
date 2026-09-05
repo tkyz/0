@@ -38,6 +38,17 @@ set -o pipefail
   test 'debian' == "${ID_LIKE:-${ID}}"
   test 'bash'   == "${SHELL##*/}"
 
+  readonly bin_dir="${HOME}/bin"
+  readonly dat_dir="${HOME}/dat"
+  readonly doc_dir="${HOME}/doc"
+  readonly enc_dir="${HOME}/enc"
+  readonly lib_dir="${HOME}/lib"
+  readonly mnt_dir="${HOME}/mnt"
+  readonly opt_dir="${HOME}/opt"
+  readonly sbin_dir="${HOME}/sbin"
+  readonly src_dir="${HOME}/src"
+  readonly tmp_dir="${HOME}/tmp"
+
   readonly domain="$(hostname -d)"
   readonly namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
 
@@ -45,17 +56,14 @@ set -o pipefail
 
   readonly github_user='tkyz'
 
-# readonly is_init=
+  # -------------------------------- debian --------------------------------
+  if true; then
 
-  # -------------------------------- repo --------------------------------
-
-  # dns
-  if [[ -v is_init ]]; then
+    # dns
     echo "nameserver ${dns_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
-  fi
 
-  # /etc/apt/sources.list.d/org.debian.list
-  cat << EOS | sudo tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
+    # repo
+    cat << EOS | sudo tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
@@ -72,26 +80,14 @@ deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security 
 #deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
 EOS
 
-  if [[ -v is_init ]]; then
     sudo apt-get update
     sudo apt-get upgrade -y
-  fi
 
-  # -------------------------------- extrepo --------------------------------
+    # extrepo
+    sudo apt-get install -y extrepo
+    if :; then
 
-  # deps
-  if [[ -v is_init ]]; then
-    cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
-extrepo
-gnupg2
-curl
-EOS
-  fi
-
-  # extrepo
-  if :; then
-
-    cat << EOS | sudo tee '/etc/extrepo/config.yaml' > '/dev/null'
+      cat << EOS | sudo tee '/etc/extrepo/config.yaml' > '/dev/null'
 url: https://extrepo-team.pages.debian.net/extrepo-data
 dist: debian
 version: trixie
@@ -101,8 +97,7 @@ enabled_policies:
   - non-free
 EOS
 
-    if [[ -v is_init ]]; then
-    cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 sudo extrepo enable
+      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 sudo extrepo enable
 # nvidia-cuda
 kubernetes
 openvpn
@@ -112,33 +107,13 @@ google_cloud
 dotnet
 winehq
 EOS
+
     fi
 
-  fi
-
-  # nvidia-container-toolkit
-  #   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian
-  if [[ -v is_init ]]; then
-
-    pub_file='/etc/apt/keyrings/nvidia-container-toolkit.gpg'
-    src_file='/etc/apt/sources.list.d/nvidia-container-toolkit.list'
-
-    curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey' | sudo gpg --dearmor | sudo tee "${pub_file}" > '/dev/null'
-    cat << EOS | sudo tee "${src_file}" > '/dev/null'
-deb  [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH)       /
-#deb [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/experimental/deb/\$(ARCH) /
-EOS
-
-  fi
-
-  if [[ -v is_init ]]; then
     sudo apt-get update
     sudo apt-get upgrade -y
-  fi
 
-  # -------------------------------- deps --------------------------------
-
-  if [[ -v is_init ]]; then
+    # apt
     cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
 # kernel
   linux-headers-$(uname -r | sed 's/.*-//g')
@@ -223,6 +198,8 @@ EOS
 # net
   iproute2
   bind9-dnsutils
+  nmap
+  curl
 
 # ssh
   openssh-client
@@ -233,7 +210,6 @@ EOS
   rsync
   jq
   qrencode
-  paperkey
 
 # k8s
   kubectl
@@ -244,53 +220,13 @@ EOS
 # google-cloud-cli
 # awscli
 EOS
-  fi
 
-  if [[ -v is_init ]]; then
+    # sysctl
+#   sudo sysctl --write fs.inotify.max_user_instances=128 #  1024
+#   sudo sysctl --write fs.inotify.max_user_watches=8192  # 65536
 
-    cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
-# gpu
-  nvidia-driver
-  nvidia-container-toolkit
-# nvidia-open
-EOS
-
-    # TODO: reboot
-
-  fi
-
-  # .venv
-  if [[ -v is_init ]]; then
-    python3 -m venv "${HOME}/.venv"
-  fi
-  source "${HOME}/.venv/bin/activate"
-
-  # pip
-  if [[ -v is_init ]]; then
-
-    # pytorch
-    #   https://pytorch.org/get-started/previous-versions/
-    pip install torch==2.6.0  torchvision==0.21.0 torchaudio==2.6.0 --index-url 'https://download.pytorch.org/whl/cu124'
-#   pip install torch==2.12.1 torchvision==0.27.1                   --index-url 'https://download.pytorch.org/whl/cu132'
-
-    cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 pip install
-# container
-  podman
-  podman-compose
-
-# util
-  yq
-EOS
-  fi
-
-  # -------------------------------- config --------------------------------
-
-  # sysctl
-# sudo sysctl --write fs.inotify.max_user_instances=128 #  1024
-# sudo sysctl --write fs.inotify.max_user_watches=8192  # 65536
-
-  # keyboard
-  cat << EOS | sudo tee '/etc/default/keyboard' > '/dev/null'
+    # keyboard
+    cat << EOS | sudo tee '/etc/default/keyboard' > '/dev/null'
 XKBMODEL=pc105
 XKBLAYOUT=jp
 XKBVARIANT=
@@ -298,47 +234,38 @@ XKBOPTIONS=ctrl:nocaps
 BACKSPACE=guess
 EOS
 
-  # ufw
-  if [[ -v is_init ]]; then
+    # ufw
     printf 'y' | sudo ufw reset > '/dev/null'
     sudo ufw default deny  incoming
     sudo ufw default allow outgoing
     sudo ufw enable
     sudo ufw reload
-  fi
 
-  # rkhunter
-  if :; then
+    # rkhunter
+    if :; then
 
-    sudo sed -i -r \
-      -e 's/^#?LANGUAGE=.*$/LANGUAGE=ja/g' \
-      -e 's/^#?UPDATE_LANG=.*$/UPDATE_LANG=ja/g' \
-      -e 's/^#?WEB_CMD=.*$/WEB_CMD=""/g' \
-      -e 's/^#?UPDATE_MIRRORS=.*$/UPDATE_MIRRORS=1/g' \
-      -e 's/^#?MIRRORS_MODE=.*$/MIRRORS_MODE=0/g' \
-      -e 's/^#?PKGMGR=.*$/PKGMGR=DPKG/g' \
-      '/etc/rkhunter.conf'
+      sudo sed -i -r \
+        -e 's/^#?LANGUAGE=.*$/LANGUAGE=ja/g' \
+        -e 's/^#?UPDATE_LANG=.*$/UPDATE_LANG=ja/g' \
+        -e 's/^#?WEB_CMD=.*$/WEB_CMD=""/g' \
+        -e 's/^#?UPDATE_MIRRORS=.*$/UPDATE_MIRRORS=1/g' \
+        -e 's/^#?MIRRORS_MODE=.*$/MIRRORS_MODE=0/g' \
+        -e 's/^#?PKGMGR=.*$/PKGMGR=DPKG/g' \
+        '/etc/rkhunter.conf'
 
-    if [[ -v is_init ]]; then
       sudo rkhunter --update || true
       sudo rkhunter --propupd
+#     sudo rkhunter --versioncheck
+#     sudo rkhunter --check --skip-keypress
+
     fi
 
-#   sudo rkhunter --versioncheck
-#   sudo rkhunter --check --skip-keypress
-
-  fi
-
-  # clamav
-  if [[ -v is_init ]]; then
+    # clamav
     sudo systemctl stop  clamav-freshclam
     sudo freshclam
     sudo systemctl start clamav-freshclam
-  fi
 
-  # ssh
-  if :; then
-
+    # ssh
     sudo sed -i -r \
       -e 's/^#?PermitRootLogin[[:space:]].*$/PermitRootLogin no/g' \
       -e 's/^#?PermitEmptyPasswords[[:space:]].*$/PermitEmptyPasswords no/g' \
@@ -349,243 +276,162 @@ EOS
       '/etc/ssh/sshd_config'
 #     -e 's/^#?MaxAuthTries .*$/MaxAuthTries 1/g' \
 
-    onetime_key="/tmp/$(uuidgen)"
-    onetime_pub="${onetime_key}.pub"
+    # container
+    sudo sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
 
-#   ssh-keygen -t rsa     -b 4096 -C '' -N '' -f "${onetime_key}"
-    ssh-keygen -t ed25519 -a 4096 -C '' -N '' -f "${onetime_key}"
+    # .venv
+    python3 -m venv "${HOME}/.venv"
+    source "${HOME}/.venv/bin/activate"
 
-    mkdir -p "${HOME}/.ssh"
-    auth_file="${HOME}/.ssh/authorized_keys"
-    {
-      cat "${onetime_pub}"
-#     curl -fsSL "https://github.com/${github_user}.keys"
-    } | sort -u > "${auth_file}"
+    # pip
+    if :; then
 
-    chmod 700 "${HOME}/.ssh"
-    chmod 600 "${auth_file}"
+      # pytorch
+      #   https://pytorch.org/get-started/previous-versions/
+      pip install torch==2.6.0  torchvision==0.21.0 torchaudio==2.6.0 --index-url 'https://download.pytorch.org/whl/cu124'
+#     pip install torch==2.12.1 torchvision==0.27.1                   --index-url 'https://download.pytorch.org/whl/cu132'
 
-    ssh-add -D
-    ssh-add "${onetime_key}"
+      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 pip install
+# container
+  podman
+  podman-compose
 
-  fi
+# util
+  yq
+EOS
 
-  # container
-  sudo sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
-
-  # cdi
-  sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
-
-  # cups
-  #   https://www.brother.co.jp/support/index.aspx
-  #   https://canon.jp/support/software
-  #   https://www.epson.jp/support/download/
-
-  # -------------------------------- 0.git --------------------------------
-
-  readonly bin_dir="${HOME}/bin"
-  readonly dat_dir="${HOME}/dat"
-  readonly doc_dir="${HOME}/doc"
-  readonly enc_dir="${HOME}/enc"
-  readonly lib_dir="${HOME}/lib"
-  readonly mnt_dir="${HOME}/mnt"
-  readonly opt_dir="${HOME}/opt"
-  readonly sbin_dir="${HOME}/sbin"
-  readonly src_dir="${HOME}/src"
-  readonly tmp_dir="${HOME}/tmp"
-
-  mkdir -p \
-    "${bin_dir}" \
-    "${dat_dir}" \
-    "${doc_dir}" \
-    "${enc_dir}" \
-    "${lib_dir}" \
-    "${mnt_dir}" \
-    "${opt_dir}" \
-    "${sbin_dir}" \
-    "${src_dir}" \
-    "${tmp_dir}"
-
-  git config --global init.defaultBranch main
-  git config --global core.ignorecase    false
-  git config --global core.quotepath     false
-  git config --global core.autocrlf      false
-  git config --global core.safecrlf      true
-  git config --global core.filemode      true
-  git config --global core.symlinks      true
-  git config --global core.hooksPath     "${HOME}/.git-hooks"
-  git config --global color.ui           auto
-  git config --global color.diff         auto
-  git config --global color.status       auto
-  git config --global color.branch       auto
-  git config --global pull.ff            only
-  git config --global pull.rebase        true
-  git config --global pull.autostash     false
-  git config --global rebase.autostash   false
-  git config --global merge.ff           false
-  git config --global diff.sjis.textconv 'iconv -f sjis'
-  git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
-  git config --global gpg.program        "$(type -p gpg)"
-  git config --global commit.gpgsign     true
-
-  pushd "${HOME}" &> '/dev/null'
-
-#   git init --object-format=sha256 '.'
-    git init                        '.'
-
-    # remote
-    {
-#     git_remote='origin';   git_uri="${lib_dir}/${namespace}.git/0.git";         git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-      git_remote="upstream"; git_uri="git://git.${domain}/0.git";                 git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-      git_remote='public';   git_uri="https://github.com/${github_user}/0.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-#     git_remote='github';   git_uri="ssh://git@github.com/${github_user}/0.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-    } 2> '/dev/null'
-
-    if [[ -v is_init ]]; then
-      git fetch --prune --all || true
     fi
 
-    # head
-    git remote | while read remote; do
-      git remote set-head "${remote}" 'main' || true
-    done
+#   sudo shutdown -r now
+    echo 'reboot'; false
 
-    # checkout
-    if git checkout --orphan 'main' 2> '/dev/null'; then
+  # -------------------------------- driver --------------------------------
+  elif true; then
 
+    # nvidia
+    #   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian
+    if :; then
+
+      pub_file='/etc/apt/keyrings/nvidia-container-toolkit.gpg'
+      src_file='/etc/apt/sources.list.d/nvidia-container-toolkit.list'
+      curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey' | sudo gpg --dearmor | sudo tee "${pub_file}" > '/dev/null'
+      cat << EOS | sudo tee "${src_file}" > '/dev/null'
+deb  [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH)       /
+#deb [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/experimental/deb/\$(ARCH) /
+EOS
+
+      sudo apt-get update
+      sudo apt-get upgrade -y
+
+      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
+# gpu
+  nvidia-driver
+  nvidia-container-toolkit
+# nvidia-open
+EOS
+
+    fi
+
+    # cups
+    #   https://www.brother.co.jp/support/index.aspx
+    #   https://canon.jp/support/software
+    #   https://www.epson.jp/support/download/
+
+#   sudo shutdown -r now
+    echo 'reboot'; false
+
+  # -------------------------------- 0.git --------------------------------
+  elif true; then
+
+    mkdir -p \
+      "${bin_dir}" \
+      "${dat_dir}" \
+      "${doc_dir}" \
+      "${enc_dir}" \
+      "${lib_dir}" \
+      "${mnt_dir}" \
+      "${opt_dir}" \
+      "${sbin_dir}" \
+      "${src_dir}" \
+      "${tmp_dir}"
+
+    git config --global init.defaultBranch main
+    git config --global core.ignorecase    false
+    git config --global core.quotepath     false
+    git config --global core.autocrlf      false
+    git config --global core.safecrlf      true
+    git config --global core.filemode      true
+    git config --global core.symlinks      true
+    git config --global core.hooksPath     "${HOME}/.git-hooks"
+    git config --global color.ui           auto
+    git config --global color.diff         auto
+    git config --global color.status       auto
+    git config --global color.branch       auto
+    git config --global pull.ff            only
+    git config --global pull.rebase        true
+    git config --global pull.autostash     false
+    git config --global rebase.autostash   false
+    git config --global merge.ff           false
+    git config --global diff.sjis.textconv 'iconv -f sjis'
+    git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+    git config --global gpg.program        "$(type -p gpg)"
+    git config --global commit.gpgsign     true
+
+    pushd "${HOME}" &> '/dev/null'
+
+#     git init --object-format=sha256 '.'
+      git init                        '.'
+
+      # remote
       {
-        ( git reset --mixed 'origin/main'    && git branch --set-upstream-to='origin/main'   ) ||
-        ( git reset --mixed "${domain}/main" && git branch --set-upstream-to="${domain}/main") ||
-        ( git reset --mixed 'public/main'    && git branch --set-upstream-to='public/main'   ) ||
-        ( git reset --mixed 'github/main'    && git branch --set-upstream-to='github/main'   ) ||
-        true
+#       git_remote='origin';   git_uri="${lib_dir}/${namespace}.git/0.git";         git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+        git_remote="upstream"; git_uri="git://git.${domain}/0.git";                 git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+        git_remote='public';   git_uri="https://github.com/${github_user}/0.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#       git_remote='github';   git_uri="ssh://git@github.com/${github_user}/0.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
       } 2> '/dev/null'
 
-      git diff --name-only -z --diff-filter=D | xargs -0 git checkout
+      git fetch --prune --all || true
 
-      cp './.profile' './.profile.bk'; git checkout './.profile'
-      cp './.bashrc'  './.bashrc.bk';  git checkout './.bashrc'
+      # head
+      git remote | while read remote; do
+        git remote set-head "${remote}" 'main' || true
+      done
+
+      # checkout
+      if git checkout --orphan 'main' 2> '/dev/null'; then
+
+        {
+          ( git reset --mixed 'origin/main'    && git branch --set-upstream-to='origin/main'   ) ||
+          ( git reset --mixed "${domain}/main" && git branch --set-upstream-to="${domain}/main") ||
+          ( git reset --mixed 'public/main'    && git branch --set-upstream-to='public/main'   ) ||
+          ( git reset --mixed 'github/main'    && git branch --set-upstream-to='github/main'   ) ||
+          true
+        } 2> '/dev/null'
+
+        git diff --name-only -z --diff-filter=D | xargs -0 git checkout
+
+        cp './.profile' './.profile.bk'; git checkout './.profile'
+        cp './.bashrc'  './.bashrc.bk';  git checkout './.bashrc'
+
+      fi
+
+      git gc
+      git status
 
       # activate profile
-#     exec bash -l
       set +o errexit +o nounset +o pipefail
         source './.profile'
       set -o errexit -o nounset -o pipefail
 
-    fi
+    popd &> '/dev/null'
 
-    git gc
-    git status
+    # pull
+    if :; then
 
-  popd &> '/dev/null'
+      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+# jpki
+  https://github.com/jpki/myna.git
 
-  # -------------------------------- identifier --------------------------------
-
-  # ⚠️restore
-  if false; then
-
-    dev_uuid='00000000-0000-0000-0000-000000000000'
-
-    if [[ -e "/dev/disk/by-uuid/${dev_uuid}" ]]; then
-      bkuser "${USER}" "${dev_uuid}" 'restore'
-    fi
-
-  fi
-
-  readonly openpgp4fpr="$(openpgp4fpr)"
-
-  # ⚠️暗号化ペイロード
-  if [[ 'a7616a0ced73072719aff9eb17e854065fc3df8580d8562c871866f3a9f33681' == "$(echo -n "$(machine_id)/setup" | vhash)" ]]; then
-#   cat << 'EOS' | enc | base64
-    cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
-hF4DAAAAAAAAAAASAQdAUuHoREgu0HmP1lXrMtZCJw6o9qdWAzhZ5Je/TRtHRRIwXXOcIY/eSkEI
-u6vAen4CgZm6AstQRDoRtXrdP31EjKaho95p3Hgm7l5NRzM6uWyi0sBvAYqNGiBlBugvbej73GU6
-R8GcRFatfDmnQhkLLbai8sYOgvN0JZ1+DtGYc2+ie38CvIO2aQGVIMrPwD8uIpcm3Xj4j6qWskVS
-WSg4wfMSQIVQtV98Ng/S/gCyrgI8aQcId1NWTnHuWLsqrEKHoFiwgeIFINyiqOH4lM9AY7SXlJFh
-w3FuVvXqepQ8LO3BDA0rGb4q0md4mTJl4f5uU35SBgXiHZ1wOOxejbp2e1i6yUCVZ8061azfrLLE
-VoievrMhSYiZHsMPS0TLM6wOvH4Xy0rs1WabnF9DvtoY/HWxkZBV7T/VKpjV5VauhS9jD02yRkEy
-iOdY1gKO9aU44BK6U9aL9OqBsjbrlrsiBJ8jEd8Mzb0SHSeEfrnOSjvmetKQWE5SqMCpeGDv+1eN
-S0qt
-EOS
-  fi
-
-  # build myna
-  if [[ -v is_init ]]; then
-
-    curi 'https://github.com/jpki/myna.git'
-
-    build_target='com.github/jpki/myna'
-    podman run \
-      --interactive \
-      --rm \
-      --volume  "${src_dir}/${build_target}:/build" \
-      --workdir '/build' \
-      "docker.io/library/rust:${VERSION_CODENAME}" \
-      bash << EOS
-        apt-get update -y
-        apt-get install -y libpcsclite-dev
-        cargo build --workspace --release
-EOS
-
-  fi
-
-  readonly jpki_id="$(jpki_id || printf '4abc370b9ad260aeebb12eda1d794d7fa80a87742ef637698ca145ce9129209b')"
-
-  # ip
-  test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver1.opendns.com')"
-  test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver2.opendns.com')"
-  test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver3.opendns.com')"
-  test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver4.opendns.com')"
-  test ! -v wan_ip && readonly wan_ip="$(dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"')"
-  test ! -v wan_ip && readonly wan_ip="$(dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"')"
-  test ! -v lan_ip && readonly lan_ip="$(ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1)"
-
-  # scope
-  readonly machine_id="$(machine_id)"
-  readonly boot_id="$(boot_id)"
-  readonly setup_id="$(uuidgen)"
-
-  # git
-# git config --global user.name       "${USER}"
-# git config --global user.email      "${USER}@$(hostname -f)"
-  git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
-
-  # -------------------------------- regist --------------------------------
-
-  # jpki
-# jpki_id
-  cat "${dat_dir}/jpki_id/${jpki_id}/auth.ssh.pub" >> "${HOME}/.ssh/authorized_keys"
-
-  # openpgp4fpr
-  mkdir -p                                              "${dat_dir}/openpgp4fpr/${openpgp4fpr}"
-  gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/openpgp4fpr/${openpgp4fpr}/pub"
-# gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
-
-  # scope
-  mkdir -p \
-    "${dat_dir}/machine_id/${machine_id}" \
-    "${dat_dir}/boot_id/${boot_id}" \
-    "${dat_dir}/setup_id/${setup_id}"
-
-  # lan
-# mkdir -p "${dat_dir}/ipv4/${lan_ip}"
-  ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | while read i; do
-    mkdir -p "${dat_dir}/ipv4/${i}"
-  done
-
-  # wan
-  mkdir -p "${dat_dir}/ipv4/${wan_ip}"
-  mkdir -p "${dat_dir}/wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
-
-  echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
-
-  # -------------------------------- domain --------------------------------
-
-  external_ip="${lan_ip}"
-
-  # pull
-  if [[ -v is_init ]]; then
-    cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
 # blockchain
   https://github.com/bitcoin/bitcoin.git
   https://github.com/ethereum/go-ethereum.git
@@ -646,36 +492,124 @@ EOS
 # a2t
 # https://huggingface.co/openai/whisper-large-v3.git
 EOS
-  fi
 
-  # firewall
-  if [[ -v is_init ]]; then
+      pushd "${HOME}" &> '/dev/null'
+        podman-compose pull || true
+      popd &> '/dev/null'
 
-    froms=()
-#   froms+=('0.0.0.0')
-#   froms+=('10.0.0.0/8')
-#   froms+=('172.16.0.0/12')
-#   froms+=('192.168.0.0/16')
-    froms+=("${lan_ip}")
-#   froms+=("${wan_ip}")
+    fi
 
-    for from in "${froms[@]}"; do
-      sudo ufw allow from "${from}" to any port   7 proto tcp
-      sudo ufw allow from "${from}" to any port   7 proto     udp
-      sudo ufw allow from "${from}" to any port  22 proto tcp
-      sudo ufw allow from "${from}" to any port  53 proto tcp
-      sudo ufw allow from "${from}" to any port  53 proto     udp
-      sudo ufw allow from "${from}" to any port  80 proto tcp
-      sudo ufw allow from "${from}" to any port 123 proto     udp
-      sudo ufw allow from "${from}" to any port 443 proto tcp
-    done
-    sudo ufw reload
+    # build myna
+    if :; then
+      build_target='com.github/jpki/myna'
+      podman run \
+        --interactive \
+        --rm \
+        --volume  "${src_dir}/${build_target}:/build" \
+        --workdir '/build' \
+        "docker.io/library/rust:${VERSION_CODENAME}" \
+        bash << EOS
+          apt-get update -y
+          apt-get install -y libpcsclite-dev
+          cargo build --workspace --release
+EOS
+    fi
 
-  fi
-  sudo ufw status verbose
+#   exec bash -l
+    echo 'relogin'; false
 
-  # .env
-  cat << EOS | tr -d ' ' > "${HOME}/.env"
+  # -------------------------------- ⚠️restore --------------------------------
+  elif false; then
+
+    user="${USER}"
+    uuid='00000000-0000-0000-0000-000000000000'
+
+    bkuser "${user}" "${uuid}" 'restore'
+
+#   exec bash -l
+    echo 'relogin'; false
+
+  # -------------------------------- domain --------------------------------
+  else
+
+    # openpgp4fpr
+    if :; then
+
+      readonly openpgp4fpr="$(openpgp4fpr)"
+      mkdir -p                                              "${dat_dir}/openpgp4fpr/${openpgp4fpr}"
+      gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/openpgp4fpr/${openpgp4fpr}/pub"
+#     gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
+
+      # git
+#     git config --global user.name       "${USER}"
+#     git config --global user.email      "${USER}@$(hostname -f)"
+      git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+
+    fi
+
+    # ⚠️暗号化ペイロード
+    if [[ 'a1c69acb35cdaa3582487fa3d57614cb262ee8ae01e0ba4edd2fba0c350db3ec' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
+#     cat << 'EOS' | enc | base64
+      cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
+hF4DAAAAAAAAAAASAQdAUuHoREgu0HmP1lXrMtZCJw6o9qdWAzhZ5Je/TRtHRRIwXXOcIY/eSkEI
+u6vAen4CgZm6AstQRDoRtXrdP31EjKaho95p3Hgm7l5NRzM6uWyi0sBvAYqNGiBlBugvbej73GU6
+R8GcRFatfDmnQhkLLbai8sYOgvN0JZ1+DtGYc2+ie38CvIO2aQGVIMrPwD8uIpcm3Xj4j6qWskVS
+WSg4wfMSQIVQtV98Ng/S/gCyrgI8aQcId1NWTnHuWLsqrEKHoFiwgeIFINyiqOH4lM9AY7SXlJFh
+w3FuVvXqepQ8LO3BDA0rGb4q0md4mTJl4f5uU35SBgXiHZ1wOOxejbp2e1i6yUCVZ8061azfrLLE
+VoievrMhSYiZHsMPS0TLM6wOvH4Xy0rs1WabnF9DvtoY/HWxkZBV7T/VKpjV5VauhS9jD02yRkEy
+iOdY1gKO9aU44BK6U9aL9OqBsjbrlrsiBJ8jEd8Mzb0SHSeEfrnOSjvmetKQWE5SqMCpeGDv+1eN
+S0qt
+EOS
+    fi
+
+    # jpki
+    readonly jpki_id="$(jpki_id)"
+
+    # lan
+    if :; then
+
+      readonly lan_ip="$(ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1)"
+
+#     mkdir -p "${dat_dir}/ipv4/${lan_ip}"
+      ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | while read i; do
+        mkdir -p "${dat_dir}/ipv4/${i}"
+      done
+
+    fi
+
+    # wan
+    if :; then
+
+      test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver1.opendns.com')"
+      test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver2.opendns.com')"
+      test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver3.opendns.com')"
+      test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver4.opendns.com')"
+      test ! -v wan_ip && readonly wan_ip="$(dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"')"
+      test ! -v wan_ip && readonly wan_ip="$(dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"')"
+
+      mkdir -p "${dat_dir}/ipv4/${wan_ip}"
+      mkdir -p "${dat_dir}/wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
+
+    fi
+
+    readonly external_ip="${lan_ip}"
+
+    # scope
+    if :; then
+
+      readonly machine_id="$(machine_id)"
+      readonly boot_id="$(boot_id)"
+      readonly setup_id="$(uuidgen)"
+
+      mkdir -p \
+        "${dat_dir}/machine_id/${machine_id}" \
+        "${dat_dir}/boot_id/${boot_id}" \
+        "${dat_dir}/setup_id/${setup_id}"
+
+    fi
+
+    # .env
+    cat << EOS | tr -d ' ' > "${HOME}/.env"
 # uid
 jpki_id     = ${jpki_id}
 openpgp4fpr = ${openpgp4fpr}
@@ -694,62 +628,121 @@ namespace   = ${namespace}
 tag         = latest
 EOS
 
-  # deploy
-  pushd "${HOME}" &> '/dev/null'
+    # qr
+    echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
 
-    if [[ -v is_init ]]; then
-      podman-compose build
+    # ssh
+    if :; then
+
+      onetime_key="/tmp/${setup_id}"
+      onetime_pub="${onetime_key}.pub"
+
+#     ssh-keygen -t rsa     -b 4096 -C '' -N '' -f "${onetime_key}"
+      ssh-keygen -t ed25519 -a 4096 -C '' -N '' -f "${onetime_key}"
+
+      mkdir -p "${HOME}/.ssh"
+      auth_file="${HOME}/.ssh/authorized_keys"
+      {
+        cat "${onetime_pub}"
+        cat "${dat_dir}/jpki_id/${jpki_id}/auth.ssh.pub" || true
+#       curl -fsSL "https://github.com/${github_user}.keys"
+      } | sort -u > "${auth_file}"
+
+      chmod 700 "${HOME}/.ssh"
+      chmod 600 "${auth_file}"
+
+      ssh-add -D
+      ssh-add "${onetime_key}"
+
     fi
 
-    podman-compose down
+    # cdi
+    sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
 
-    # port: ~1023
-    sudo sysctl --write net.ipv4.ip_unprivileged_port_start=7
+    # firewall
+    if :; then
 
-      echo "nameserver ${dns_ip}"      | sudo tee '/etc/resolv.conf' > '/dev/null'
-        podman-compose up dns &
+      froms=()
+#     froms+=('0.0.0.0')
+#     froms+=('10.0.0.0/8')
+#     froms+=('172.16.0.0/12')
+#     froms+=('192.168.0.0/16')
+      froms+=("${lan_ip}")
+#     froms+=("${wan_ip}")
+
+      for from in "${froms[@]}"; do
+        sudo ufw allow from "${from}" to any port   7 proto tcp
+        sudo ufw allow from "${from}" to any port   7 proto     udp
+        sudo ufw allow from "${from}" to any port  22 proto tcp
+        sudo ufw allow from "${from}" to any port  53 proto tcp
+        sudo ufw allow from "${from}" to any port  53 proto     udp
+        sudo ufw allow from "${from}" to any port  80 proto tcp
+        sudo ufw allow from "${from}" to any port 123 proto     udp
+        sudo ufw allow from "${from}" to any port 443 proto tcp
+      done
+      sudo ufw reload
+
+    fi
+    sudo ufw status verbose
+
+    # deploy
+    pushd "${HOME}" &> '/dev/null'
+
+      podman-compose build
+      podman-compose down
+
+      # port: ~1023
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=7
+
+        echo "nameserver ${dns_ip}"      | sudo tee '/etc/resolv.conf' > '/dev/null'
+          podman-compose up dns &
+          sleep 1
+        echo "nameserver ${external_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
+
+        podman-compose up echo ntp &
         sleep 1
-      echo "nameserver ${external_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
 
-      podman-compose up echo ntp &
-      sleep 1
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+      sudo ntpdate "ntp.${domain}" || true
 
-    sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
-    sudo ntpdate "ntp.${domain}" || true
+      # port: 1024~
+      podman-compose up git apt container &
+      sleep 3
+      podman-compose up mariadb pgsql redis mongo chroma &
+      sleep 5
+      podman-compose up tor btc eth &
+      sleep 5
+      podman-compose up minecraft &
+      sleep 3
+      podman-compose up setup doc-php chat &
+      sleep 3
+      podman-compose up doc &
+      sleep 3
+      podman-compose up bi comfyui &
+      sleep 3
 
-    # port: 1024~
-    podman-compose up git apt container &
-    sleep 3
-    podman-compose up mariadb pgsql redis mongo chroma &
-    sleep 5
-    podman-compose up tor btc eth &
-    sleep 5
-    podman-compose up minecraft &
-    sleep 3
-    podman-compose up setup doc-php chat &
-    sleep 3
-    podman-compose up doc &
-    sleep 3
-    podman-compose up bi comfyui &
-    sleep 3
+      # port: ~1023
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=80
+        podman-compose up proxy &
+        sleep 1
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
-    # port: ~1023
-    sudo sysctl --write net.ipv4.ip_unprivileged_port_start=80
-      podman-compose up proxy &
-      sleep 1
-    sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+    popd &> '/dev/null'
 
-  popd &> '/dev/null'
+    # clean
+    if :; then
 
-  # -------------------------------- clean --------------------------------
+      sudo apt-get autoremove -y
+      sudo apt-get clean
 
-  sudo apt-get autoremove -y
-  sudo apt-get clean
+      pip3 cache purge
 
-  pip3 cache purge
+      podman system  prune --force || true
+      podman volume  prune --force || true
+      podman network prune --force || true
 
-  podman system  prune --force || true
-  podman volume  prune --force || true
-  podman network prune --force || true
+    fi
+
+  fi
 
 ) >&2
