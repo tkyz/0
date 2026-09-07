@@ -1,0 +1,60 @@
+# cli
+  https://github.com/kubernetes-sigs/kind.git
+  https://github.com/sacloud/usacloud.git
+  https://github.com/mgdm/htmlq.git
+  https://github.com/jpki/myna.git
+
+# blockchain
+  https://github.com/bitcoin/bitcoin.git
+  https://github.com/ethereum/go-ethereum.git
+
+# ai
+
+  # face
+    https://github.com/iperov/DeepFaceLab.git
+    https://github.com/iperov/DeepFaceLive.git
+    https://github.com/Cregrant/DeepFaceLab-optimized.git
+    https://github.com/deepinsight/insightface.git
+
+  # llm
+    https://github.com/ggml-org/llama.cpp.git
+
+# web
+
+  # doc
+    https://github.com/splitbrain/dokuwiki.git
+    https://github.com/splitbrain/dokuwiki-plugin-gallery.git
+    https://github.com/splitbrain/dokuwiki-plugin-gchart.git
+    https://github.com/splitbrain/dokuwiki-plugin-translation.git
+    https://github.com/splitbrain/dokuwiki-plugin-vshare.git
+    https://github.com/Chris--S/dokuwiki-plugin-iframe.git
+    https://github.com/Chris--S/dokuwiki-plugin-xbr.git
+    https://github.com/selfthinker/dokuwiki_plugin_wrap.git
+    https://github.com/hanche/dokuwiki_color_plugin.git
+    https://github.com/lejmr/dokuwiki-plugin-drawio.git
+    https://github.com/samuelet/indexmenu.git
+    https://github.com/cosmocode/dokuwiki-plugin-aichat.git
+    https://github.com/cosmocode/sqlite.git
+    https://github.com/liffiton/dokuwiki-plugin-mathjax.git
+    https://github.com/dokufreaks/plugin-discussion.git
+    https://github.com/giterlizzi/dokuwiki-template-bootstrap3.git
+
+  # bi
+#   https://github.com/evidence-dev/evidence.git
+    https://github.com/evidence-dev/template.git
+
+  # comfyui
+    https://github.com/comfyanonymous/ComfyUI.git
+    https://github.com/ltdrdata/ComfyUI-Manager.git
+    https://github.com/ltdrdata/ComfyUI-Impact-Pack.git
+    https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git
+    https://github.com/asagi4/comfyui-prompt-control.git
+    https://github.com/kijai/ComfyUI-KJNodes.git
+    https://github.com/kijai/ComfyUI-FramePackWrapper.git
+    https://github.com/kijai/ComfyUI-WanVideoWrapper.git
+    https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
+    https://github.com/cubiq/ComfyUI_essentials.git
+    https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git
+    https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
+    https://github.com/jamesWalker55/comfyui-various.git
+    https://github.com/space-nuko/ComfyUI-OpenPose-Editor.git
