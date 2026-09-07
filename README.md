@@ -15,16 +15,9 @@ mirror
 
 ## 💻 セットアップ
 
-1. 最新のOSイメージを[ダウンロード](https://www.debian.org/CD/http-ftp/)
-2. OSインストール用USBを作成<br>iso -> USB
-   ```bash
-   cat debian.iso > /dev/sdX
-   ```
-3. OSをインストール<br>USB -> PC
-4. 個人環境をセットアップ・デプロイ
-   ```bash
-   ( curl "http://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
-   ```
+```bash
+( curl "http://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
+```
 
 ## 🌐 ドメイン
 

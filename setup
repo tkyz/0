@@ -35,8 +35,10 @@ set -o pipefail
   set -a
     source <(cat '/etc/os-release' | sed 's/^/readonly /g')
   set +a
+
   test 'debian' == "${ID_LIKE:-${ID}}"
   test 'bash'   == "${SHELL##*/}"
+  sudo -v -n
 
   readonly bin_dir="${HOME}/bin"
   readonly dat_dir="${HOME}/dat"
@@ -56,14 +58,32 @@ set -o pipefail
 
   readonly github_user='tkyz'
 
-  # -------------------------------- debian --------------------------------
+  # -------------------------------- setup --------------------------------
   if true; then
 
     # dns
     echo "nameserver ${dns_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
 
-    # repo
-    cat << EOS | sudo tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
+    # keyboard
+    cat << EOS | sudo tee '/etc/default/keyboard' > '/dev/null'
+XKBMODEL=pc105
+XKBLAYOUT=jp
+XKBVARIANT=
+XKBOPTIONS=ctrl:nocaps
+BACKSPACE=guess
+EOS
+
+    # sysctl
+#   sudo sysctl --write fs.inotify.max_user_instances=128 #  1024
+#   sudo sysctl --write fs.inotify.max_user_watches=8192  # 65536
+
+    # apt
+    if :; then
+
+      export DEBIAN_FRONTEND=noninteractive
+
+      # repo
+      cat << EOS | sudo tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
 deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
@@ -80,13 +100,11 @@ deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security 
 #deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
 EOS
 
-    sudo apt-get update
-    sudo apt-get upgrade -y
+      sudo apt-get update
+      sudo apt-get upgrade -y
+      sudo apt-get install -y extrepo curl gnupg2
 
-    # extrepo
-    sudo apt-get install -y extrepo
-    if :; then
-
+      # extrepo
       cat << EOS | sudo tee '/etc/extrepo/config.yaml' > '/dev/null'
 url: https://extrepo-team.pages.debian.net/extrepo-data
 dist: debian
@@ -96,25 +114,31 @@ enabled_policies:
   - contrib
   - non-free
 EOS
+#     sudo extrepo enable nvidia-cuda
+      sudo extrepo enable kubernetes
+      sudo extrepo enable openvpn
+      sudo extrepo enable virtualbox
+      sudo extrepo enable github-cli
+      sudo extrepo enable google_cloud
+      sudo extrepo enable dotnet
+      sudo extrepo enable winehq
 
-      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 sudo extrepo enable
-# nvidia-cuda
-kubernetes
-openvpn
-virtualbox
-github-cli
-google_cloud
-dotnet
-winehq
+      # nvidia
+      #   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian
+      if :; then
+        pub_file='/etc/apt/keyrings/nvidia-container-toolkit.gpg'
+        src_file='/etc/apt/sources.list.d/nvidia-container-toolkit.list'
+        curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey' | sudo gpg --dearmor | sudo tee "${pub_file}" > '/dev/null'
+        cat << EOS | sudo tee "${src_file}" > '/dev/null'
+deb  [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH)       /
+#deb [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/experimental/deb/\$(ARCH) /
 EOS
+      fi
 
-    fi
+      sudo apt-get update
+      sudo apt-get upgrade -y
 
-    sudo apt-get update
-    sudo apt-get upgrade -y
-
-    # apt
-    cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
+      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
 # kernel
   linux-headers-$(uname -r | sed 's/.*-//g')
 
@@ -159,6 +183,11 @@ EOS
   gocryptfs
   archivemount
 
+# gpu
+  nvidia-driver
+  nvidia-container-toolkit
+# nvidia-open
+
 # cups
   cups
 
@@ -200,16 +229,8 @@ EOS
   bind9-dnsutils
   nmap
   curl
-
-# ssh
   openssh-client
   openssh-server
-
-# ...
-  uuid-runtime
-  rsync
-  jq
-  qrencode
 
 # k8s
   kubectl
@@ -219,20 +240,14 @@ EOS
 # cloud
 # google-cloud-cli
 # awscli
-EOS
 
-    # sysctl
-#   sudo sysctl --write fs.inotify.max_user_instances=128 #  1024
-#   sudo sysctl --write fs.inotify.max_user_watches=8192  # 65536
-
-    # keyboard
-    cat << EOS | sudo tee '/etc/default/keyboard' > '/dev/null'
-XKBMODEL=pc105
-XKBLAYOUT=jp
-XKBVARIANT=
-XKBOPTIONS=ctrl:nocaps
-BACKSPACE=guess
+# ...
+  uuid-runtime
+  rsync
+  jq
+  qrencode
 EOS
+    fi
 
     # ufw
     printf 'y' | sudo ufw reset > '/dev/null'
@@ -302,82 +317,47 @@ EOS
 
     fi
 
-#   sudo shutdown -r now
-    echo 'reboot'; false
-
-  # -------------------------------- driver --------------------------------
-  elif true; then
-
-    # nvidia
-    #   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian
-    if :; then
-
-      pub_file='/etc/apt/keyrings/nvidia-container-toolkit.gpg'
-      src_file='/etc/apt/sources.list.d/nvidia-container-toolkit.list'
-      curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey' | sudo gpg --dearmor | sudo tee "${pub_file}" > '/dev/null'
-      cat << EOS | sudo tee "${src_file}" > '/dev/null'
-deb  [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH)       /
-#deb [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/experimental/deb/\$(ARCH) /
-EOS
-
-      sudo apt-get update
-      sudo apt-get upgrade -y
-
-      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
-# gpu
-  nvidia-driver
-  nvidia-container-toolkit
-# nvidia-open
-EOS
-
-    fi
-
     # cups
     #   https://www.brother.co.jp/support/index.aspx
     #   https://canon.jp/support/software
     #   https://www.epson.jp/support/download/
 
-#   sudo shutdown -r now
-    echo 'reboot'; false
-
-  # -------------------------------- 0.git --------------------------------
-  elif true; then
-
-    mkdir -p \
-      "${bin_dir}" \
-      "${dat_dir}" \
-      "${doc_dir}" \
-      "${enc_dir}" \
-      "${lib_dir}" \
-      "${mnt_dir}" \
-      "${opt_dir}" \
-      "${sbin_dir}" \
-      "${src_dir}" \
-      "${tmp_dir}"
-
-    git config --global init.defaultBranch main
-    git config --global core.ignorecase    false
-    git config --global core.quotepath     false
-    git config --global core.autocrlf      false
-    git config --global core.safecrlf      true
-    git config --global core.filemode      true
-    git config --global core.symlinks      true
-    git config --global core.hooksPath     "${HOME}/.git-hooks"
-    git config --global color.ui           auto
-    git config --global color.diff         auto
-    git config --global color.status       auto
-    git config --global color.branch       auto
-    git config --global pull.ff            only
-    git config --global pull.rebase        true
-    git config --global pull.autostash     false
-    git config --global rebase.autostash   false
-    git config --global merge.ff           false
-    git config --global diff.sjis.textconv 'iconv -f sjis'
-    git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
-    git config --global gpg.program        "$(type -p gpg)"
-    git config --global commit.gpgsign     true
-
+    # 0.git
     pushd "${HOME}" &> '/dev/null'
+
+      mkdir -p \
+        "${bin_dir}" \
+        "${dat_dir}" \
+        "${doc_dir}" \
+        "${enc_dir}" \
+        "${lib_dir}" \
+        "${mnt_dir}" \
+        "${opt_dir}" \
+        "${sbin_dir}" \
+        "${src_dir}" \
+        "${tmp_dir}"
+
+      git config --global init.defaultBranch main
+      git config --global core.ignorecase    false
+      git config --global core.quotepath     false
+      git config --global core.autocrlf      false
+      git config --global core.safecrlf      true
+      git config --global core.filemode      true
+      git config --global core.symlinks      true
+      git config --global core.hooksPath     "${HOME}/.git-hooks"
+      git config --global color.ui           auto
+      git config --global color.diff         auto
+      git config --global color.status       auto
+      git config --global color.branch       auto
+      git config --global pull.ff            only
+      git config --global pull.rebase        true
+      git config --global pull.autostash     false
+      git config --global rebase.autostash   false
+      git config --global merge.ff           false
+      git config --global diff.sjis.textconv 'iconv -f sjis'
+      git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+      git config --global gpg.program        "$(type -p gpg)"
+      git config --global commit.gpgsign     true
 
 #     git init --object-format=sha256 '.'
       git init                        '.'
@@ -413,110 +393,42 @@ EOS
         cp './.profile' './.profile.bk'; git checkout './.profile'
         cp './.bashrc'  './.bashrc.bk';  git checkout './.bashrc'
 
+        # activate profile
+        set +o errexit +o nounset +o pipefail
+          source './.profile'
+        set -o errexit -o nounset -o pipefail
+
       fi
 
       git gc
       git status
 
-      # activate profile
-      set +o errexit +o nounset +o pipefail
-        source './.profile'
-      set -o errexit -o nounset -o pipefail
-
     popd &> '/dev/null'
 
-    # pull
+    # cli
     if :; then
 
-      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
-# jpki
-  https://github.com/jpki/myna.git
-
-# blockchain
-  https://github.com/bitcoin/bitcoin.git
-  https://github.com/ethereum/go-ethereum.git
-
-# bi
-# https://github.com/evidence-dev/evidence.git
-  https://github.com/evidence-dev/template.git
-
-# llm
-  https://github.com/ggml-org/llama.cpp.git
-
-# doc
-  https://github.com/splitbrain/dokuwiki.git
-  https://github.com/splitbrain/dokuwiki-plugin-gallery.git
-  https://github.com/splitbrain/dokuwiki-plugin-gchart.git
-  https://github.com/splitbrain/dokuwiki-plugin-translation.git
-  https://github.com/splitbrain/dokuwiki-plugin-vshare.git
-  https://github.com/Chris--S/dokuwiki-plugin-iframe.git
-  https://github.com/Chris--S/dokuwiki-plugin-xbr.git
-  https://github.com/selfthinker/dokuwiki_plugin_wrap.git
-  https://github.com/hanche/dokuwiki_color_plugin.git
-  https://github.com/lejmr/dokuwiki-plugin-drawio.git
-  https://github.com/samuelet/indexmenu.git
-  https://github.com/cosmocode/dokuwiki-plugin-aichat.git
-  https://github.com/cosmocode/sqlite.git
-  https://github.com/liffiton/dokuwiki-plugin-mathjax.git
-  https://github.com/dokufreaks/plugin-discussion.git
-  https://github.com/giterlizzi/dokuwiki-template-bootstrap3.git
-
-# comfyui
-  https://github.com/comfyanonymous/ComfyUI.git
-  https://github.com/ltdrdata/ComfyUI-Manager.git
-  https://github.com/ltdrdata/ComfyUI-Impact-Pack.git
-  https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git
-  https://github.com/asagi4/comfyui-prompt-control.git
-  https://github.com/kijai/ComfyUI-KJNodes.git
-  https://github.com/kijai/ComfyUI-FramePackWrapper.git
-  https://github.com/kijai/ComfyUI-WanVideoWrapper.git
-  https://github.com/cubiq/ComfyUI_IPAdapter_plus.git
-  https://github.com/cubiq/ComfyUI_essentials.git
-  https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git
-  https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
-  https://github.com/jamesWalker55/comfyui-various.git
-  https://github.com/space-nuko/ComfyUI-OpenPose-Editor.git
-
-# t2t
-# https://huggingface.co/google/gemma-4-31B.git
-# https://huggingface.co/google/gemma-4-31B-it.git
-# https://huggingface.co/Qwen/Qwen3.6-35B-A3B.git
-
-# t2i
-# https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors.git
-# https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors.git
-
-# t2v
-# https://huggingface.co/stabilityai/stable-video-diffusion-img2vid/svd.safetensors.git
-
-# a2t
-# https://huggingface.co/openai/whisper-large-v3.git
+      # pull
+      cat << EOS | xargs --no-run-if-empty -n 1 curi
+https://github.com/kubernetes-sigs/kind.git
+https://github.com.github/sacloud/usacloud.git
+https://github.com.github/mgdm/htmlq.git
+https://github.com.github/jpki/myna.git
 EOS
 
-      pushd "${HOME}" &> '/dev/null'
-        podman-compose pull || true
-      popd &> '/dev/null'
-
-    fi
-
-    # build myna
-    if :; then
-      build_target='com.github/jpki/myna'
-      podman run \
-        --interactive \
-        --rm \
-        --volume  "${src_dir}/${build_target}:/build" \
-        --workdir '/build' \
-        "docker.io/library/rust:${VERSION_CODENAME}" \
-        bash << EOS
-          apt-get update -y
-          apt-get install -y libpcsclite-dev
-          cargo build --workspace --release
+      # build
+      podman run --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+      podman run --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+      podman run --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
+      podman run --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
+        apt-get update -y
+        apt-get install -y libpcsclite-dev
+        cargo build --workspace --release
 EOS
     fi
 
-#   exec bash -l
-    echo 'relogin'; false
+    echo 'reboot'
+    false # sudo shutdown -r now;
 
   # -------------------------------- ⚠️restore --------------------------------
   elif false; then
@@ -526,31 +438,21 @@ EOS
 
     bkuser "${user}" "${uuid}" 'restore'
 
-#   exec bash -l
     echo 'relogin'; false
+#   exec bash -l
 
   # -------------------------------- domain --------------------------------
   else
 
-    # openpgp4fpr
+    # identifier
     if :; then
 
       readonly openpgp4fpr="$(openpgp4fpr)"
-      mkdir -p                                              "${dat_dir}/openpgp4fpr/${openpgp4fpr}"
-      gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/openpgp4fpr/${openpgp4fpr}/pub"
-#     gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
 
-      # git
-#     git config --global user.name       "${USER}"
-#     git config --global user.email      "${USER}@$(hostname -f)"
-      git config --global user.signingkey "$(gpg --with-colons --list-secret-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
-
-    fi
-
-    # ⚠️暗号化ペイロード
-    if [[ 'a1c69acb35cdaa3582487fa3d57614cb262ee8ae01e0ba4edd2fba0c350db3ec' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
-#     cat << 'EOS' | enc | base64
-      cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
+      # ⚠️暗号化ペイロード
+      if [[ 'a1c69acb35cdaa3582487fa3d57614cb262ee8ae01e0ba4edd2fba0c350db3ec' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
+#       cat << 'EOS' | enc | base64
+        cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
 hF4DAAAAAAAAAAASAQdAUuHoREgu0HmP1lXrMtZCJw6o9qdWAzhZ5Je/TRtHRRIwXXOcIY/eSkEI
 u6vAen4CgZm6AstQRDoRtXrdP31EjKaho95p3Hgm7l5NRzM6uWyi0sBvAYqNGiBlBugvbej73GU6
 R8GcRFatfDmnQhkLLbai8sYOgvN0JZ1+DtGYc2+ie38CvIO2aQGVIMrPwD8uIpcm3Xj4j6qWskVS
@@ -560,76 +462,24 @@ VoievrMhSYiZHsMPS0TLM6wOvH4Xy0rs1WabnF9DvtoY/HWxkZBV7T/VKpjV5VauhS9jD02yRkEy
 iOdY1gKO9aU44BK6U9aL9OqBsjbrlrsiBJ8jEd8Mzb0SHSeEfrnOSjvmetKQWE5SqMCpeGDv+1eN
 S0qt
 EOS
-    fi
+      fi
 
-    # jpki
-    readonly jpki_id="$(jpki_id)"
+      readonly jpki_id="$(jpki_id)"
 
-    # lan
-    if :; then
+      readonly machine_id="$(machine_id)"
+      readonly boot_id="$(boot_id)"
+      readonly setup_id="$(uuidgen)"
 
       readonly lan_ip="$(ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1)"
-
-#     mkdir -p "${dat_dir}/ipv4/${lan_ip}"
-      ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | while read i; do
-        mkdir -p "${dat_dir}/ipv4/${i}"
-      done
-
-    fi
-
-    # wan
-    if :; then
-
       test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver1.opendns.com')"
       test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver2.opendns.com')"
       test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver3.opendns.com')"
       test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver4.opendns.com')"
       test ! -v wan_ip && readonly wan_ip="$(dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"')"
       test ! -v wan_ip && readonly wan_ip="$(dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"')"
-
-      mkdir -p "${dat_dir}/ipv4/${wan_ip}"
-      mkdir -p "${dat_dir}/wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
+      readonly external_ip="${lan_ip}"
 
     fi
-
-    readonly external_ip="${lan_ip}"
-
-    # scope
-    if :; then
-
-      readonly machine_id="$(machine_id)"
-      readonly boot_id="$(boot_id)"
-      readonly setup_id="$(uuidgen)"
-
-      mkdir -p \
-        "${dat_dir}/machine_id/${machine_id}" \
-        "${dat_dir}/boot_id/${boot_id}" \
-        "${dat_dir}/setup_id/${setup_id}"
-
-    fi
-
-    # .env
-    cat << EOS | tr -d ' ' > "${HOME}/.env"
-# uid
-jpki_id     = ${jpki_id}
-openpgp4fpr = ${openpgp4fpr}
-
-# scope
-machine_id  = ${machine_id}
-boot_id     = ${boot_id}
-setup_id    = ${setup_id}
-
-# network
-resolver_ip = ${dns_ip}
-external_ip = ${external_ip}
-domain      = ${domain}
-namespace   = ${namespace}
-
-tag         = latest
-EOS
-
-    # qr
-    echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
 
     # ssh
     if :; then
@@ -653,6 +503,68 @@ EOS
 
       ssh-add -D
       ssh-add "${onetime_key}"
+
+    fi
+
+    # .env
+    cat << EOS | tr -d ' ' > "${HOME}/.env"
+# uid
+openpgp4fpr = ${openpgp4fpr}
+jpki_id     = ${jpki_id}
+
+# scope
+machine_id  = ${machine_id}
+boot_id     = ${boot_id}
+setup_id    = ${setup_id}
+
+# network
+resolver_ip = ${dns_ip}
+external_ip = ${external_ip}
+domain      = ${domain}
+namespace   = ${namespace}
+
+tag         = latest
+EOS
+
+    # dat
+    if :; then
+
+      # openpgp4fpr
+      if :; then
+
+        mkdir -p                                              "${dat_dir}/openpgp4fpr/${openpgp4fpr}"
+        gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/openpgp4fpr/${openpgp4fpr}/pub"
+#       gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
+
+#       uid_line="$(gpg --with-colons --list-keys "${openpgp4fpr}" | awk -F: '/^uid:/ {print $10; exit}')"
+#       gpg_user="$(echo "${uid_line}" | sed ...)"
+#       gpg_mail="$(echo "${uid_line}" | sed ...)"
+
+        # git
+#       git config --global user.name       "${USER}"
+#       git config --global user.email      "${USER}@$(hostname -f)"
+        git config --global user.signingkey "$(gpg --with-colons --list-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
+
+      fi
+
+      # lan
+#     mkdir -p "${dat_dir}/ipv4/${lan_ip}"
+      ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | while read i; do
+        mkdir -p "${dat_dir}/ipv4/${i}"
+      done
+
+      # wan
+      mkdir -p "${dat_dir}/ipv4/${wan_ip}"
+      mkdir -p "${dat_dir}/wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
+
+      # scope
+      mkdir -p \
+        "${dat_dir}/machine_id/${machine_id}" \
+        "${dat_dir}/boot_id/${boot_id}" \
+        "${dat_dir}/setup_id/${setup_id}"
+
+      # qr
+      echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
 
     fi
 
@@ -685,47 +597,58 @@ EOS
     fi
     sudo ufw status verbose
 
-    # deploy
     pushd "${HOME}" &> '/dev/null'
 
+      # pull
+#     cat "${HOME}/lib/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+#     cat "${HOME}/src/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+#     podman-compose pull || true
+
+      # build
       podman-compose build
-      podman-compose down
 
-      # port: ~1023
-      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=7
+      # deploy
+      if :; then
 
-        echo "nameserver ${dns_ip}"      | sudo tee '/etc/resolv.conf' > '/dev/null'
-          podman-compose up dns &
+        podman-compose down
+
+        # port: ~1023
+        sudo sysctl --write net.ipv4.ip_unprivileged_port_start=7
+
+          echo "nameserver ${dns_ip}"      | sudo tee '/etc/resolv.conf' > '/dev/null'
+            podman-compose up dns &
+            sleep 1
+          echo "nameserver ${external_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
+
+          podman-compose up echo ntp &
           sleep 1
-        echo "nameserver ${external_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
 
-        podman-compose up echo ntp &
-        sleep 1
+        sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+        sudo ntpdate "ntp.${domain}" || true
 
-      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
-      sudo ntpdate "ntp.${domain}" || true
+        # port: 1024~
+        podman-compose up git apt container &
+        sleep 3
+        podman-compose up mariadb pgsql redis mongo chroma &
+        sleep 5
+        podman-compose up tor btc eth &
+        sleep 5
+        podman-compose up minecraft &
+        sleep 3
+        podman-compose up setup doc-php chat &
+        sleep 3
+        podman-compose up doc &
+        sleep 3
+        podman-compose up bi comfyui &
+        sleep 3
 
-      # port: 1024~
-      podman-compose up git apt container &
-      sleep 3
-      podman-compose up mariadb pgsql redis mongo chroma &
-      sleep 5
-      podman-compose up tor btc eth &
-      sleep 5
-      podman-compose up minecraft &
-      sleep 3
-      podman-compose up setup doc-php chat &
-      sleep 3
-      podman-compose up doc &
-      sleep 3
-      podman-compose up bi comfyui &
-      sleep 3
+        # port: ~1023
+        sudo sysctl --write net.ipv4.ip_unprivileged_port_start=80
+          podman-compose up proxy &
+          sleep 1
+        sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
-      # port: ~1023
-      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=80
-        podman-compose up proxy &
-        sleep 1
-      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+      fi
 
     popd &> '/dev/null'
 
@@ -742,6 +665,9 @@ EOS
       podman network prune --force || true
 
     fi
+
+#   echo 'reboot';  false # sudo shutdown -r now;
+#   echo 'relogin'; false # exec bash -l
 
   fi
 
