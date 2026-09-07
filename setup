@@ -417,14 +417,15 @@ https://github.com.github/jpki/myna.git
 EOS
 
       # build
-      podman run --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-      podman run --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-      podman run --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
-      podman run --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
+      podman run               --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+      podman run               --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+      podman run               --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
+      podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
         apt-get update -y
         apt-get install -y libpcsclite-dev
         cargo build --workspace --release
 EOS
+
     fi
 
     echo 'reboot'
