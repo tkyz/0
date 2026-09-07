@@ -428,6 +428,20 @@ EOS
 
     fi
 
+    # clean
+    if :; then
+
+      sudo apt-get autoremove -y
+      sudo apt-get clean
+
+      pip3 cache purge
+
+      podman system  prune --force || true
+      podman volume  prune --force || true
+      podman network prune --force || true
+
+    fi
+
     echo 'reboot'
     false # sudo shutdown -r now;
 
@@ -652,23 +666,6 @@ EOS
       fi
 
     popd &> '/dev/null'
-
-    # clean
-    if :; then
-
-      sudo apt-get autoremove -y
-      sudo apt-get clean
-
-      pip3 cache purge
-
-      podman system  prune --force || true
-      podman volume  prune --force || true
-      podman network prune --force || true
-
-    fi
-
-#   echo 'reboot';  false # sudo shutdown -r now;
-#   echo 'relogin'; false # exec bash -l
 
   fi
 
