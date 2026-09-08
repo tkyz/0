@@ -51,15 +51,21 @@ set -o pipefail
   readonly src_dir="${HOME}/src"
   readonly tmp_dir="${HOME}/tmp"
 
+  readonly dns_ip='1.1.1.1'
   readonly domain="$(hostname -d)"
   readonly namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
 
-  readonly dns_ip='1.1.1.1'
-
   readonly github_user='tkyz'
 
+  # phase
+  do_setup=
+  do_setup_0=
+# do_build=
+# do_deploy=
+# do_setup_desktop=
+
   # -------------------------------- setup --------------------------------
-  if true; then
+  if [[ -v do_setup ]]; then
 
     # dns
     echo "nameserver ${dns_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
@@ -105,7 +111,9 @@ EOS
       sudo apt-get install -y extrepo curl gnupg2
 
       # extrepo
-      cat << EOS | sudo tee '/etc/extrepo/config.yaml' > '/dev/null'
+      if :; then
+
+        cat << EOS | sudo tee '/etc/extrepo/config.yaml' > '/dev/null'
 url: https://extrepo-team.pages.debian.net/extrepo-data
 dist: debian
 version: trixie
@@ -114,25 +122,31 @@ enabled_policies:
   - contrib
   - non-free
 EOS
-#     sudo extrepo enable nvidia-cuda
-      sudo extrepo enable kubernetes
-      sudo extrepo enable openvpn
-      sudo extrepo enable virtualbox
-      sudo extrepo enable github-cli
-      sudo extrepo enable google_cloud
-      sudo extrepo enable dotnet
-      sudo extrepo enable winehq
+
+#       sudo extrepo enable nvidia-cuda
+        sudo extrepo enable kubernetes
+        sudo extrepo enable openvpn
+        sudo extrepo enable virtualbox
+        sudo extrepo enable github-cli
+        sudo extrepo enable google_cloud
+        sudo extrepo enable dotnet
+        sudo extrepo enable winehq
+
+      fi
 
       # nvidia
       #   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian
       if :; then
+
         pub_file='/etc/apt/keyrings/nvidia-container-toolkit.gpg'
         src_file='/etc/apt/sources.list.d/nvidia-container-toolkit.list'
+
         curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey' | sudo gpg --dearmor | sudo tee "${pub_file}" > '/dev/null'
         cat << EOS | sudo tee "${src_file}" > '/dev/null'
 deb  [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH)       /
 #deb [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/experimental/deb/\$(ARCH) /
 EOS
+
       fi
 
       sudo apt-get update
@@ -164,7 +178,6 @@ EOS
 # locale
   locales-all
   task-japanese
-# fonts-dejavu-core
 
 # hw
   lshw
@@ -298,6 +311,11 @@ EOS
     python3 -m venv "${HOME}/.venv"
     source "${HOME}/.venv/bin/activate"
 
+    # cups
+    #   https://www.brother.co.jp/support/index.aspx
+    #   https://canon.jp/support/software
+    #   https://www.epson.jp/support/download/
+
     # pip
     if :; then
 
@@ -317,12 +335,11 @@ EOS
 
     fi
 
-    # cups
-    #   https://www.brother.co.jp/support/index.aspx
-    #   https://canon.jp/support/software
-    #   https://www.epson.jp/support/download/
+  fi
 
-    # 0.git
+  # -------------------------------- 0.git --------------------------------
+  if [[ -v do_setup_0 ]]; then
+
     pushd "${HOME}" &> '/dev/null'
 
       mkdir -p \
@@ -405,22 +422,12 @@ EOS
 
     popd &> '/dev/null'
 
-    # cli
+    # myna
     if :; then
 
-      # pull
-      cat << EOS | xargs --no-run-if-empty -n 1 curi
-https://github.com/kubernetes-sigs/kind.git
-https://github.com.github/sacloud/usacloud.git
-https://github.com.github/mgdm/htmlq.git
-https://github.com.github/jpki/myna.git
-EOS
+      curi 'https://github.com.github/jpki/myna.git'
 
-      # build
-      podman run               --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-      podman run               --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-      podman run               --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
-      podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
+      podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build" --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}" bash << EOS
         apt-get update -y
         apt-get install -y libpcsclite-dev
         cargo build --workspace --release
@@ -428,101 +435,87 @@ EOS
 
     fi
 
-    # clean
-    if :; then
+  fi
 
-      sudo apt-get autoremove -y
-      sudo apt-get clean
+  # -------------------------------- identifier --------------------------------
 
-      pip3 cache purge
+  # ⚠️restore
+# bkuser "${USER}" '00000000-0000-0000-0000-000000000000' 'restore'
 
-      podman system  prune --force || true
-      podman volume  prune --force || true
-      podman network prune --force || true
+  # identifier
+  if :; then
 
-    fi
+    readonly openpgp4fpr="$(openpgp4fpr)"
 
-    echo 'reboot'
-    false # sudo shutdown -r now;
-
-  # -------------------------------- ⚠️restore --------------------------------
-  elif false; then
-
-    user="${USER}"
-    uuid='00000000-0000-0000-0000-000000000000'
-
-    bkuser "${user}" "${uuid}" 'restore'
-
-    echo 'relogin'; false
-#   exec bash -l
-
-  # -------------------------------- domain --------------------------------
-  else
-
-    # identifier
-    if :; then
-
-      readonly openpgp4fpr="$(openpgp4fpr)"
-
-      # ⚠️暗号化ペイロード
-      if [[ 'a1c69acb35cdaa3582487fa3d57614cb262ee8ae01e0ba4edd2fba0c350db3ec' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
-#       cat << 'EOS' | enc | base64
-        cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
-hF4DAAAAAAAAAAASAQdAUuHoREgu0HmP1lXrMtZCJw6o9qdWAzhZ5Je/TRtHRRIwXXOcIY/eSkEI
-u6vAen4CgZm6AstQRDoRtXrdP31EjKaho95p3Hgm7l5NRzM6uWyi0sBvAYqNGiBlBugvbej73GU6
-R8GcRFatfDmnQhkLLbai8sYOgvN0JZ1+DtGYc2+ie38CvIO2aQGVIMrPwD8uIpcm3Xj4j6qWskVS
-WSg4wfMSQIVQtV98Ng/S/gCyrgI8aQcId1NWTnHuWLsqrEKHoFiwgeIFINyiqOH4lM9AY7SXlJFh
-w3FuVvXqepQ8LO3BDA0rGb4q0md4mTJl4f5uU35SBgXiHZ1wOOxejbp2e1i6yUCVZ8061azfrLLE
-VoievrMhSYiZHsMPS0TLM6wOvH4Xy0rs1WabnF9DvtoY/HWxkZBV7T/VKpjV5VauhS9jD02yRkEy
-iOdY1gKO9aU44BK6U9aL9OqBsjbrlrsiBJ8jEd8Mzb0SHSeEfrnOSjvmetKQWE5SqMCpeGDv+1eN
-S0qt
+    # ⚠️暗号化ペイロード
+    if [[ '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
+#     cat << 'EOS' | enc | base64
+      cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
+hF4DAAAAAAAAAAASAQdAyzMylrtsuLM37O3VI5L1GbT1PrGv2M37SI0GaVdHfRQwVjCqw9LgFy08
+G1NOZxN01IE5T+KGhTxzss7FIQVtOG5bka/rV6PkW1fIK5/haY5o0owBQL+5EH5YmMn4METaZ+QA
+5yoLijyipG0jqgtP7wiIr9Hr87Kf71L2V5pgzRcfKDTA6zmqelzizpLVpJn7+/V0BzDM92ToiOks
+2rPDLNfpETD7M2605oXRDNMjtSKfkwLN7WmKqG+8JIwyOT4ogENE9icDWGiN1sS4rFRTJ9tiYJpw
+tQlf0x+BqPhgmw==
 EOS
-      fi
-
-      readonly jpki_id="$(jpki_id)"
-
-      readonly machine_id="$(machine_id)"
-      readonly boot_id="$(boot_id)"
-      readonly setup_id="$(uuidgen)"
-
-      readonly lan_ip="$(ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1)"
-      test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver1.opendns.com')"
-      test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver2.opendns.com')"
-      test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver3.opendns.com')"
-      test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver4.opendns.com')"
-      test ! -v wan_ip && readonly wan_ip="$(dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"')"
-      test ! -v wan_ip && readonly wan_ip="$(dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"')"
-      readonly external_ip="${lan_ip}"
-
     fi
 
-    # ssh
-    if :; then
+    readonly jpki_id="$(jpki_id)"
 
-      onetime_key="/tmp/${setup_id}"
-      onetime_pub="${onetime_key}.pub"
+    readonly machine_id="$(machine_id)"
+    readonly boot_id="$(boot_id)"
+    readonly setup_id="$(uuidgen)"
 
-#     ssh-keygen -t rsa     -b 4096 -C '' -N '' -f "${onetime_key}"
-      ssh-keygen -t ed25519 -a 4096 -C '' -N '' -f "${onetime_key}"
+    readonly lan_ip="$(ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1)"
+    test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver1.opendns.com')"
+    test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver2.opendns.com')"
+    test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver3.opendns.com')"
+    test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver4.opendns.com')"
+    test ! -v wan_ip && readonly wan_ip="$(dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"')"
+    test ! -v wan_ip && readonly wan_ip="$(dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"')"
+    readonly external_ip="${lan_ip}"
 
-      mkdir -p "${HOME}/.ssh"
-      auth_file="${HOME}/.ssh/authorized_keys"
-      {
-        cat "${onetime_pub}"
-        cat "${dat_dir}/jpki_id/${jpki_id}/auth.ssh.pub" || true
-#       curl -fsSL "https://github.com/${github_user}.keys"
-      } | sort -u > "${auth_file}"
+  fi
 
-      chmod 700 "${HOME}/.ssh"
-      chmod 600 "${auth_file}"
+  # git
+  if :; then
 
-      ssh-add -D
-      ssh-add "${onetime_key}"
+#   uid_line="$(gpg --with-colons --list-keys "${openpgp4fpr}" | awk -F: '/^uid:/ {print $10; exit}')"
+#   gpg_user="$(echo "${uid_line}" | sed ...)"
+#   gpg_mail="$(echo "${uid_line}" | sed ...)"
 
-    fi
+#   git config --global user.name       "${gpg_user:-${USER}}"
+#   git config --global user.email      "${gpg_mail:-${USER}@$(hostname -f)}"
+    git config --global user.signingkey "$(gpg --with-colons --list-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
 
-    # .env
-    cat << EOS | tr -d ' ' > "${HOME}/.env"
+  fi
+
+  # ssh
+  if :; then
+
+    onetime_key="/tmp/${setup_id}"
+    onetime_pub="${onetime_key}.pub"
+
+#   ssh-keygen -t rsa     -b 4096 -C '' -N '' -f "${onetime_key}"
+    ssh-keygen -t ed25519 -a 4096 -C '' -N '' -f "${onetime_key}"
+
+    mkdir -p "${HOME}/.ssh"
+    auth_file="${HOME}/.ssh/authorized_keys"
+    {
+      cat "${onetime_pub}"
+      is_myna && myna jpki cert --type auth --format der | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 || true
+#     curl -fsSL "https://github.com/${github_user}.keys"
+    } | sort -u > "${auth_file}"
+
+    chmod 700 "${HOME}/.ssh"
+    chmod 600 "${auth_file}"
+
+    ssh-add -D
+    ssh-add "${onetime_key}"
+
+  fi
+
+  # .env
+  cat << EOS | tr -d ' ' > "${HOME}/.env"
 # uid
 openpgp4fpr = ${openpgp4fpr}
 jpki_id     = ${jpki_id}
@@ -541,50 +534,39 @@ namespace   = ${namespace}
 tag         = latest
 EOS
 
-    # dat
+  # -------------------------------- build --------------------------------
+  if [[ -v do_build ]]; then
+
+    # pull
     if :; then
 
-      # openpgp4fpr
-      if :; then
+#     cat "${HOME}/lib/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+#     cat "${HOME}/src/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
 
-        mkdir -p                                              "${dat_dir}/openpgp4fpr/${openpgp4fpr}"
-        gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/openpgp4fpr/${openpgp4fpr}/pub"
-#       gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
-
-#       uid_line="$(gpg --with-colons --list-keys "${openpgp4fpr}" | awk -F: '/^uid:/ {print $10; exit}')"
-#       gpg_user="$(echo "${uid_line}" | sed ...)"
-#       gpg_mail="$(echo "${uid_line}" | sed ...)"
-
-        # git
-#       git config --global user.name       "${USER}"
-#       git config --global user.email      "${USER}@$(hostname -f)"
-        git config --global user.signingkey "$(gpg --with-colons --list-keys "0x${openpgp4fpr}" | grep -A 1 :s: | grep ^fpr: | cut -d : -f 10)"
-
-      fi
-
-      # lan
-#     mkdir -p "${dat_dir}/ipv4/${lan_ip}"
-      ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | while read i; do
-        mkdir -p "${dat_dir}/ipv4/${i}"
-      done
-
-      # wan
-      mkdir -p "${dat_dir}/ipv4/${wan_ip}"
-      mkdir -p "${dat_dir}/wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
-
-      # scope
-      mkdir -p \
-        "${dat_dir}/machine_id/${machine_id}" \
-        "${dat_dir}/boot_id/${boot_id}" \
-        "${dat_dir}/setup_id/${setup_id}"
-
-      # qr
-      echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
+      podman-compose pull || true
 
     fi
 
-    # cdi
-    sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
+    # build
+    if :; then
+
+      podman run               --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+      podman run               --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+      podman run               --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
+      podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
+      apt-get update -y
+      apt-get install -y libpcsclite-dev
+      cargo build --workspace --release
+EOS
+
+      podman-compose build # --pull --no-cache
+
+    fi
+
+  fi
+
+  # -------------------------------- deploy --------------------------------
+  if [[ -v do_deploy ]]; then
 
     # firewall
     if :; then
@@ -612,60 +594,188 @@ EOS
     fi
     sudo ufw status verbose
 
+    # cdi
+    sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
+
     pushd "${HOME}" &> '/dev/null'
 
-      # pull
-#     cat "${HOME}/lib/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
-#     cat "${HOME}/src/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
-#     podman-compose pull || true
+      podman-compose down
 
-      # build
-      podman-compose build
+      # port: ~1023
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=7
 
-      # deploy
-      if :; then
-
-        podman-compose down
-
-        # port: ~1023
-        sudo sysctl --write net.ipv4.ip_unprivileged_port_start=7
-
-          echo "nameserver ${dns_ip}"      | sudo tee '/etc/resolv.conf' > '/dev/null'
-            podman-compose up dns &
-            sleep 1
-          echo "nameserver ${external_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
-
-          podman-compose up echo ntp &
+        echo "nameserver ${dns_ip}"      | sudo tee '/etc/resolv.conf' > '/dev/null'
+          podman-compose up dns &
           sleep 1
+        echo "nameserver ${external_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
 
-        sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
-        sudo ntpdate "ntp.${domain}" || true
+        podman-compose up echo ntp &
+        sleep 1
 
-        # port: 1024~
-        podman-compose up git apt container &
-        sleep 3
-        podman-compose up mariadb pgsql redis mongo chroma &
-        sleep 5
-        podman-compose up tor btc eth &
-        sleep 5
-        podman-compose up minecraft &
-        sleep 3
-        podman-compose up setup doc-php chat &
-        sleep 3
-        podman-compose up doc &
-        sleep 3
-        podman-compose up bi comfyui &
-        sleep 3
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+      sudo ntpdate "ntp.${domain}" || true
 
-        # port: ~1023
-        sudo sysctl --write net.ipv4.ip_unprivileged_port_start=80
-          podman-compose up proxy &
-          sleep 1
-        sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+      # port: 1024~
+      podman-compose up git apt container &
+      sleep 3
+      podman-compose up mariadb pgsql redis mongo chroma &
+      sleep 5
+      podman-compose up tor btc eth &
+      sleep 5
+      podman-compose up minecraft &
+      sleep 3
+      podman-compose up setup doc-php chat &
+      sleep 3
+      podman-compose up doc &
+      sleep 3
+      podman-compose up bi comfyui &
+      sleep 3
+
+      # port: ~1023
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=80
+        podman-compose up proxy &
+        sleep 1
+      sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
+
+    popd &> '/dev/null'
+
+  fi
+
+  # -------------------------------- desktop --------------------------------
+  if [[ -v do_setup_desktop ]]; then
+
+#   sudo tasksel
+
+    cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
+# desktop
+  task-japanese-desktop
+# task-japanese-gnome-desktop
+# task-japanese-gnome-flashback-desktop
+  task-xfce-desktop
+# task-kde-desktop
+
+# font
+  fonts-dejavu-core
+
+# flatpak
+  flatpak
+  gnome-software-plugin-flatpak
+# plasma-discover-backend-flatpak
+
+# wine
+  wine
+  winetricks
+
+# thumbnail
+  webp-pixbuf-loader
+  tumbler
+  tumbler-plugins-extra
+  ffmpegthumbnailer
+EOS
+
+    # flatpak
+    #   https://flathub.org/ja/setup/Debian
+    if :; then
+
+      sudo flatpak remote-add --if-not-exists flathub 'https://dl.flathub.org/repo/flathub.flatpakrepo'
+
+      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo flatpak install -y flathub
+# flathub
+  org.telegram.desktop
+  com.discordapp.Discord
+  org.torproject.torbrowser-launcher
+  org.mozilla.firefox
+# org.libreoffice.LibreOffice
+# org.gimp.GIMP
+# com.valvesoftware.Steam
+# com.obsproject.Studio
+EOS
+
+    fi
+
+    # firefox + mpa
+    if :; then
+
+      mpa_file="${HOME}/src/com.github/jpki/myna/target/release/mpa"
+      if [[ -f "${mpa_file}" ]]; then
+
+        # manifest
+#       ext_dir="${HOME}/.mozilla/native-messaging-hosts"
+        ext_dir="${HOME}/.var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts"
+        mkdir -p "${ext_dir}"
+        cat << EOS > "${ext_dir}/com.github.jpki.mpa.json"
+{
+  "name":        "com.github.jpki.mpa",
+  "description": "MPA for Linux",
+  "path":        "${mpa_file}",
+  "type":        "stdio",
+  "allowed_extensions": [
+    "mpa@${domain}"
+  ]
+}
+EOS
+
+        # config
+        ext_dir="${HOME}/.config/mpa"
+        mkdir -p "${ext_dir}"
+        cat << EOS > "${ext_dir}/config.json"
+{"uuid": "$(od -An -tx1 -N16 '/dev/urandom' | tr -d ' \n')"}
+EOS
 
       fi
 
-    popd &> '/dev/null'
+    fi
+
+    # wine
+    if :; then
+      winetricks cjkfonts gdiplus
+      wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
+    fi
+
+  fi
+
+  # -------------------------------- ... --------------------------------
+
+  # clean
+  if :; then
+
+    sudo apt-get autoremove -y
+    sudo apt-get clean
+
+    pip3 cache purge
+
+    podman system  prune --force || true
+    podman volume  prune --force || true
+    podman network prune --force || true
+
+  fi
+
+  # dat
+  if :; then
+
+    # openpgp4fpr
+    mkdir -p                                              "${dat_dir}/openpgp4fpr/${openpgp4fpr}"
+    gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/openpgp4fpr/${openpgp4fpr}/pub"
+#   gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
+
+    # lan
+#   mkdir -p "${dat_dir}/ipv4/${lan_ip}"
+    ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | while read i; do
+      mkdir -p "${dat_dir}/ipv4/${i}"
+    done
+
+    # wan
+    mkdir -p "${dat_dir}/ipv4/${wan_ip}"
+    mkdir -p "${dat_dir}/wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
+
+    # doc
+    echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
+
+    # scope
+    mkdir -p \
+      "${dat_dir}/machine_id/${machine_id}" \
+      "${dat_dir}/boot_id/${boot_id}" \
+      "${dat_dir}/setup_id/${setup_id}"
 
   fi
 
