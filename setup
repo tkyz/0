@@ -331,6 +331,9 @@ EOS
 
 # util
   yq
+
+# dl
+  transformers
 EOS
 
     fi
@@ -472,7 +475,6 @@ EOS
     test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver4.opendns.com')"
     test ! -v wan_ip && readonly wan_ip="$(dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"')"
     test ! -v wan_ip && readonly wan_ip="$(dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"')"
-    readonly external_ip="${lan_ip}"
 
   fi
 
@@ -515,7 +517,11 @@ EOS
   fi
 
   # .env
-  cat << EOS | tr -d ' ' > "${HOME}/.env"
+  if :; then
+
+    readonly external_ip="${lan_ip}"
+
+    cat << EOS | tr -d ' ' > "${HOME}/.env"
 # uid
 openpgp4fpr = ${openpgp4fpr}
 jpki_id     = ${jpki_id}
@@ -533,6 +539,8 @@ namespace   = ${namespace}
 
 tag         = latest
 EOS
+
+  fi
 
   # -------------------------------- build --------------------------------
   if [[ -v do_build ]]; then
@@ -576,8 +584,9 @@ EOS
 #     froms+=('10.0.0.0/8')
 #     froms+=('172.16.0.0/12')
 #     froms+=('192.168.0.0/16')
-      froms+=("${lan_ip}")
+#     froms+=("${lan_ip}")
 #     froms+=("${wan_ip}")
+      froms+=("${external_ip}")
 
       for from in "${froms[@]}"; do
         sudo ufw allow from "${from}" to any port   7 proto tcp
@@ -599,7 +608,7 @@ EOS
 
     pushd "${HOME}" &> '/dev/null'
 
-      podman-compose down
+#     podman-compose down
 
       # port: ~1023
       sudo sysctl --write net.ipv4.ip_unprivileged_port_start=7
@@ -653,9 +662,11 @@ EOS
 # task-japanese-gnome-flashback-desktop
   task-xfce-desktop
 # task-kde-desktop
+  ibus-mozc
 
 # font
   fonts-dejavu-core
+  fonts-vlgothic
 
 # flatpak
   flatpak
@@ -700,10 +711,10 @@ EOS
       if [[ -f "${mpa_file}" ]]; then
 
         # manifest
-#       ext_dir="${HOME}/.mozilla/native-messaging-hosts"
-        ext_dir="${HOME}/.var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts"
-        mkdir -p "${ext_dir}"
-        cat << EOS > "${ext_dir}/com.github.jpki.mpa.json"
+#       exp_dir="${HOME}/.mozilla/native-messaging-hosts"
+        exp_dir="${HOME}/.var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts"
+        mkdir -p "${exp_dir}"
+        cat << EOS > "${exp_dir}/com.github.jpki.mpa.json"
 {
   "name":        "com.github.jpki.mpa",
   "description": "MPA for Linux",
@@ -716,9 +727,9 @@ EOS
 EOS
 
         # config
-        ext_dir="${HOME}/.config/mpa"
-        mkdir -p "${ext_dir}"
-        cat << EOS > "${ext_dir}/config.json"
+        exp_dir="${HOME}/.config/mpa"
+        mkdir -p "${exp_dir}"
+        cat << EOS > "${exp_dir}/config.json"
 {"uuid": "$(od -An -tx1 -N16 '/dev/urandom' | tr -d ' \n')"}
 EOS
 
