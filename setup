@@ -662,6 +662,8 @@ EOS
 # task-japanese-gnome-flashback-desktop
   task-xfce-desktop
 # task-kde-desktop
+
+# ibus
   ibus-mozc
 
 # font
