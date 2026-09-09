@@ -428,7 +428,7 @@ EOS
     # myna
     if :; then
 
-      curi 'https://github.com.github/jpki/myna.git'
+      curi 'https://github.com/jpki/myna.git'
 
       podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build" --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}" bash << EOS
         apt-get update -y
@@ -548,8 +548,8 @@ EOS
     # pull
     if :; then
 
-#     cat "${HOME}/lib/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
-#     cat "${HOME}/src/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+#     cat "${lib_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+#     cat "${src_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
 
       podman-compose pull || true
 
@@ -637,8 +637,8 @@ EOS
       sleep 3
       podman-compose up doc &
       sleep 3
-      podman-compose up bi comfyui &
-      sleep 3
+#     podman-compose up evidence comfyui &
+#     sleep 3
 
       # port: ~1023
       sudo sysctl --write net.ipv4.ip_unprivileged_port_start=80

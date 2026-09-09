@@ -29,8 +29,10 @@ set -o pipefail
       ]
     }')
 
-  curl -fsSL "http://chat.$(hostname -d)/v1/chat/completions" \
+  echo "${payload}" | curl -fsSL \
+    -X POST \
     -H 'Content-Type: application/json' \
-    -d "${payload}" | jq -r .choices.[].message.content
+    -d @- \
+    "http://chat.$(hostname -d)/v1/chat/completions" | jq -r .choices.[].message.content
 
 )

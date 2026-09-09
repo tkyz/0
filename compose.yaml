@@ -89,8 +89,8 @@ services:
       - {type: bind, source: '${HOME}/src/0.proxy/git.conf',       target: /etc/nginx/conf.d/git.conf,       read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/doc.conf',       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/setup.conf',     target: /etc/nginx/conf.d/setup.conf,     read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/bi.conf',        target: /etc/nginx/conf.d/bi.conf,        read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/chat.conf',      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
+#     - {type: bind, source: '${HOME}/src/0.proxy/evidence.conf',  target: /etc/nginx/conf.d/evidence.conf,  read_only: true}
 #     - {type: bind, source: '${HOME}/src/0.proxy/comfyui.conf',   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
     restart: on-failure
 
@@ -394,9 +394,9 @@ services:
       - {type: bind, source: '${HOME}/src/com.github/IceWreck/Argon-Dokuwiki-Template',        target: /usr/share/nginx/html/lib/tpl/argon}
     restart: on-failure
 
-  bi:
+  evidence:
     image: docker.io/library/node:latest
-    container_name: bi
+    container_name: evidence
     expose:
       - 3000
     volumes:
