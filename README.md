@@ -4,20 +4,22 @@
 
 ⚠️不定期で[squash](./bin/git-autofixup)します。
 
-## 📄 ソース
-
-main
-- [git://git.example/0.git](http://git.example/?p=0.git;a=tree)
-
-mirror
-- https://github.com/tkyz/0.git
-- ...
-
 ## 💻 セットアップ
 
 ```bash
 ( curl "http://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 ```
+
+## 👤 個人識別子
+
+自己発行
+- [openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9](./dat/openpgp4fpr/091373E51DDFEA289C93C7C460C125552C827AF9/pub)
+
+外部発行
+- マイナンバーカード
+  - 公的個人認証AP
+    - EF000A
+      - [ssh](./dat/jpki_id/4abc370b9ad260aeebb12eda1d794d7fa80a87742ef637698ca145ce9129209b/auth.ssh.pub)
 
 ## 🌐 ドメイン
 
@@ -45,18 +47,22 @@ mirror
     - minecraft
   - _web_
     - [doc](http://doc.example/)
-    - [bi](http://bi.example/)
+    - _bi_
+      - [evidence](http://evidence.example/)
     - _ai_
       - [chat](http://chat.example/)
       - [comfyui](http://comfyui.example/)
 
-## 👤 Author
+## 📄 ソース
 
-- [openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9](./dat/openpgp4fpr/091373E51DDFEA289C93C7C460C125552C827AF9/pub)
-- マイナンバーカード
-  - 公的個人認証AP
-    - EF000A
-      - [ssh](./dat/jpki_id/4abc370b9ad260aeebb12eda1d794d7fa80a87742ef637698ca145ce9129209b/auth.ssh.pub)
+メイン
+- [git://git.example/0.git](http://git.example/?p=0.git;a=tree)
+
+ミラー
+- https://github.com/tkyz/0.git
+- ...
+
+## 🙏 寄付
 
 |<img src='./dat/blockchain/btc/icon.png'                                       height=20> btc|<img src='./dat/blockchain/eth/icon.png'                                       height=20> eth|<img src='./dat/blockchain/sol/icon.png'                                         height=20> sol|<img src='./dat/blockchain/xrp/icon.png'                               height=20> xrp|
 |-|-|-|-|
