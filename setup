@@ -237,6 +237,10 @@ EOS
   vim
 # emacs
 
+# pppoe
+  pppoe
+  pppoeconf
+
 # net
   iproute2
   bind9-dnsutils
@@ -436,6 +440,14 @@ EOS
         cargo build --workspace --release
 EOS
 
+      # LIBUSB_ERROR_BUSY
+      cat << EOS | sudo tee '/etc/modprobe.d/blacklist-nfc.conf'
+blacklist nfc
+blacklist pn533
+blacklist pn533_usb
+EOS
+      sudo rmmod pn533_usb pn533 nfc 2> '/dev/null' || true
+
     fi
 
   fi
@@ -511,8 +523,8 @@ EOS
     chmod 700 "${HOME}/.ssh"
     chmod 600 "${auth_file}"
 
-    ssh-add -D
-    ssh-add "${onetime_key}"
+    ssh-add -D               || true
+    ssh-add "${onetime_key}" || true
 
   fi
 
