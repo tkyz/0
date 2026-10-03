@@ -51,6 +51,7 @@ set -o pipefail
   readonly src_dir="${HOME}/src"
   readonly tmp_dir="${HOME}/tmp"
 
+  readonly upstream_ip=''
   readonly dns_ip='1.1.1.1'
   readonly domain="$(hostname -d)"
   readonly namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
@@ -59,7 +60,6 @@ set -o pipefail
 
   # phase
   do_setup=
-  do_setup_0=
 # do_build=
 # do_deploy=
 # do_setup_desktop=
@@ -263,6 +263,7 @@ EOS
   rsync
   jq
   qrencode
+  imagemagick
 EOS
     fi
 
@@ -311,14 +312,28 @@ EOS
     # container
     sudo sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
 
-    # .venv
-    python3 -m venv "${HOME}/.venv"
-    source "${HOME}/.venv/bin/activate"
+    # pcsc
+    if :; then
+
+      # LIBUSB_ERROR_BUSY
+      cat << EOS | sudo tee '/etc/modprobe.d/blacklist-nfc.conf'
+blacklist nfc
+blacklist pn533
+blacklist pn533_usb
+EOS
+
+      sudo rmmod pn533_usb pn533 nfc 2> '/dev/null' || true
+
+    fi
 
     # cups
     #   https://www.brother.co.jp/support/index.aspx
     #   https://canon.jp/support/software
     #   https://www.epson.jp/support/download/
+
+    # .venv
+    python3 -m venv "${HOME}/.venv"
+    source "${HOME}/.venv/bin/activate"
 
     # pip
     if :; then
@@ -342,25 +357,8 @@ EOS
 
     fi
 
-  fi
-
-  # -------------------------------- 0.git --------------------------------
-  if [[ -v do_setup_0 ]]; then
-
-    pushd "${HOME}" &> '/dev/null'
-
-      mkdir -p \
-        "${bin_dir}" \
-        "${dat_dir}" \
-        "${doc_dir}" \
-        "${enc_dir}" \
-        "${lib_dir}" \
-        "${mnt_dir}" \
-        "${opt_dir}" \
-        "${sbin_dir}" \
-        "${src_dir}" \
-        "${tmp_dir}"
-
+    # git
+    if :; then
       git config --global init.defaultBranch main
       git config --global core.ignorecase    false
       git config --global core.quotepath     false
@@ -382,6 +380,22 @@ EOS
       git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
       git config --global gpg.program        "$(type -p gpg)"
       git config --global commit.gpgsign     true
+    fi
+
+    # 0.git
+    pushd "${HOME}" &> '/dev/null'
+
+      mkdir -p \
+        "${bin_dir}" \
+        "${dat_dir}" \
+        "${doc_dir}" \
+        "${enc_dir}" \
+        "${lib_dir}" \
+        "${mnt_dir}" \
+        "${opt_dir}" \
+        "${sbin_dir}" \
+        "${src_dir}" \
+        "${tmp_dir}"
 
 #     git init --object-format=sha256 '.'
       git init                        '.'
@@ -389,6 +403,7 @@ EOS
       # remote
       {
 #       git_remote='origin';   git_uri="${lib_dir}/${namespace}.git/0.git";         git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#       git_remote="upstream"; git_uri="git://${upstream_ip}/0.git";                git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
         git_remote="upstream"; git_uri="git://git.${domain}/0.git";                 git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
         git_remote='public';   git_uri="https://github.com/${github_user}/0.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
 #       git_remote='github';   git_uri="ssh://git@github.com/${github_user}/0.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
@@ -440,14 +455,6 @@ EOS
         cargo build --workspace --release
 EOS
 
-      # LIBUSB_ERROR_BUSY
-      cat << EOS | sudo tee '/etc/modprobe.d/blacklist-nfc.conf'
-blacklist nfc
-blacklist pn533
-blacklist pn533_usb
-EOS
-      sudo rmmod pn533_usb pn533 nfc 2> '/dev/null' || true
-
     fi
 
   fi
@@ -457,24 +464,23 @@ EOS
   # ⚠️restore
 # bkuser "${USER}" '00000000-0000-0000-0000-000000000000' 'restore'
 
-  # identifier
-  if :; then
-
-    readonly openpgp4fpr="$(openpgp4fpr)"
-
-    # ⚠️暗号化ペイロード
-    if [[ '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
-#     cat << 'EOS' | enc | base64
-      cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
+  # ⚠️暗号化ペイロード
+  if [[ '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
+#   cat << 'EOS' | enc | base64
+    cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
 hF4DAAAAAAAAAAASAQdAyzMylrtsuLM37O3VI5L1GbT1PrGv2M37SI0GaVdHfRQwVjCqw9LgFy08
 G1NOZxN01IE5T+KGhTxzss7FIQVtOG5bka/rV6PkW1fIK5/haY5o0owBQL+5EH5YmMn4METaZ+QA
 5yoLijyipG0jqgtP7wiIr9Hr87Kf71L2V5pgzRcfKDTA6zmqelzizpLVpJn7+/V0BzDM92ToiOks
 2rPDLNfpETD7M2605oXRDNMjtSKfkwLN7WmKqG+8JIwyOT4ogENE9icDWGiN1sS4rFRTJ9tiYJpw
 tQlf0x+BqPhgmw==
 EOS
-    fi
+  fi
 
-    readonly jpki_id="$(jpki_id)"
+  # identifier
+  if :; then
+
+    readonly openpgp4fpr="$(openpgp4fpr)"
+    readonly jpki_id="" # "$(jpki_id)"
 
     readonly machine_id="$(machine_id)"
     readonly boot_id="$(boot_id)"
@@ -530,9 +536,6 @@ EOS
 
   # .env
   if :; then
-
-    readonly external_ip="${lan_ip}"
-
     cat << EOS | tr -d ' ' > "${HOME}/.env"
 # uid
 openpgp4fpr = ${openpgp4fpr}
@@ -544,14 +547,15 @@ boot_id     = ${boot_id}
 setup_id    = ${setup_id}
 
 # network
-resolver_ip = ${dns_ip}
-external_ip = ${external_ip}
+upstream_ip = ${upstream_ip}
+dns_ip      = ${dns_ip}
+wan_ip      = ${wan_ip}
+lan_ip      = ${lan_ip}
 domain      = ${domain}
 namespace   = ${namespace}
 
 tag         = latest
 EOS
-
   fi
 
   # -------------------------------- build --------------------------------
@@ -596,19 +600,24 @@ EOS
 #     froms+=('10.0.0.0/8')
 #     froms+=('172.16.0.0/12')
 #     froms+=('192.168.0.0/16')
-#     froms+=("${lan_ip}")
+      froms+=("${lan_ip}")
 #     froms+=("${wan_ip}")
-      froms+=("${external_ip}")
 
       for from in "${froms[@]}"; do
-        sudo ufw allow from "${from}" to any port   7 proto tcp
-        sudo ufw allow from "${from}" to any port   7 proto     udp
-        sudo ufw allow from "${from}" to any port  22 proto tcp
-        sudo ufw allow from "${from}" to any port  53 proto tcp
-        sudo ufw allow from "${from}" to any port  53 proto     udp
-        sudo ufw allow from "${from}" to any port  80 proto tcp
-        sudo ufw allow from "${from}" to any port 123 proto     udp
-        sudo ufw allow from "${from}" to any port 443 proto tcp
+
+        # udp
+        sudo ufw allow from "${from}" to any port     7 proto udp
+        sudo ufw allow from "${from}" to any port    53 proto udp
+        sudo ufw allow from "${from}" to any port   123 proto udp
+        sudo ufw allow from "${from}" to any port  3478 proto udp
+
+        # tcp
+        sudo ufw allow from "${from}" to any port     7 proto tcp
+        sudo ufw allow from "${from}" to any port    22 proto tcp
+        sudo ufw allow from "${from}" to any port    80 proto tcp
+        sudo ufw allow from "${from}" to any port   443 proto tcp
+        sudo ufw allow from "${from}" to any port  9418 proto tcp
+
       done
       sudo ufw reload
 
@@ -625,10 +634,10 @@ EOS
       # port: ~1023
       sudo sysctl --write net.ipv4.ip_unprivileged_port_start=7
 
-        echo "nameserver ${dns_ip}"      | sudo tee '/etc/resolv.conf' > '/dev/null'
+        echo "nameserver ${dns_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
           podman-compose up dns &
           sleep 1
-        echo "nameserver ${external_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
+        echo "nameserver ${lan_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
 
         podman-compose up echo ntp &
         sleep 1
@@ -674,9 +683,11 @@ EOS
 # task-japanese-gnome-flashback-desktop
   task-xfce-desktop
 # task-kde-desktop
+  zenity
 
-# ibus
   ibus-mozc
+  fcitx5
+  fcitx5-mozc
 
 # font
   fonts-dejavu-core

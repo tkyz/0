@@ -13,7 +13,7 @@ set -o pipefail
 #   pin_sign=''
 
     dat_dir="${HOME}/dat"
-    cer_dir="${dat_dir}/wan/jp.go.jpki.www/ca/pdf"
+    cer_dir="${dat_dir}/net.wan/jp.go.jpki.www/ca/pdf"
 
     # wait
     while true; do
@@ -46,7 +46,7 @@ set -o pipefail
     elif false; then
       uid="$(myna text mynumber --pin "${pin_card}" | awk '{print substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
       vid="$(echo -n "${uid}" | vhash)"
-      exp_dir="${dat_dir}/個人番号/${vid}"
+      exp_dir="${dat_dir}/uid.個人番号/${vid}"
     # 不完全: カード再発行で変更される識別子
     else
       check="$(myna jpki cert --type 'auth' --format 'der' | openssl x509 -inform der -noout -text)"
@@ -54,7 +54,7 @@ set -o pipefail
       sid2="$(echo "${check}" | grep 'Subject:'       | sed -r 's/.*CN=([0-9A-Z]+).*/\1/g')"
       uid="${sid1}_${sid2}"
       vid="$(echo -n "${uid}" | vhash)"
-      exp_dir="${dat_dir}/jpki_id/${vid}"
+      exp_dir="${dat_dir}/uid.jpki_id/${vid}"
     fi
     mkdir -p "${exp_dir}"
 
