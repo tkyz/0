@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+
+import os
+import re
+
+home = os.environ.get("HOME")
+
+target_dir = home + "/dat/train.text"
+
+counter = {}
+def walk() -> None:
+
+  dirs = list()
+  for d in os.listdir(target_dir + '/..'):
+
+    full_path = os.path.normpath(target_dir + '/../' + d)
+
+    if not full_path.startswith(target_dir):
+      continue
+
+    dirs.append(full_path)
+
+  while 0 < len(dirs):
+
+    d = dirs.pop()
+    for i in os.listdir(d):
+
+      full_path = d + '/' + i
+
+      if os.path.isdir(full_path):
+        dirs.append(full_path)
+        continue
+
+      content_bef = fread(full_path)
+      content_aft = content_bef
+      content_aft = _trim(content_aft)
+      content_aft = _half(content_aft)
+      content_aft = _umask(content_aft)
+
+      if content_bef != content_aft:
+#       print(full_path)
+        fwrite(full_path, content_aft)
+
+  for i in sorted(counter.items(), key=lambda x: x[1], reverse=False):
+    print(i)
+
+def _trim(content) -> str:
+
+  content = re.sub(r"^[ 　\t\r\n]+$", r"",       content)
+  content = re.sub(r"\r\n",           r"\n",     content)
+  content = re.sub(r"\r",             r"\n",     content)
+  content = re.sub(r"\n[ 　\t]+",     r"\n",     content)
+  content = re.sub(r"[ 　\t]+\n",     r"\n",     content)
+# content = re.sub(r"[ 　\t]{2,}",    r" ",      content)
+  content = re.sub(r"[\n]{4,}",       r"\n\n\n", content)
+  content = re.sub(r"[\n]{2,}$",      r"\n",     content)
+
+  return content
+
+def _half(content) -> str:
+
+  content = re.sub("０", "0", content)
+  content = re.sub("１", "1", content)
+  content = re.sub("２", "2", content)
+  content = re.sub("３", "3", content)
+  content = re.sub("４", "4", content)
+  content = re.sub("５", "5", content)
+  content = re.sub("６", "6", content)
+  content = re.sub("７", "7", content)
+  content = re.sub("８", "8", content)
+  content = re.sub("９", "9", content)
+
+  content = re.sub("Ａ", "A", content)
+  content = re.sub("Ｂ", "B", content)
+  content = re.sub("Ｃ", "C", content)
+  content = re.sub("Ｄ", "D", content)
+  content = re.sub("Ｅ", "E", content)
+  content = re.sub("Ｆ", "F", content)
+  content = re.sub("Ｇ", "G", content)
+  content = re.sub("Ｈ", "H", content)
+  content = re.sub("Ｉ", "I", content)
+  content = re.sub("Ｊ", "J", content)
+  content = re.sub("Ｋ", "K", content)
+  content = re.sub("Ｌ", "L", content)
+  content = re.sub("Ｍ", "M", content)
+  content = re.sub("Ｎ", "N", content)
+  content = re.sub("Ｏ", "O", content)
+  content = re.sub("Ｐ", "P", content)
+  content = re.sub("Ｑ", "Q", content)
+  content = re.sub("Ｒ", "R", content)
+  content = re.sub("Ｓ", "S", content)
+  content = re.sub("Ｔ", "T", content)
+  content = re.sub("Ｕ", "U", content)
+  content = re.sub("Ｖ", "V", content)
+  content = re.sub("Ｗ", "W", content)
+  content = re.sub("Ｘ", "X", content)
+  content = re.sub("Ｙ", "Y", content)
+  content = re.sub("Ｚ", "Z", content)
+
+  content = re.sub("ａ", "a", content)
+  content = re.sub("ｂ", "b", content)
+  content = re.sub("ｃ", "c", content)
+  content = re.sub("ｄ", "d", content)
+  content = re.sub("ｅ", "e", content)
+  content = re.sub("ｆ", "f", content)
+  content = re.sub("ｇ", "g", content)
+  content = re.sub("ｈ", "h", content)
+  content = re.sub("ｉ", "i", content)
+  content = re.sub("ｊ", "j", content)
+  content = re.sub("ｋ", "k", content)
+  content = re.sub("ｌ", "l", content)
+  content = re.sub("ｍ", "m", content)
+  content = re.sub("ｎ", "n", content)
+  content = re.sub("ｏ", "o", content)
+  content = re.sub("ｐ", "p", content)
+  content = re.sub("ｑ", "q", content)
+  content = re.sub("ｒ", "r", content)
+  content = re.sub("ｓ", "s", content)
+  content = re.sub("ｔ", "t", content)
+  content = re.sub("ｕ", "u", content)
+  content = re.sub("ｖ", "v", content)
+  content = re.sub("ｗ", "w", content)
+  content = re.sub("ｘ", "x", content)
+  content = re.sub("ｙ", "y", content)
+  content = re.sub("ｚ", "z", content)
+
+  content = re.sub("・・・", "…", content)
+
+  return content
+
+def _umask(content) -> str:
+
+  mask = "[⚪︎⚪️◯○●◎〇]"
+
+  pattern = re.compile("^.*" + mask + ".*$", re.MULTILINE)
+  results = pattern.findall(content)
+  if 0 < len(results):
+#   content = re.sub("a" + mask + "c", "abc", content)
+    pass
+
+  for w in re.compile(".{,3}" + mask + ".{,3}", re.MULTILINE).findall(content):
+    counter[w] = counter.get(w, 0) + 1
+
+  return content
+
+def fread(file, encoding="utf8") -> str:
+
+  content = None
+
+  with open(file, "r", encoding=encoding) as f:
+    content = f.read()
+
+  return content
+
+def fwrite(file, content) -> None:
+
+  with open(file, "w") as f:
+    f.write(content)
+
+def main() -> None:
+  walk()
+
+if __name__ == "__main__":
+  main()

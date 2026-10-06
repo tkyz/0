@@ -427,15 +427,19 @@ EOS
           true
         } 2> '/dev/null'
 
-        git diff --name-only -z --diff-filter=D | xargs -0 git checkout
+        if [[ ! -f './setup' ]]; then
 
-        cp './.profile' './.profile.bk'; git checkout './.profile'
-        cp './.bashrc'  './.bashrc.bk';  git checkout './.bashrc'
+          git diff --name-only -z --diff-filter=D | xargs -0 git checkout
 
-        # activate profile
-        set +o errexit +o nounset +o pipefail
-          source './.profile'
-        set -o errexit -o nounset -o pipefail
+          cp './.profile' './.profile.bk'; git checkout './.profile'
+          cp './.bashrc'  './.bashrc.bk';  git checkout './.bashrc'
+
+          # activate profile
+          set +o errexit +o nounset +o pipefail
+            source './.profile'
+          set -o errexit -o nounset -o pipefail
+
+        fi
 
       fi
 
@@ -444,18 +448,28 @@ EOS
 
     popd &> '/dev/null'
 
-    # myna
-    if :; then
+  fi
 
-      curi 'https://github.com/jpki/myna.git'
+  # -------------------------------- build --------------------------------
+  if [[ -v do_build ]]; then
 
-      podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build" --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}" bash << EOS
-        apt-get update -y
-        apt-get install -y libpcsclite-dev
-        cargo build --workspace --release
+    # pull
+#   cat "${lib_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+#   cat "${src_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+    curi 'https://github.com/kubernetes-sigs/kind.git'
+    curi 'https://github.com/sacloud/usacloud.git'
+    curi 'https://github.com/mgdm/htmlq.git'
+    curi 'https://github.com/jpki/myna.git'
+
+    # build
+    podman run               --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+    podman run               --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+    podman run               --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
+    podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
+      apt-get update -y
+      apt-get install -y libpcsclite-dev
+      cargo build --workspace --release
 EOS
-
-    fi
 
   fi
 
@@ -558,38 +572,13 @@ tag         = latest
 EOS
   fi
 
-  # -------------------------------- build --------------------------------
+  # -------------------------------- domain --------------------------------
+
   if [[ -v do_build ]]; then
-
-    # pull
-    if :; then
-
-#     cat "${lib_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
-#     cat "${src_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
-
-      podman-compose pull || true
-
-    fi
-
-    # build
-    if :; then
-
-      podman run               --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-      podman run               --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-      podman run               --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
-      podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
-      apt-get update -y
-      apt-get install -y libpcsclite-dev
-      cargo build --workspace --release
-EOS
-
-      podman-compose build # --pull --no-cache
-
-    fi
-
+    podman-compose pull || true
+    podman-compose build # --pull --no-cache
   fi
 
-  # -------------------------------- deploy --------------------------------
   if [[ -v do_deploy ]]; then
 
     # firewall
@@ -790,28 +779,28 @@ EOS
   if :; then
 
     # openpgp4fpr
-    mkdir -p                                              "${dat_dir}/openpgp4fpr/${openpgp4fpr}"
-    gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/openpgp4fpr/${openpgp4fpr}/pub"
+    mkdir -p                                              "${dat_dir}/uid.openpgp4fpr/${openpgp4fpr}"
+    gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/uid.openpgp4fpr/${openpgp4fpr}/pub"
 #   gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
 
     # lan
-#   mkdir -p "${dat_dir}/ipv4/${lan_ip}"
+#   mkdir -p "${dat_dir}/net.ipv4/${lan_ip}"
     ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | while read i; do
-      mkdir -p "${dat_dir}/ipv4/${i}"
+      mkdir -p "${dat_dir}/net.ipv4/${i}"
     done
 
     # wan
-    mkdir -p "${dat_dir}/ipv4/${wan_ip}"
-    mkdir -p "${dat_dir}/wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
+    mkdir -p "${dat_dir}/net.ipv4/${wan_ip}"
+    mkdir -p "${dat_dir}/net.wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
 
     # doc
     echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
 
     # scope
     mkdir -p \
-      "${dat_dir}/machine_id/${machine_id}" \
-      "${dat_dir}/boot_id/${boot_id}" \
-      "${dat_dir}/setup_id/${setup_id}"
+      "${dat_dir}/uid.machine_id/${machine_id}" \
+      "${dat_dir}/uid.boot_id/${boot_id}" \
+      "${dat_dir}/uid.setup_id/${setup_id}"
 
   fi
 

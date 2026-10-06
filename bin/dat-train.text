@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+
+import os
+import git
+import magic
+import torch
+
+from dataclasses import dataclass
+from datasets    import Dataset
+from trl import (
+  SFTTrainer,
+  SFTConfig,
+)
+from transformers import (
+  AutoModelForCausalLM,
+  AutoTokenizer,
+  BitsAndBytesConfig,
+)
+from peft import (
+  LoraConfig,
+  PeftModel,
+  get_peft_model,
+  prepare_model_for_kbit_training,
+)
+
+home = os.environ.get("HOME")
+
+dat_dir = home + "/dat/train.txt"
+doc_dir = home + "/doc"
+
+base_model_dir   = home + "/lib/co.huggingface/google/gemma-4-31B-it"
+tune_model_dir   = home + "/tmp/gemma-4-31B"
+train_overlap    =  128
+train_chunk_size = 4096 - 512 # OOM
+train_epoch_size =    1
+train_batch_size =    1
+train_step_size  =   32
+
+def load_tokenizer():
+
+  tokenizer = AutoTokenizer.from_pretrained(base_model_dir)
+  if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+
+  return tokenizer
+
+def load_dataset_git() -> list:
+
+  train_txt = list()
+
+  repo = git.Repo(home, search_parent_directories=True)
+  for path in repo.git.ls_files().split("\n"):
+
+    full_path = os.path.join(repo.working_tree_dir, path)
+    if not os.path.isfile(full_path):
+      continue
+    if not is_text(full_path):
+      continue
+
+    print(full_path)
+    content    = fread(full_path)
+    train_txt += [full_path + '\n\n' + content]
+
+  return train_txt
+
+def load_dataset_doc() -> list:
+
+  train_txt = list()
+
+  for root, dirs, files in os.walk(doc_dir):
+    for f in files:
+
+      full_path = root + "/" + f
+      if not is_text(full_path):
+        continue
+
+      print(full_path)
+      content    = fread(full_path)
+      train_txt += [full_path + '\n\n' + content]
+
+  return train_txt
+
+def load_dataset_dat() -> list:
+
+  train_txt = list()
+
+  for root, dirs, files in os.walk(dat_dir):
+    for f in files:
+
+      full_path = root + "/" + f
+
+      print(full_path)
+      content    = fread(full_path)
+      train_txt += [content]
+
+  return train_txt
+
+def load_dataset():
+
+  train_txt  = list()
+  train_txt += load_dataset_git()
+  train_txt += load_dataset_doc()
+# train_txt += load_dataset_dat()
+  train_txt  = list(set(train_txt))
+
+  return Dataset.from_dict({"text": train_txt})
+
+def load_model():
+
+  quantization_config = BitsAndBytesConfig(
+    load_in_4bit              = True,
+    bnb_4bit_quant_type       = "nf4",
+    bnb_4bit_compute_dtype    = torch.bfloat16,
+    bnb_4bit_use_double_quant = True,
+  )
+
+  lora_config = LoraConfig(
+    r                   = 16,
+    lora_alpha          = 32,
+    target_modules      = "all-linear",
+    lora_dropout        = 0.05,
+    bias                = "none",
+    task_type           = "CAUSAL_LM",
+#   modules_to_save     = ["embed_tokens", "lm_head"],
+#   ensure_weight_tying = True,
+  )
+
+  model = AutoModelForCausalLM.from_pretrained(base_model_dir, device_map="auto", quantization_config=quantization_config)
+  model = prepare_model_for_kbit_training(model)
+  model = get_peft_model(model, lora_config)
+  model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+
+  return model
+
+def train() -> None:
+
+  model = None
+  try:
+
+    tokenizer = load_tokenizer()
+    dataset   = load_dataset()
+    model     = load_model()
+
+    config = SFTConfig(
+      output_dir                  = tune_model_dir + "/train",
+      num_train_epochs            = train_epoch_size,
+      per_device_train_batch_size = train_batch_size,
+      gradient_accumulation_steps = train_step_size,
+      max_steps                   = -1,
+      learning_rate               = 2e-4,
+      logging_steps               = 1,
+      save_strategy               = "steps",
+      save_steps                  = 100,
+      save_total_limit            = 2,
+      bf16                        = True,
+      lr_scheduler_type           = "cosine",
+      warmup_steps                = 0.03,
+      optim                       = "paged_adamw_8bit",
+      report_to                   = "none", # wandb
+      remove_unused_columns       = False,
+      max_length                  = train_chunk_size,
+      packing                     = True,
+    )
+
+    @dataclass
+    class TextOnlyDataCollator:
+
+      tokenizer: any
+      mlm: bool = False
+
+      def __call__(self, features):
+
+        texts = [f["text"] for f in features]
+        batch = self.tokenizer(
+          texts,
+          return_tensors = "pt",
+          padding        = True,
+          truncation     = True,
+          max_length     = train_chunk_size,
+        )
+
+        batch["mm_token_type_ids"]                                      = torch.zeros_like(batch["input_ids"])
+        batch["labels"]                                                 = batch["input_ids"].clone()
+        batch["labels"][batch["labels"] == self.tokenizer.pad_token_id] = -100
+
+        return batch
+
+    class GemmaSFTTrainer(SFTTrainer):
+      def compute_loss(self, model, inputs, *args, **kwargs):
+        inputs["mm_token_type_ids"] = torch.zeros_like(inputs["input_ids"])
+        return super().compute_loss(model, inputs, *args, **kwargs)
+
+#   trainer = SFTTrainer(
+    trainer = GemmaSFTTrainer(
+      model            = model,
+      train_dataset    = dataset,
+      processing_class = tokenizer,
+      args             = config,
+#     data_collator    = TextOnlyDataCollator(tokenizer=tokenizer),
+    )
+
+    result = trainer.train()
+    trainer.save_metrics("train", result.metrics)
+    trainer.save_state()
+
+    trainer.save_model(tune_model_dir + "/adapter")
+
+  finally:
+    del model
+
+def merge() -> None:
+
+  model  = AutoModelForCausalLM.from_pretrained(base_model_dir, device_map="cpu")
+  model  = PeftModel.from_pretrained(model, tune_model_dir + "/adapter")
+
+  merged = model.merge_and_unload()
+  merged.save_pretrained(tune_model_dir)
+
+def fread(file, encoding="utf8") -> str:
+
+  content = None
+
+  with open(file, "r", encoding=encoding) as f:
+    content = f.read()
+
+  return content
+
+def fwrite(file, content) -> None:
+
+  with open(file, "w") as f:
+    f.write(content)
+
+def is_text(file) -> bool:
+
+  mime_type = magic.from_file(file, mime=True)
+
+  ret  = False
+  ret |= mime_type.startswith("text/")
+  ret |= mime_type.startswith("application/json")
+
+  return ret
+
+def main():
+  train()
+  merge()
+# python3 "${HOME}/src/com.github/ggml-org/llama.cpp/convert_hf_to_gguf.py" "${HOME}/tmp/gemma-4-31B" --outfile "${HOME}/tmp/models/gemma-4-31B-Q8-merged.gguf" --outtype q8_0
+
+if __name__ == "__main__":
+  main()

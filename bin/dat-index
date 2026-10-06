@@ -6,10 +6,12 @@ import re
 import magic
 import duckdb
 
-home      = os.environ.get("HOME")
-index_dir = home + "/dat/.index"
+home       = os.environ.get("HOME")
 
-def mkindex(target_dir=home) -> None:
+target_dir = home
+index_dir  = home + "/dat/index"
+
+def mkindex() -> None:
 
   dirs = list()
 # dirs.append(os.getcwd())
@@ -85,8 +87,8 @@ def mkindex(target_dir=home) -> None:
                 h.update(chunk)
             idx_entry["hash"] = h.hexdigest()
 
-      with open(idx_file, "w") as f:
-        for e in list(idx_entries.values()):
+      with open(idx_file, "w", buffering=1024*1024) as f:
+        for e in idx_entries.values():
 
           if not e.get("exist"):
             continue
@@ -111,35 +113,24 @@ def tsv_select(idx_file) -> dict:
   entries = None
 
   if os.path.exists(idx_file):
-#  try:
     with duckdb.connect(":memory:") as con:
       rel     = con.execute(f"SELECT * FROM read_csv('{idx_file}', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path'])")
       columns = [desc[0] for desc in rel.description]
       entries = {row[-1]: dict(zip(columns, row)) for row in rel.fetchall()}
-#  except (duckdb.BinderException, duckdb.InvalidInputException):
-#    pass
 
   return entries or dict()
-
-def tsv_select_mime_type(*mime_types) -> list:
-
-  entries = None
-
-  if os.path.exists(idx_file):
-
-    in_query = ", ".join(["?"] * len(mime_types))
-
-    with duckdb.connect(":memory:") as con:
-      result  = con.execute(f"SELECT * FROM read_csv('{idx_file}/*', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path']) WHERE mime_type IN ({in_query})", list(mime_types))
-      columns = [desc[0] for desc in result.description]
-      entries = [dict(zip(columns, row)) for row in result.fetchall()]
-
-  return entries or list()
 
 def is_skip(path) -> bool:
 
   skip  = False
-  skip |= bool(re.search(r"/\.", path))
+  skip |= bool(re.search(r"/\.", path))             # .*
+  skip |= path.startswith(home + "/dat/index")      # ${HOME}/dat/index
+  skip |= path.startswith(home + "/dat/train")      # ${HOME}/dat/train
+  skip |= path.startswith(home + "/enc")            # ${HOME}/enc
+  skip |= path.startswith(home + "/go")             # ${HOME}/go
+  skip |= path.startswith(home + "/lib")            # ${HOME}/lib
+  skip |= path.startswith(home + "/opt")            # ${HOME}/opt
+  skip |= path.startswith(home + "/src/com.github") # ${HOME}/src/com.github
 
   return skip
 
@@ -149,6 +140,7 @@ def is_hash(mime_type) -> bool:
   is_hash |= mime_type.startswith("application/javascript")
   is_hash |= mime_type.startswith("application/json")
   is_hash |= mime_type.startswith("application/pdf")
+  is_hash |= mime_type.startswith("application/x-bittorrent")
   is_hash |= mime_type.startswith("text/")
 
   return is_hash

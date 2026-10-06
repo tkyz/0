@@ -89,7 +89,7 @@ services:
           --no-cli \
           --fingerprint \
           --log-file=stdout
-    restart: on-failure
+#   restart: on-failure
 
   #----------------------------------------------------------------
   # proxy
