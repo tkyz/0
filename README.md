@@ -13,13 +13,13 @@
 ## 👤 個人識別子
 
 自己発行
-- [openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9](./dat/openpgp4fpr/091373E51DDFEA289C93C7C460C125552C827AF9/pub)
+- [openpgp4fpr:091373E51DDFEA289C93C7C460C125552C827AF9](./dat/uid.openpgp4fpr/091373E51DDFEA289C93C7C460C125552C827AF9/pub)
 
 外部発行
 - マイナンバーカード
   - 公的個人認証AP
     - EF000A
-      - [ssh](./dat/jpki_id/4abc370b9ad260aeebb12eda1d794d7fa80a87742ef637698ca145ce9129209b/auth.ssh.pub)
+      - [ssh](./dat/uid.jpki_id/4abc370b9ad260aeebb12eda1d794d7fa80a87742ef637698ca145ce9129209b/auth.ssh.pub)
 
 ## 🌐 ドメイン
 
