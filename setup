@@ -60,9 +60,8 @@ set -o pipefail
 
   # phase
   do_setup=
-# do_build=
+  do_build=
 # do_deploy=
-# do_setup_desktop=
 
   # -------------------------------- setup --------------------------------
   if [[ -v do_setup ]]; then
@@ -448,6 +447,84 @@ EOS
 
     popd &> '/dev/null'
 
+    # x11
+    if is_x11; then
+
+#     sudo tasksel
+
+      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
+# desktop
+  task-japanese-desktop
+# task-japanese-gnome-desktop
+# task-japanese-gnome-flashback-desktop
+  task-xfce-desktop
+# task-kde-desktop
+  zenity
+
+  ibus-mozc
+  fcitx5
+  fcitx5-mozc
+
+# font
+  fonts-dejavu-core
+  fonts-vlgothic
+
+# flatpak
+  flatpak
+  gnome-software-plugin-flatpak
+# plasma-discover-backend-flatpak
+
+# wine
+  wine
+  winetricks
+
+# thumbnail
+  webp-pixbuf-loader
+  tumbler
+  tumbler-plugins-extra
+  ffmpegthumbnailer
+EOS
+
+      # flatpak
+      #   https://flathub.org/ja/setup/Debian
+      if :; then
+
+        sudo flatpak remote-add --if-not-exists flathub 'https://dl.flathub.org/repo/flathub.flatpakrepo'
+
+        cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo flatpak install -y flathub
+# text/*
+  org.telegram.desktop
+
+# image/*
+# org.gimp.GIMP
+
+# sound/*
+  com.discordapp.Discord
+  org.audacityteam.Audacity
+
+# video/*
+  com.obsproject.Studio
+
+# game
+  org.gnome.Mines
+
+# *
+  org.torproject.torbrowser-launcher
+  org.mozilla.firefox
+# org.libreoffice.LibreOffice
+# com.valvesoftware.Steam
+EOS
+
+      fi
+
+      # wine
+      if :; then
+        winetricks cjkfonts gdiplus
+        wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
+      fi
+
+    fi
+
   fi
 
   # -------------------------------- build --------------------------------
@@ -470,6 +547,39 @@ EOS
       apt-get install -y libpcsclite-dev
       cargo build --workspace --release
 EOS
+
+    # firefox + mpa
+    if is_x11; then
+
+      mpa_file="${HOME}/src/com.github/jpki/myna/target/release/mpa"
+      if [[ -f "${mpa_file}" ]]; then
+
+        # manifest
+#       exp_dir="${HOME}/.mozilla/native-messaging-hosts"
+        exp_dir="${HOME}/.var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts"
+        mkdir -p "${exp_dir}"
+        cat << EOS > "${exp_dir}/com.github.jpki.mpa.json"
+{
+  "name":        "com.github.jpki.mpa",
+  "description": "MPA for Linux",
+  "path":        "${mpa_file}",
+  "type":        "stdio",
+  "allowed_extensions": [
+    "mpa@${domain}"
+  ]
+}
+EOS
+
+        # config
+        exp_dir="${HOME}/.config/mpa"
+        mkdir -p "${exp_dir}"
+        cat << EOS > "${exp_dir}/config.json"
+{"uuid": "$(od -An -tx1 -N16 '/dev/urandom' | tr -d ' \n')"}
+EOS
+
+      fi
+
+    fi
 
   fi
 
@@ -501,21 +611,45 @@ EOS
     readonly setup_id="$(uuidgen)"
 
     readonly lan_ip="$(ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1)"
-    test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver1.opendns.com')"
-    test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver2.opendns.com')"
-    test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver3.opendns.com')"
-    test ! -v wan_ip && readonly wan_ip="$(dig +short        'myip.opendns.com'        '@resolver4.opendns.com')"
-    test ! -v wan_ip && readonly wan_ip="$(dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"')"
-    test ! -v wan_ip && readonly wan_ip="$(dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"')"
+    readonly wan_ip="$(
+      dig +short        'myip.opendns.com'        '@resolver1.opendns.com' ||
+      dig +short        'myip.opendns.com'        '@resolver2.opendns.com' ||
+      dig +short        'myip.opendns.com'        '@resolver3.opendns.com' ||
+      dig +short        'myip.opendns.com'        '@resolver4.opendns.com' ||
+      dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"' ||
+      dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"'
+    )"
+
+    # .env
+    cat << EOS | tr -d ' ' > "${HOME}/.env"
+# uid
+openpgp4fpr = ${openpgp4fpr}
+jpki_id     = ${jpki_id}
+
+# scope
+machine_id  = ${machine_id}
+boot_id     = ${boot_id}
+setup_id    = ${setup_id}
+
+# network
+upstream_ip = ${upstream_ip}
+dns_ip      = ${dns_ip}
+wan_ip      = ${wan_ip}
+lan_ip      = ${lan_ip}
+domain      = ${domain}
+namespace   = ${namespace}
+
+tag         = latest
+EOS
 
   fi
 
   # git
   if :; then
 
-#   uid_line="$(gpg --with-colons --list-keys "${openpgp4fpr}" | awk -F: '/^uid:/ {print $10; exit}')"
-#   gpg_user="$(echo "${uid_line}" | sed ...)"
-#   gpg_mail="$(echo "${uid_line}" | sed ...)"
+#   gpg_line="$(gpg --with-colons --list-keys "${openpgp4fpr}" | awk -F: '/^uid:/ {print $10; exit}')"
+#   gpg_user="$(echo "${gpg_line}" | sed ...)"
+#   gpg_mail="$(echo "${gpg_line}" | sed ...)"
 
 #   git config --global user.name       "${gpg_user:-${USER}}"
 #   git config --global user.email      "${gpg_mail:-${USER}@$(hostname -f)}"
@@ -548,37 +682,35 @@ EOS
 
   fi
 
-  # .env
+  # regist
   if :; then
-    cat << EOS | tr -d ' ' > "${HOME}/.env"
-# uid
-openpgp4fpr = ${openpgp4fpr}
-jpki_id     = ${jpki_id}
 
-# scope
-machine_id  = ${machine_id}
-boot_id     = ${boot_id}
-setup_id    = ${setup_id}
+    # uid
+    mkdir -p                                              "${dat_dir}/uid.openpgp4fpr/${openpgp4fpr}"
+    gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/uid.openpgp4fpr/${openpgp4fpr}/pub"
+#   gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
+#   jpki_id
 
-# network
-upstream_ip = ${upstream_ip}
-dns_ip      = ${dns_ip}
-wan_ip      = ${wan_ip}
-lan_ip      = ${lan_ip}
-domain      = ${domain}
-namespace   = ${namespace}
+    # scope
+    mkdir -p \
+      "${dat_dir}/uid.machine_id/${machine_id}" \
+      "${dat_dir}/uid.boot_id/${boot_id}" \
+      "${dat_dir}/uid.setup_id/${setup_id}"
 
-tag         = latest
-EOS
+    # net
+    mkdir -p "${dat_dir}/net.ipv4/${lan_ip}"
+    mkdir -p "${dat_dir}/net.ipv4/${wan_ip}"
+    ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | while read i; do
+      mkdir -p "${dat_dir}/net.ipv4/${i}"
+    done
+    mkdir -p "${dat_dir}/net.wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
+
+    # doc
+    echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
+
   fi
 
   # -------------------------------- domain --------------------------------
-
-  if [[ -v do_build ]]; then
-    podman-compose pull || true
-    podman-compose build # --pull --no-cache
-  fi
-
   if [[ -v do_deploy ]]; then
 
     # firewall
@@ -618,6 +750,11 @@ EOS
 
     pushd "${HOME}" &> '/dev/null'
 
+      if [[ -v do_build ]]; then
+        podman-compose pull || true
+        podman-compose build # --pull --no-cache
+      fi
+
 #     podman-compose down
 
       # port: ~1023
@@ -639,7 +776,7 @@ EOS
       sleep 3
       podman-compose up mariadb pgsql redis mongo chroma &
       sleep 5
-      podman-compose up tor btc eth &
+      podman-compose up stun tor btc eth &
       sleep 5
       podman-compose up minecraft &
       sleep 3
@@ -660,108 +797,7 @@ EOS
 
   fi
 
-  # -------------------------------- desktop --------------------------------
-  if [[ -v do_setup_desktop ]]; then
-
-#   sudo tasksel
-
-    cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
-# desktop
-  task-japanese-desktop
-# task-japanese-gnome-desktop
-# task-japanese-gnome-flashback-desktop
-  task-xfce-desktop
-# task-kde-desktop
-  zenity
-
-  ibus-mozc
-  fcitx5
-  fcitx5-mozc
-
-# font
-  fonts-dejavu-core
-  fonts-vlgothic
-
-# flatpak
-  flatpak
-  gnome-software-plugin-flatpak
-# plasma-discover-backend-flatpak
-
-# wine
-  wine
-  winetricks
-
-# thumbnail
-  webp-pixbuf-loader
-  tumbler
-  tumbler-plugins-extra
-  ffmpegthumbnailer
-EOS
-
-    # flatpak
-    #   https://flathub.org/ja/setup/Debian
-    if :; then
-
-      sudo flatpak remote-add --if-not-exists flathub 'https://dl.flathub.org/repo/flathub.flatpakrepo'
-
-      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo flatpak install -y flathub
-# flathub
-  org.telegram.desktop
-  com.discordapp.Discord
-  org.torproject.torbrowser-launcher
-  org.mozilla.firefox
-# org.libreoffice.LibreOffice
-# org.gimp.GIMP
-# com.valvesoftware.Steam
-# com.obsproject.Studio
-EOS
-
-    fi
-
-    # firefox + mpa
-    if :; then
-
-      mpa_file="${HOME}/src/com.github/jpki/myna/target/release/mpa"
-      if [[ -f "${mpa_file}" ]]; then
-
-        # manifest
-#       exp_dir="${HOME}/.mozilla/native-messaging-hosts"
-        exp_dir="${HOME}/.var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts"
-        mkdir -p "${exp_dir}"
-        cat << EOS > "${exp_dir}/com.github.jpki.mpa.json"
-{
-  "name":        "com.github.jpki.mpa",
-  "description": "MPA for Linux",
-  "path":        "${mpa_file}",
-  "type":        "stdio",
-  "allowed_extensions": [
-    "mpa@${domain}"
-  ]
-}
-EOS
-
-        # config
-        exp_dir="${HOME}/.config/mpa"
-        mkdir -p "${exp_dir}"
-        cat << EOS > "${exp_dir}/config.json"
-{"uuid": "$(od -An -tx1 -N16 '/dev/urandom' | tr -d ' \n')"}
-EOS
-
-      fi
-
-    fi
-
-    # wine
-    if :; then
-      winetricks cjkfonts gdiplus
-      wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
-    fi
-
-  fi
-
-  # -------------------------------- ... --------------------------------
-
-  # clean
+  # -------------------------------- clean --------------------------------
   if :; then
 
     sudo apt-get autoremove -y
@@ -772,35 +808,6 @@ EOS
     podman system  prune --force || true
     podman volume  prune --force || true
     podman network prune --force || true
-
-  fi
-
-  # dat
-  if :; then
-
-    # openpgp4fpr
-    mkdir -p                                              "${dat_dir}/uid.openpgp4fpr/${openpgp4fpr}"
-    gpg --armor --export             "0x${openpgp4fpr}" > "${dat_dir}/uid.openpgp4fpr/${openpgp4fpr}/pub"
-#   gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
-
-    # lan
-#   mkdir -p "${dat_dir}/net.ipv4/${lan_ip}"
-    ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | while read i; do
-      mkdir -p "${dat_dir}/net.ipv4/${i}"
-    done
-
-    # wan
-    mkdir -p "${dat_dir}/net.ipv4/${wan_ip}"
-    mkdir -p "${dat_dir}/net.wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
-
-    # doc
-    echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
-
-    # scope
-    mkdir -p \
-      "${dat_dir}/uid.machine_id/${machine_id}" \
-      "${dat_dir}/uid.boot_id/${boot_id}" \
-      "${dat_dir}/uid.setup_id/${setup_id}"
 
   fi
 
