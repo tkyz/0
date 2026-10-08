@@ -267,7 +267,6 @@ EOS
     fi
 
     # ufw
-    printf 'y' | sudo ufw reset > '/dev/null'
     sudo ufw default deny  incoming
     sudo ufw default allow outgoing
     sudo ufw enable
@@ -714,41 +713,13 @@ EOS
   # -------------------------------- domain --------------------------------
   if [[ -v do_deploy ]]; then
 
-    # firewall
-    if :; then
-
-      froms=()
-#     froms+=('0.0.0.0')
-#     froms+=('10.0.0.0/8')
-#     froms+=('172.16.0.0/12')
-#     froms+=('192.168.0.0/16')
-      froms+=("${lan_ip}")
-#     froms+=("${wan_ip}")
-
-      for from in "${froms[@]}"; do
-
-        # udp
-        sudo ufw allow from "${from}" to any port     7 proto udp
-        sudo ufw allow from "${from}" to any port    53 proto udp
-        sudo ufw allow from "${from}" to any port   123 proto udp
-        sudo ufw allow from "${from}" to any port  3478 proto udp
-
-        # tcp
-        sudo ufw allow from "${from}" to any port     7 proto tcp
-        sudo ufw allow from "${from}" to any port    22 proto tcp
-        sudo ufw allow from "${from}" to any port    80 proto tcp
-        sudo ufw allow from "${from}" to any port   443 proto tcp
-        sudo ufw allow from "${from}" to any port  9418 proto tcp
-
-      done
-      sudo ufw reload
-
-    fi
-    sudo ufw status verbose
+    printf 'y' | sudo ufw reset > '/dev/null'
+    sudo ufw reload
 
     # cdi
     sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
 
+    # container
     pushd "${HOME}" &> '/dev/null'
 
       if [[ -v do_build ]]; then
@@ -795,6 +766,46 @@ EOS
       sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
     popd &> '/dev/null'
+
+    # firewall
+    if :; then
+
+      # allow
+      froms=()
+#     froms+=('0.0.0.0')
+#     froms+=('10.0.0.0/8')
+#     froms+=('172.16.0.0/12')
+#     froms+=('192.168.0.0/16')
+      froms+=("${lan_ip}")
+#     froms+=("${wan_ip}")
+      for from in "${froms[@]}"; do
+
+        # udp
+        sudo ufw allow from "${from}" to any port     7 proto udp
+        sudo ufw allow from "${from}" to any port    53 proto udp
+        sudo ufw allow from "${from}" to any port   123 proto udp
+        sudo ufw allow from "${from}" to any port  3478 proto udp
+
+        # tcp
+        sudo ufw allow from "${from}" to any port     7 proto tcp
+        sudo ufw allow from "${from}" to any port    22 proto tcp
+        sudo ufw allow from "${from}" to any port    80 proto tcp
+        sudo ufw allow from "${from}" to any port   443 proto tcp
+        sudo ufw allow from "${from}" to any port  9418 proto tcp
+
+      done
+
+      # deny
+      froms=()
+#     froms+=($(cat "${HOME}/dat/net.ipv4/ban.txt"))
+      for from in "${froms[@]}"; do
+        sudo ufw insert 1 deny from "${from}" to any
+      done
+
+      sudo ufw reload
+
+    fi
+    sudo ufw status verbose
 
   fi
 

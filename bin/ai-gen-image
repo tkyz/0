@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+
+import os
+import sys
+import uuid
+import torch
+
+from diffusers import (
+  DiffusionPipeline,
+  StableDiffusionXLPipeline,
+)
+
+home = os.environ.get('HOME')
+
+def main():
+
+# size_w =  640; size_h = 1536
+  size_w =  768; size_h = 1344
+# size_w =  832; size_h = 1216
+# size_w =  896; size_h = 1152
+# size_w = 1024; size_h = 1024
+# size_w = 1152; size_h =  896
+# size_w = 1216; size_h =  832
+# size_w = 1344; size_h =  768
+# size_w = 1536; size_h =  640
+
+  steps = 20
+  batch =  8
+
+  prompt_p = sys.argv[1] if 1 < len(sys.argv) else ''
+  prompt_n = sys.argv[2] if 2 < len(sys.argv) else ''
+  prompt_p = [prompt_p] * batch
+  prompt_n = [prompt_n] * batch
+
+  pipe = DiffusionPipeline.from_pretrained(home + '/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0', local_files_only=True, dtype=torch.float16, use_safetensors=True, variant='fp16')
+  pipe.to('cuda')
+
+  images = pipe(prompt_p, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, output_type='pil').images
+
+  for image in images:
+    image.save('./' + str(uuid.uuid4()) + '.png')
+
+if __name__ == '__main__':
+  main()

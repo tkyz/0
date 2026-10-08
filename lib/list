@@ -1,16 +1,21 @@
 # model
 
-  # t2t
+  # text -> text
 #   https://huggingface.co/google/gemma-4-31B.git
-#   https://huggingface.co/google/gemma-4-31B-it.git
+    https://huggingface.co/google/gemma-4-31B-it.git
 #   https://huggingface.co/Qwen/Qwen3.6-35B-A3B.git
 
-  # t2i
-#   https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors.git
+  # text -> image
+    https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors.git
 #   https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors.git
 
-  # t2v
-#   https://huggingface.co/stabilityai/stable-video-diffusion-img2vid/svd.safetensors.git
+  # text -> video
+    https://huggingface.co/stabilityai/stable-video-diffusion-img2vid/svd.safetensors.git
+    https://huggingface.co/Wan-AI/Wan2.2-T2V-A14B-Diffusers.git
 
-  # a2t
-#   https://huggingface.co/openai/whisper-large-v3.git
+  # image -> video
+    https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B-Diffusers.git
+    https://huggingface.co/Wan-AI/Wan2.2-Animate-2-14B-Diffusers.git
+
+  # audio -> text
+    https://huggingface.co/openai/whisper-large-v3.git

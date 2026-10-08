@@ -25,7 +25,7 @@ from peft import (
 
 home = os.environ.get("HOME")
 
-dat_dir = home + "/dat/train.txt"
+dat_dir = home + "/dat/train.text"
 doc_dir = home + "/doc"
 
 base_model_dir   = home + "/lib/co.huggingface/google/gemma-4-31B-it"
@@ -57,9 +57,9 @@ def load_dataset_git() -> list:
     if not is_text(full_path):
       continue
 
-    print(full_path)
     content    = fread(full_path)
-    train_txt += [full_path + '\n\n' + content]
+    train_txt += [full_path + "\n\n" + content]
+    print(full_path)
 
   return train_txt
 
@@ -74,9 +74,9 @@ def load_dataset_doc() -> list:
       if not is_text(full_path):
         continue
 
-      print(full_path)
       content    = fread(full_path)
       train_txt += [full_path + '\n\n' + content]
+      print(full_path)
 
   return train_txt
 
@@ -84,14 +84,30 @@ def load_dataset_dat() -> list:
 
   train_txt = list()
 
-  for root, dirs, files in os.walk(dat_dir):
-    for f in files:
+  dirs = list()
+  for d in os.listdir(dat_dir + '/..'):
 
-      full_path = root + "/" + f
+    full_path = os.path.normpath(dat_dir + '/../' + d)
 
-      print(full_path)
+    if not full_path.startswith(dat_dir):
+      continue
+
+    dirs.append(full_path)
+
+  while 0 < len(dirs):
+
+    d = dirs.pop()
+    for i in os.listdir(d):
+
+      full_path = d + '/' + i
+
+      if os.path.isdir(full_path):
+        dirs.append(full_path)
+        continue
+
       content    = fread(full_path)
       train_txt += [content]
+      print(full_path)
 
   return train_txt
 
@@ -100,7 +116,7 @@ def load_dataset():
   train_txt  = list()
   train_txt += load_dataset_git()
   train_txt += load_dataset_doc()
-# train_txt += load_dataset_dat()
+  train_txt += load_dataset_dat()
   train_txt  = list(set(train_txt))
 
   return Dataset.from_dict({"text": train_txt})

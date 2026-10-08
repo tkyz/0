@@ -38,8 +38,8 @@ def walk() -> None:
       content_aft = _umask(content_aft)
 
       if content_bef != content_aft:
-#       print(full_path)
         fwrite(full_path, content_aft)
+        print(full_path)
 
   for i in sorted(counter.items(), key=lambda x: x[1], reverse=False):
     print(i)

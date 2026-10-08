@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+
+import os
+import gc
+import re
+import hashlib
+import regex
+import torch
+import duckdb
+
+from pdfminer.high_level import extract_text
+from pdfminer.layout     import LAParams
+
+from transformers import (
+  AutoModelForSpeechSeq2Seq,
+  AutoProcessor,
+  pipeline,
+)
+
+home        = os.environ.get("HOME")
+
+index_dir   = home + "/dat/index"
+extract_dir = home + "/dat/train.text"
+
+def extract():
+
+  # text/*
+  if True:
+    for e in tsv_select_like('text/'):
+
+      src_file = e.get("path")
+      src_hash = e.get("hash")
+      dst_file = extract_dir + '/' + src_hash
+
+      if not os.path.exists(src_file):
+        continue
+      if os.path.exists(dst_file):
+        continue
+
+      content = None
+      for enc in ["utf8", "sjis", "eucjp", "utf16"]:
+        try:
+          content_bef = fread(src_file, enc)
+          break
+        except UnicodeDecodeError:
+          pass
+      if content_bef is None:
+        print("unknown", src_file)
+        continue
+
+      fwrite(dst_file, content)
+      print(src_file)
+
+  # application/pdf
+  if True:
+
+    laparams = LAParams(detect_vertical=True)
+
+    for e in tsv_select_like("application/pdf"):
+
+      src_file = e.get("path")
+      src_hash = e.get("hash")
+      dst_file = extract_dir + '.application.pdf/' + src_hash
+
+      if not os.path.exists(src_file):
+        continue
+      if os.path.exists(dst_file):
+        continue
+
+      content = extract_text(src_file, laparams=laparams, codec="utf-8")
+
+      fwrite(dst_file, content)
+      print(src_file)
+
+  # audio/mpeg, audio/x-wav
+  if False:
+    try:
+
+      model_dir     = home + "/lib/co.huggingface/openai/whisper-large-v3"
+
+      whisper_model = AutoModelForSpeechSeq2Seq.from_pretrained(model_dir, dtype=torch.bfloat16, device_map="auto")
+      whisper_proc  = AutoProcessor.from_pretrained(model_dir)
+      prompt_ids    = whisper_proc.get_prompt_ids("、。", return_tensors="pt").to("cuda")
+
+      # TODO: "condition_on_previous_text": False
+      whisper_pipe  = pipeline(
+        "automatic-speech-recognition",
+        model             = whisper_model,
+        tokenizer         = whisper_proc.tokenizer,
+        feature_extractor = whisper_proc.feature_extractor,
+        generate_kwargs   = {
+          "language":   "ja",
+          "task":       "transcribe",
+          "prompt_ids": prompt_ids,
+        },
+        dtype             = torch.bfloat16,
+        device_map        = "auto",
+        return_timestamps = True
+      )
+
+      for e in tsv_select_in("audio/mpeg", "audio/x-wav"):
+
+        src_file = e.get("path")
+        src_hash = e.get("hash")
+        dst_file = extract_dir + '.audio/' + src_hash
+
+        if src_hash is None:
+          continue
+        if not os.path.exists(src_file):
+          continue
+        if os.path.exists(dst_file):
+          continue
+
+        result  = whisper_pipe(full_path)
+        content = result["text"]
+        content = re.sub(r"。", r"。\n", content)
+        content = re.sub(r"�+", r"\n",  content)
+
+        fwrite(dst_file, content)
+        print(src_file)
+
+    finally:
+      del whisper_model
+      del whisper_proc
+
+def tsv_select_in(*mime_types) -> list:
+
+  entries = None
+
+  in_query = ", ".join(["?"] * len(mime_types))
+
+  params = list(mime_types)
+
+  with duckdb.connect(":memory:") as con:
+    result  = con.execute(f"SELECT * FROM read_csv('{index_dir}/*', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path']) WHERE mime_type IN ({in_query})", params)
+    columns = [desc[0] for desc in result.description]
+    entries = [dict(zip(columns, row)) for row in result.fetchall()]
+
+  return entries
+
+def tsv_select_like(mime_type) -> list:
+
+  entries = None
+
+  params = list()
+  params.append(mime_type + '%')
+
+  with duckdb.connect(":memory:") as con:
+    result  = con.execute(f"SELECT * FROM read_csv('{index_dir}/*', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path']) WHERE mime_type LIKE ?", params)
+    columns = [desc[0] for desc in result.description]
+    entries = [dict(zip(columns, row)) for row in result.fetchall()]
+
+  return entries
+
+def fread(file, encoding="utf8") -> str:
+
+  content = None
+
+  with open(file, "r", encoding=encoding) as f:
+    content = f.read()
+
+  return content
+
+def fwrite(file, content) -> None:
+
+  with open(file, "w") as f:
+    f.write(content)
+
+def main() -> None:
+  extract()
+
+if __name__ == "__main__":
+  main()
