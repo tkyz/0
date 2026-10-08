@@ -507,6 +507,7 @@ EOS
 
 # game
   org.gnome.Mines
+  org.gnome.Aisleriot
 
 # *
   org.torproject.torbrowser-launcher

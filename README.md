@@ -1,6 +1,11 @@
 # 0.git
 
-個人環境です。
+ホームラボx個人環境です。
+
+- [マイナンバーカードによる個人識別](#-個人識別子)
+- [独自ドメインの構築](#-ドメイン)
+- ローカル環境での人工知能の学習と利用
+- ...
 
 ⚠️不定期で[squash](./bin/git-autofixup)します。
 
@@ -21,6 +26,11 @@
     - EF000A
       - [ssh](./dat/uid.jpki_id/4abc370b9ad260aeebb12eda1d794d7fa80a87742ef637698ca145ce9129209b/auth.ssh.pub)
 
+🙏 寄付
+|<img src='./dat/blockchain/btc/icon.png'                                       height=20> btc|<img src='./dat/blockchain/eth/icon.png'                                       height=20> eth|<img src='./dat/blockchain/sol/icon.png'                                         height=20> sol|<img src='./dat/blockchain/xrp/icon.png'                               height=20> xrp|
+|-|-|-|-|
+|<img src='./dat/blockchain/btc/bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0.svg' width=64>     |<img src='./dat/blockchain/eth/0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea.svg' width=64>     |<img src='./dat/blockchain/sol/BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu.svg' width=64>     |<img src='./dat/blockchain/xrp/rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL.svg' width=64>     |
+
 ## 🌐 ドメイン
 
 - ``$(hostname -d)``
@@ -29,6 +39,7 @@
   - ntp
   - [setup](http://setup.example/)
   - _p2p_
+    - stun
     - tor
     - _blockchain_
       - btc
@@ -61,9 +72,3 @@
 ミラー
 - https://github.com/tkyz/0.git
 - ...
-
-## 🙏 寄付
-
-|<img src='./dat/blockchain/btc/icon.png'                                       height=20> btc|<img src='./dat/blockchain/eth/icon.png'                                       height=20> eth|<img src='./dat/blockchain/sol/icon.png'                                         height=20> sol|<img src='./dat/blockchain/xrp/icon.png'                               height=20> xrp|
-|-|-|-|-|
-|<img src='./dat/blockchain/btc/bc1qhxena3lh9nem8huqfk8evsj4nsxat63u88tzq0.svg' width=64>     |<img src='./dat/blockchain/eth/0xf970595f0d4B4A5eB950dB0AAACf8aB264EDa4Ea.svg' width=64>     |<img src='./dat/blockchain/sol/BibPoH8NbYstvU4E6nEYYxT4WtoCELU1qurvtbTNXqPu.svg' width=64>     |<img src='./dat/blockchain/xrp/rNuQHmQesVCmPT3x1ndKimGgMKuURXyhhL.svg' width=64>     |

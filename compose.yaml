@@ -85,7 +85,6 @@ services:
           --stun-only \
           --no-auth \
           --no-tls \
-          --no-dtls \
           --no-cli \
           --fingerprint \
           --log-file=stdout
