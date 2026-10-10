@@ -30,9 +30,12 @@ def main():
   prompt_p = [prompt_p] * batch
   prompt_n = [prompt_n] * batch
 
-  vae  = AutoencoderKLWan.from_pretrained(model_path, local_files_only=True, dtype=torch.float32,  subfolder='vae')
-  pipe = WanPipeline.from_pretrained(     model_path, local_files_only=True, dtype=torch.bfloat16, vae=vae)
-  pipe.to('cuda')
+  vae = AutoencoderKLWan.from_pretrained(model_path, local_files_only=True, dtype=torch.float32, subfolder='vae')
+
+  pipe = WanPipeline.from_pretrained(model_path, local_files_only=True, dtype=torch.bfloat16, vae=vae)
+  pipe.enable_model_cpu_offload()
+  pipe.vae.enable_tiling()
+  pipe.vae.enable_slicing()
 
   frames = pipe(prompt=prompt_p, negative_prompt=prompt_n, width=size_w, height=size_h, num_frames=num_frames, guidance_scale=guidance_scale).frames
 

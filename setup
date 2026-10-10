@@ -519,7 +519,7 @@ EOS
 
       # wine
       if :; then
-        winetricks cjkfonts gdiplus
+        winetricks cjkfonts gdiplus || true
         wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
       fi
 
@@ -682,6 +682,23 @@ EOS
 
   fi
 
+  # ca
+  if :; then
+
+    certs_dir="${src_dir}/0.proxy/certs"
+    mkdir -p "${certs_dir}"
+
+    openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
+      -keyout "${certs_dir}/key" \
+      -out    "${certs_dir}/crt" \
+      -subj   "/CN=${domain}" \
+      -addext "subjectAltName=DNS:${domain},DNS:*.${domain}"
+
+    chmod 600 "${certs_dir}/key"
+    chmod 644 "${certs_dir}/crt"
+
+  fi
+
   # regist
   if :; then
 
@@ -706,7 +723,7 @@ EOS
     mkdir -p "${dat_dir}/net.wan/$(nslookup "${wan_ip}" | head -n 1 | sed -r 's/^.* ([^ ]+)\.$/\1/g' | tr '.' $'\n' | tac | paste -s -d '.')"
 
     # doc
-    echo -n "http://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
+    echo -n "https://doc.${domain}/" | qrencode --type 'png' --output "${dat_dir}/logo.png"
 
   fi
 
@@ -789,7 +806,6 @@ EOS
         # tcp
         sudo ufw allow from "${from}" to any port     7 proto tcp
         sudo ufw allow from "${from}" to any port    22 proto tcp
-        sudo ufw allow from "${from}" to any port    80 proto tcp
         sudo ufw allow from "${from}" to any port   443 proto tcp
         sudo ufw allow from "${from}" to any port  9418 proto tcp
 

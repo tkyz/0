@@ -12,7 +12,7 @@
 ## 💻 セットアップ
 
 ```bash
-( curl "http://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
+( curl -k "https://setup.$(hostname -d)" || curl 'https://raw.githubusercontent.com/tkyz/0/main/setup' ) | bash
 ```
 
 ## 👤 個人識別子
@@ -37,7 +37,7 @@
   - echo
   - dns
   - ntp
-  - [setup](http://setup.example/)
+  - [setup](https://setup.example/)
   - _p2p_
     - stun
     - tor
@@ -52,22 +52,22 @@
     - chroma
   - _registry_, _repository_
     - apt
-    - [git](http://git.example/)
+    - [git](https://git.example/)
     - container
   - _game_
     - minecraft
   - _web_
-    - [doc](http://doc.example/)
+    - [doc](https://doc.example/)
     - _bi_
-      - [evidence](http://evidence.example/)
+      - [evidence](https://evidence.example/)
     - _ai_
-      - [chat](http://chat.example/)
-      - [comfyui](http://comfyui.example/)
+      - [chat](https://chat.example/)
+      - [comfyui](https://comfyui.example/)
 
 ## 📄 ソース
 
 メイン
-- [git://git.example/0.git](http://git.example/?p=0.git;a=tree)
+- [git://git.example/0.git](https://git.example/?p=0.git;a=tree)
 
 ミラー
 - https://github.com/tkyz/0.git

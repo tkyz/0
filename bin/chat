@@ -1,38 +1,141 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-set -o errexit
-set -o nounset
-set -o pipefail
+import os
+import sys
+import git
+import json
+import magic
+import socket
+import urllib.request
+import ssl
 
-(
+home    = os.environ.get("HOME")
 
-  if [[ -p '/dev/stdin' ]]; then
-    prompt_sys="$(cat '/dev/stdin')"
-    prompt_user="${1:-}"
-  else
-    prompt_sys="${1}"
-    prompt_user="${2:-}"
-  fi
+doc_dir = home + "/doc"
 
-  model='default'
+def main() -> None:
 
-  payload=$(jq -n \
-    --arg model "${model}" \
-    --arg sys   "${prompt_sys}" \
-    --arg user  "${prompt_user}" \
-    '{
-      model: $model,
-      max_tokens: 4096,
-      messages: [
-        {role: "system", content: $sys},
-        {role: "user",   content: $user}
-      ]
-    }')
+  args        = sys.argv[1:]
+  prompt_user = args[0] if 0 < len(args) else ""
 
-  echo "${payload}" | curl -fsSL \
-    -X POST \
-    -H 'Content-Type: application/json' \
-    -d @- \
-    "http://chat.$(hostname -d)/v1/chat/completions" | jq -r .choices.[].message.content
+  messages = []
+  messages.append({"role": "system", "content": """
+# プロンプトの構造
+system: このプロンプト
+  system: ファイルのパス
+  system: ファイルの内容
+user: ユーザーの指示
+"""})
 
-)
+  for f in files():
+    content = fread(f)
+    messages.append({"role": "system", "content": f"{f}"})
+    messages.append({"role": "system", "content": f"{content}"})
+
+  messages.append({"role": "user", "content": prompt_user})
+
+  payload = {
+    "model": "default",
+    "stream": True,
+    "messages": messages,
+    "chat_template_kwargs": {"enable_thinking": False},
+  }
+
+  url = f"https://chat.{domain()}/v1/chat/completions"
+  req = urllib.request.Request(
+    url,
+    data    = json.dumps(payload).encode("utf-8"),
+    headers = {"Content-Type": "application/json"},
+    method  = "POST",
+  )
+
+  with urllib.request.urlopen(req, context=ssl_context()) as resp:
+    for raw in resp:
+
+      line = raw.decode("utf-8").strip()
+      if not line.startswith("data:"):
+        continue
+
+      data = line[len("data:"):].strip()
+      if data == "[DONE]":
+        break
+
+      chunk = json.loads(data)
+      for choice in chunk.get("choices", []):
+        text = choice.get("delta", {}).get("content")
+        if text:
+          sys.stdout.write(text)
+          sys.stdout.flush()
+
+  sys.stdout.write("\n")
+
+def files() -> list:
+
+  l = set()
+
+  # ./.git
+  if True:
+
+    repo = git.Repo(home, search_parent_directories=True)
+    for path in repo.git.ls_files().split("\n"):
+
+      full_path = os.path.join(repo.working_tree_dir, path)
+      if not os.path.isfile(full_path):
+        continue
+      if not is_text(full_path):
+        continue
+
+      l.add(full_path)
+
+  # ./doc
+  if False:
+
+    for root, dirs, files in os.walk(doc_dir):
+      for f in files:
+
+        full_path = root + "/" + f
+        if not is_text(full_path):
+          continue
+
+        l.add(full_path)
+
+  l.add(home + "/.env")
+
+  return sorted(list(l))
+
+def ssl_context() -> ssl.SSLContext:
+  ctx = ssl.create_default_context()
+  ctx.check_hostname = False
+  ctx.verify_mode = ssl.CERT_NONE
+  return ctx
+
+def is_text(file) -> bool:
+
+  mime_type = magic.from_file(file, mime=True)
+
+  ret  = False
+  ret |= mime_type.startswith("text/")
+  ret |= mime_type.startswith("application/json")
+
+  return ret
+
+def domain() -> str:
+  fqdn = socket.getfqdn()
+  return fqdn.partition(".")[2]
+
+def fread(file, encoding="utf8") -> str:
+
+  content = None
+
+  with open(file, "r", encoding=encoding) as f:
+    content = f.read()
+
+  return content
+
+def fwrite(file, content) -> None:
+
+  with open(file, "w") as f:
+    f.write(content)
+
+if __name__ == "__main__":
+  main()

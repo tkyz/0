@@ -5,10 +5,7 @@ import sys
 import uuid
 import torch
 
-from diffusers import (
-  DiffusionPipeline,
-  StableDiffusionXLPipeline,
-)
+from diffusers import DiffusionPipeline, StableDiffusionXLPipeline
 
 home = os.environ.get('HOME')
 
@@ -32,8 +29,11 @@ def main():
   prompt_p = [prompt_p] * batch
   prompt_n = [prompt_n] * batch
 
-  pipe = DiffusionPipeline.from_pretrained(home + '/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0', local_files_only=True, dtype=torch.float16, use_safetensors=True, variant='fp16')
-  pipe.to('cuda')
+# pipe = StableDiffusionXLPipeline.from_single_file(home + '/lib/com.civitai/models/xxx/xxx.safetensors',                  local_files_only=True, dtype=torch.float16, use_safetensors=True, variant='fp16')
+  pipe = DiffusionPipeline.from_pretrained(         home + '/lib/co.huggingface/stabilityai/stable-diffusion-xl-base-1.0', local_files_only=True, dtype=torch.float16, use_safetensors=True, variant='fp16')
+  pipe.enable_model_cpu_offload()
+  pipe.vae.enable_tiling()
+  pipe.vae.enable_slicing()
 
   images = pipe(prompt_p, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, output_type='pil').images
 

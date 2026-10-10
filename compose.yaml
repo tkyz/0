@@ -97,19 +97,18 @@ services:
     image: docker.io/nginx:latest
     container_name: proxy
     ports:
-      - '${lan_ip}:80:80'
       - '${lan_ip}:443:443'
     volumes:
-      - {type: bind, source: '${HOME}/src/0.proxy/nginx.conf',     target: /etc/nginx/nginx.conf,            read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/default.conf',   target: /etc/nginx/conf.d/default.conf,   read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/apt.conf',       target: /etc/nginx/conf.d/apt.conf,       read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/container.conf', target: /etc/nginx/conf.d/container.conf, read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/git.conf',       target: /etc/nginx/conf.d/git.conf,       read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/doc.conf',       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/setup.conf',     target: /etc/nginx/conf.d/setup.conf,     read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/chat.conf',      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
-#     - {type: bind, source: '${HOME}/src/0.proxy/evidence.conf',  target: /etc/nginx/conf.d/evidence.conf,  read_only: true}
-#     - {type: bind, source: '${HOME}/src/0.proxy/comfyui.conf',   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/nginx.conf',            target: /etc/nginx/nginx.conf,            read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/certs',                 target: /etc/nginx/certs,                 read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/apt.conf',       target: /etc/nginx/conf.d/apt.conf,       read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/container.conf', target: /etc/nginx/conf.d/container.conf, read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/git.conf',       target: /etc/nginx/conf.d/git.conf,       read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/doc.conf',       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/setup.conf',     target: /etc/nginx/conf.d/setup.conf,     read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/chat.conf',      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
+#     - {type: bind, source: '${HOME}/src/0.proxy/conf.d/evidence.conf',  target: /etc/nginx/conf.d/evidence.conf,  read_only: true}
+#     - {type: bind, source: '${HOME}/src/0.proxy/conf.d/comfyui.conf',   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
     restart: on-failure
 
   tor:
@@ -394,6 +393,7 @@ services:
       - {type: bind, source: '${HOME}/src/0.doc/conf',                                         target: /usr/share/nginx/html/conf}
       - {type: bind, source: '${HOME}/dat',                                                    target: /usr/share/nginx/html/data/media}
       - {type: bind, source: '${HOME}/doc',                                                    target: /usr/share/nginx/html/data/pages}
+      - {type: bind, source: '${HOME}/man',                                                    target: /usr/share/nginx/html/data/pages/man}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-translation',  target: /usr/share/nginx/html/lib/plugins/translation}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-vshare',       target: /usr/share/nginx/html/lib/plugins/vshare}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gallery',      target: /usr/share/nginx/html/lib/plugins/gallery}
@@ -444,7 +444,7 @@ services:
     devices:
       - nvidia.com/gpu=all
     expose:
-      - 8080
+      - 9931
     volumes:
       - {type: bind, source: '${HOME}/src/com.github/ggml-org/llama.cpp', target: /llama.cpp}
       - {type: bind, source: '${HOME}/lib/co.huggingface',                target: /root/lib/co.huggingface, read_only: true}
