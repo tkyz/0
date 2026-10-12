@@ -17,14 +17,36 @@ def main() -> None:
   prompt_user = args[0] if 0 < len(args) else ""
 
   messages = []
+
+  # command
   messages.append({"role": "system", "content": r"""
-mode: rag
-  system: ファイルのパス + \n + ファイルの内容
+mode: command
+  system: {コマンド} + "\n" + {結果}
+"""})
+  commands = [
+#   ["lshw"],
+#   ["lscpu"],
+    ["lspci"],
+    ["lsusb"],
+#   ["lsblk"],
+#   ["nvidia-smi"],
+#   ["bash", '-c', 'export'],
+  ]
+  for command in commands:
+    result = py0.call(*command)
+    messages.append({"role": "system", "content": f"{command}\n{result}"})
+
+  # file
+  messages.append({"role": "system", "content": r"""
+mode: file
+  system: {ファイルのパス} + "\n" + {ファイルの内容}
 """})
   for f in files():
     content = py0.fread(f)
     messages.append({"role": "system", "content": f"{f}\n{content}"})
-  messages.append({"role": "system",   "content": "mode: chat"})
+
+  # instruct
+  messages.append({"role": "system",   "content": "mode: instruct"})
   messages.append({"role": "user",     "content": prompt_user})
 
   api(messages)

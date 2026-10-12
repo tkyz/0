@@ -2,6 +2,7 @@
 
 import os
 import socket
+import subprocess
 
 def _domain() -> str:
   fqdn = socket.getfqdn()
@@ -16,6 +17,9 @@ def fread(file, encoding="utf8") -> str:
 def fwrite(file, content) -> None:
   with open(file, "w") as f:
     f.write(content)
+
+def call(*command):
+  return subprocess.run(command, capture_output=True, text=True, check=True).stdout.strip()
 
 pwd       = os.getcwd()
 home      = os.environ.get("HOME")
