@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from py0 import py0
+
 import os
 import gc
 import re
@@ -7,6 +9,7 @@ import hashlib
 import regex
 import torch
 import duckdb
+import pymupdf
 
 from pdfminer.high_level import extract_text
 from pdfminer.layout     import LAParams
@@ -17,111 +20,164 @@ from transformers import (
   pipeline,
 )
 
-home        = os.environ.get("HOME")
+def extract1():
 
-index_dir   = home + "/dat/index"
-extract_dir = home + "/dat/train.text"
+  # text <- text/*
+  for e in tsv_select_like('text/'):
+    continue
 
-def extract():
+    src_hash = e.get("hash")
+    if src_hash is None:
 
-  # text/*
-  if True:
-    for e in tsv_select_like('text/'):
+    src_file = e.get("path")
+    if not os.path.exists(src_file):
+      continue
+
+    dst_file = py0.text_dir + '/' + src_hash
+    if os.path.exists(dst_file):
+      continue
+
+    content = None
+    for enc in ["utf8", "sjis", "eucjp", "utf16"]:
+      try:
+        content = py0.fread(src_file, enc)
+        break
+      except UnicodeDecodeError:
+        pass
+    if content is None:
+      print("unknown", src_file)
+      continue
+
+    py0.fwrite(dst_file, content)
+    print(src_file)
+
+  # text, image <- application/pdf
+  laparams = LAParams(detect_vertical=True)
+  for e in tsv_select_like("application/pdf"):
+
+    src_mime_type = e.get("mime_type")
+    src_hash      = e.get("hash")
+    if src_mime_type is None or src_hash is None:
+      continue
+
+    src_file = e.get("path")
+    if not os.path.exists(src_file):
+      continue
+
+    dst_dir = py0.ref_dir + "/" + src_mime_type + "/" + src_hash
+    if os.path.exists(dst_dir):
+      continue
+    os.makedirs(dst_dir, exist_ok=True)
+
+    # text
+    dst_file = dst_dir + "/_.txt"
+    content = extract_text(src_file, laparams=laparams, codec="utf-8")
+    py0.fwrite(dst_file, content)
+
+    # image
+    reader = pymupdf.open(src_file)
+    for p, page in enumerate(reader):
+
+      images = page.get_images()
+      for i, imgf in enumerate(images):
+
+        meta  = reader.extract_image(imgf[0])
+        ext   = meta["ext"]
+        image = meta["image"]
+
+        with open(dst_dir + "/" + str(p) + "_" + str(i) + "." + ext, "wb") as f:
+          f.write(image)
+
+    print(src_file)
+
+  # image, audio <- video/*
+  for e in tsv_select_like("video/"):
+
+    src_mime_type = e.get("mime_type")
+    src_hash      = e.get("hash")
+    if src_mime_type is None or src_hash is None:
+      continue
+
+    src_file = e.get("path")
+    if not os.path.exists(src_file):
+      continue
+
+    dst_dir = py0.ref_dir + "/" + src_mime_type + "/" + src_hash
+    if os.path.exists(dst_dir):
+      continue
+#   os.makedirs(dst_dir, exist_ok=True)
+
+    # TODO: ffmpeg
+
+    print(src_file)
+
+def extract2():
+
+  # text <- audio/mpeg, audio/x-wav
+  try:
+
+    model_dir     = py0.lib_dir + "/co.huggingface/openai/whisper-large-v3"
+    whisper_model = None
+    whisper_proc  = None
+    whisper_pipe  = None
+
+    # TODO: walk audio_dir
+    for e in tsv_select_in("audio/mpeg", "audio/x-wav"):
+
+      src_mime_type = e.get("mime_type")
+      src_hash      = e.get("hash")
+      if src_mime_type is None or src_hash is None:
+        continue
 
       src_file = e.get("path")
-      src_hash = e.get("hash")
-      dst_file = extract_dir + '/' + src_hash
-
       if not os.path.exists(src_file):
         continue
-      if os.path.exists(dst_file):
-        continue
 
-      content = None
-      for enc in ["utf8", "sjis", "eucjp", "utf16"]:
-        try:
-          content_bef = fread(src_file, enc)
-          break
-        except UnicodeDecodeError:
-          pass
-      if content_bef is None:
-        print("unknown", src_file)
+      dst_dir = py0.ref_dir + "/" + src_mime_type + "/" + src_hash
+      if os.path.exists(dst_dir):
         continue
+      os.makedirs(dst_dir, exist_ok=True)
 
-      fwrite(dst_file, content)
+      dst_file = dst_dir + '/_.txt'
+
+      # load
+      if whisper_model is None and whisper_proc is None:
+
+        whisper_model = AutoModelForSpeechSeq2Seq.from_pretrained(model_dir, dtype=torch.bfloat16, device_map="auto")
+        whisper_proc  = AutoProcessor.from_pretrained(model_dir)
+        prompt_ids    = whisper_proc.get_prompt_ids("、。", return_tensors="pt").to("cuda")
+
+        # TODO: "condition_on_previous_text": False
+        whisper_pipe = pipeline(
+          "automatic-speech-recognition",
+          model             = whisper_model,
+          tokenizer         = whisper_proc.tokenizer,
+          feature_extractor = whisper_proc.feature_extractor,
+          generate_kwargs   = {
+            "language":   "ja",
+            "task":       "transcribe",
+            "prompt_ids": prompt_ids,
+          },
+          dtype             = torch.bfloat16,
+          device_map        = "auto",
+          return_timestamps = True
+        )
+
+      result  = whisper_pipe(src_file)
+      content = result["text"]
+      content = re.sub(r"。", r"。\n", content)
+      content = re.sub(r"�+", r"\n",  content)
+
+      py0.fwrite(dst_file, content)
       print(src_file)
 
-  # application/pdf
-  if True:
+  finally:
+    del whisper_model
+    del whisper_proc
 
-    laparams = LAParams(detect_vertical=True)
-
-    for e in tsv_select_like("application/pdf"):
-
-      src_file = e.get("path")
-      src_hash = e.get("hash")
-      dst_file = extract_dir + '.application.pdf/' + src_hash
-
-      if not os.path.exists(src_file):
-        continue
-      if os.path.exists(dst_file):
-        continue
-
-      content = extract_text(src_file, laparams=laparams, codec="utf-8")
-
-      fwrite(dst_file, content)
-      print(src_file)
-
-  # audio/mpeg, audio/x-wav
-  if False:
-    try:
-
-      model_dir     = home + "/lib/co.huggingface/openai/whisper-large-v3"
-
-      whisper_model = AutoModelForSpeechSeq2Seq.from_pretrained(model_dir, dtype=torch.bfloat16, device_map="auto")
-      whisper_proc  = AutoProcessor.from_pretrained(model_dir)
-      prompt_ids    = whisper_proc.get_prompt_ids("、。", return_tensors="pt").to("cuda")
-
-      # TODO: "condition_on_previous_text": False
-      whisper_pipe  = pipeline(
-        "automatic-speech-recognition",
-        model             = whisper_model,
-        tokenizer         = whisper_proc.tokenizer,
-        feature_extractor = whisper_proc.feature_extractor,
-        generate_kwargs   = {
-          "language":   "ja",
-          "task":       "transcribe",
-          "prompt_ids": prompt_ids,
-        },
-        dtype             = torch.bfloat16,
-        device_map        = "auto",
-        return_timestamps = True
-      )
-
-      for e in tsv_select_in("audio/mpeg", "audio/x-wav"):
-
-        src_file = e.get("path")
-        src_hash = e.get("hash")
-        dst_file = extract_dir + '.audio/' + src_hash
-
-        if src_hash is None:
-          continue
-        if not os.path.exists(src_file):
-          continue
-        if os.path.exists(dst_file):
-          continue
-
-        result  = whisper_pipe(full_path)
-        content = result["text"]
-        content = re.sub(r"。", r"。\n", content)
-        content = re.sub(r"�+", r"\n",  content)
-
-        fwrite(dst_file, content)
-        print(src_file)
-
-    finally:
-      del whisper_model
-      del whisper_proc
+  # TODO: walk py0.image_dir
+  for e in tsv_select_in("image/"):
+    pass
 
 def tsv_select_in(*mime_types) -> list:
 
@@ -132,7 +188,7 @@ def tsv_select_in(*mime_types) -> list:
   params = list(mime_types)
 
   with duckdb.connect(":memory:") as con:
-    result  = con.execute(f"SELECT * FROM read_csv('{index_dir}/*', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path']) WHERE mime_type IN ({in_query})", params)
+    result  = con.execute(f"SELECT * FROM read_csv('{py0.index_dir}/*', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path']) WHERE mime_type IN ({in_query})", params)
     columns = [desc[0] for desc in result.description]
     entries = [dict(zip(columns, row)) for row in result.fetchall()]
 
@@ -146,28 +202,16 @@ def tsv_select_like(mime_type) -> list:
   params.append(mime_type + '%')
 
   with duckdb.connect(":memory:") as con:
-    result  = con.execute(f"SELECT * FROM read_csv('{index_dir}/*', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path']) WHERE mime_type LIKE ?", params)
+    result  = con.execute(f"SELECT * FROM read_csv('{py0.index_dir}/*', delim='\t', header=False, names=['hash', 'size', 'date', 'mime_type', 'path']) WHERE mime_type LIKE ?", params)
     columns = [desc[0] for desc in result.description]
     entries = [dict(zip(columns, row)) for row in result.fetchall()]
 
   return entries
 
-def fread(file, encoding="utf8") -> str:
-
-  content = None
-
-  with open(file, "r", encoding=encoding) as f:
-    content = f.read()
-
-  return content
-
-def fwrite(file, content) -> None:
-
-  with open(file, "w") as f:
-    f.write(content)
-
 def main() -> None:
-  extract()
+  extract1()
+# extract2()
+  pass
 
 if __name__ == "__main__":
   main()

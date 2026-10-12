@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 
+from py0 import py0
+
 import os
 import hashlib
 import re
 import magic
 import duckdb
 
-home       = os.environ.get("HOME")
-
-target_dir = home
-index_dir  = home + "/dat/index"
-
 def mkindex() -> None:
 
   dirs = list()
-# dirs.append(os.getcwd())
-  dirs.append(target_dir)
+# dirs.append(py0.pwd)
+  dirs.append(py0.home)
 
-  os.makedirs(index_dir, exist_ok=True)
+  os.makedirs(py0.index_dir, exist_ok=True)
 
   if True:
     while 0 < len(dirs):
@@ -25,7 +22,7 @@ def mkindex() -> None:
       d = dirs.pop()
 
       dir_hash    = hashlib.sha256(d.encode()).hexdigest()
-      idx_file    = index_dir + "/" + dir_hash
+      idx_file    = py0.index_dir + "/" + dir_hash
       idx_entries = tsv_select(idx_file)
 
       files = list()
@@ -34,16 +31,13 @@ def mkindex() -> None:
         for i in os.listdir(d):
 
           full_path = d + '/' + i
-
           if is_skip(full_path):
             continue
-
           if os.path.islink(full_path):
             continue
 
           if os.path.isdir(full_path):
             dirs.append(full_path)
-
           elif os.path.isfile(full_path):
             files.append(full_path)
 
@@ -80,7 +74,7 @@ def mkindex() -> None:
           idx_entry["mime_type"] = magic.from_file(full_path, mime=True)
 
         if idx_entry.get("hash") is None:
-          if is_hash(idx_entry.get("mime_type")):
+          if file_size < 1024 * 1024 or is_hash(idx_entry.get("mime_type")):
             h = hashlib.sha256()
             with open(full_path, "rb") as f_:
               for chunk in iter(lambda: f_.read(65536), b""):
@@ -123,14 +117,16 @@ def tsv_select(idx_file) -> dict:
 def is_skip(path) -> bool:
 
   skip  = False
-  skip |= bool(re.search(r"/\.", path))             # .*
-  skip |= path.startswith(home + "/dat/index")      # ${HOME}/dat/index
-  skip |= path.startswith(home + "/dat/train")      # ${HOME}/dat/train
-  skip |= path.startswith(home + "/enc")            # ${HOME}/enc
-  skip |= path.startswith(home + "/go")             # ${HOME}/go
-  skip |= path.startswith(home + "/lib")            # ${HOME}/lib
-  skip |= path.startswith(home + "/opt")            # ${HOME}/opt
-  skip |= path.startswith(home + "/src/com.github") # ${HOME}/src/com.github
+  skip |= bool(re.search(r"/\.", path))                 # .*
+  skip |= path.startswith(py0.index_dir)                # ${HOME}/dat/index*
+  skip |= path.startswith(py0.dat_dir + "/net.wan")     # ${HOME}/dat/net.wan*
+  skip |= path.startswith(py0.dat_dir + "/train")       # ${HOME}/dat/train*
+  skip |= path.startswith(py0.enc_dir)                  # ${HOME}/enc
+  skip |= path.startswith(home + "/go/")                # ${HOME}/go
+  skip |= path.startswith(py0.lib_dir)                  # ${HOME}/lib
+  skip |= path.startswith(py0.mnt_dir)                  # ${HOME}/mnt
+  skip |= path.startswith(py0.opt_dir)                  # ${HOME}/opt
+  skip |= path.startswith(py0.src_dir + "/com.github/") # ${HOME}/src/com.github
 
   return skip
 

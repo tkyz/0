@@ -24,16 +24,16 @@ fi
 if [[ -t 0 ]]; then
   function _tmp() {
 
-    local -r txtred='\[\e[31m\]'
-    local -r txtgrn='\[\e[32m\]'
-    local -r txtylw='\[\e[33m\]'
-    local -r txtblu='\[\e[34m\]'
-    local -r txtpur='\[\e[35m\]'
-    local -r txtcyn='\[\e[36m\]'
-    local -r txtwht='\[\e[37m\]'
-    local -r txtrst='\[\e[0m\]'
-    local -r txtgrn_blink='\[\e[5;32m\]'
-    local -r txtylw_blink='\[\e[5;33m\]'
+    local -r txtred='\033[31m\]'
+    local -r txtgrn='\033[32m\]'
+    local -r txtylw='\033[33m\]'
+    local -r txtblu='\033[34m\]'
+    local -r txtpur='\033[35m\]'
+    local -r txtcyn='\033[36m\]'
+    local -r txtwht='\033[37m\]'
+    local -r txtrst='\033[0m\]'
+    local -r txtgrn_blink='\033[5;32m\]'
+    local -r txtylw_blink='\033[5;33m\]'
 
     local scheme=''
     local fqdn="$(hostname -f 2> '/dev/null')"
