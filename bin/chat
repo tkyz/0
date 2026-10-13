@@ -18,12 +18,22 @@ def main() -> None:
 
   messages = []
 
-  # command
-  messages.append({"role": "system", "content": r"""
-mode: command
-  system: {コマンド} + "\n" + {結果}
+  # system
+  messages.append({"role": "system", "content": """
+role:
+  system:     このプロンプト
+  entrypoint: {このファイルのパス}
+  command[]:  {コマンド} + "\n" + {コマンドの結果}
+  code[]:     {ファイルのパス} + "\n" + {ファイルの内容}
 """})
+
+  # entrypoint
+  content = os.path.abspath(__file__)
+  messages.append({"role": "entrypoint", "content": f"{content}"})
+
+  # command
   commands = [
+#   ["date"],
 #   ["lshw"],
 #   ["lscpu"],
     ["lspci"],
@@ -33,21 +43,16 @@ mode: command
 #   ["bash", '-c', 'export'],
   ]
   for command in commands:
+    c      = " ".join(command)
     result = py0.call(*command)
-    messages.append({"role": "system", "content": f"{command}\n{result}"})
+    messages.append({"role": "command", "content": f"{c}\n{result}"})
 
-  # file
-  messages.append({"role": "system", "content": r"""
-mode: file
-  system: {ファイルのパス} + "\n" + {ファイルの内容}
-"""})
+  # code
   for f in files():
     content = py0.fread(f)
-    messages.append({"role": "system", "content": f"{f}\n{content}"})
+    messages.append({"role": "code", "content": f"{f}\n{content}"})
 
-  # instruct
-  messages.append({"role": "system",   "content": "mode: instruct"})
-  messages.append({"role": "user",     "content": prompt_user})
+  messages.append({"role": "user", "content": prompt_user})
 
   api(messages)
 
@@ -118,8 +123,8 @@ def files() -> list:
 
   # ./doc
   if False:
-    for root, dirs, files in os.walk(py0.doc_dir):
-      for f in files:
+    for root, dirs, files_ in os.walk(py0.doc_dir):
+      for f in files_:
         full_path = root + "/" + f
         if not is_text(full_path):
           continue

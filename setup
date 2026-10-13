@@ -506,6 +506,7 @@ EOS
 
 # game
   org.gnome.Mines
+  org.gnome.Sudoku
   org.gnome.Aisleriot
 
 # *
@@ -530,19 +531,13 @@ EOS
   # -------------------------------- build --------------------------------
   if [[ -v do_build ]]; then
 
-    # pull
 #   cat "${lib_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
 #   cat "${src_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
-    curi 'https://github.com/kubernetes-sigs/kind.git'
-    curi 'https://github.com/sacloud/usacloud.git'
-    curi 'https://github.com/mgdm/htmlq.git'
-    curi 'https://github.com/jpki/myna.git'
 
-    # build
-    podman run               --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-    podman run               --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-    podman run               --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
-    podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
+    curi 'https://github.com/kubernetes-sigs/kind.git'; podman run               --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+    curi 'https://github.com/sacloud/usacloud.git';     podman run               --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
+    curi 'https://github.com/mgdm/htmlq.git';           podman run               --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
+    curi 'https://github.com/jpki/myna.git';            podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
       apt-get update -y
       apt-get install -y libpcsclite-dev
       cargo build --workspace --release
@@ -688,14 +683,20 @@ EOS
     certs_dir="${src_dir}/0.proxy/certs"
     mkdir -p "${certs_dir}"
 
+    ca_key_file="${certs_dir}/key"
+    ca_crt_file="${certs_dir}/crt"
+
     openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
-      -keyout "${certs_dir}/key" \
-      -out    "${certs_dir}/crt" \
+      -keyout "${ca_key_file}" \
+      -out    "${ca_crt_file}" \
       -subj   "/CN=${domain}" \
       -addext "subjectAltName=DNS:${domain},DNS:*.${domain}"
 
-    chmod 600 "${certs_dir}/key"
-    chmod 644 "${certs_dir}/crt"
+    chmod 600 "${ca_key_file}"
+    chmod 644 "${ca_crt_file}"
+
+    sudo ln -fsn "${ca_crt_file}" "/usr/local/share/ca-certificates/${namespace}.crt"
+    sudo update-ca-certificates
 
   fi
 
@@ -761,8 +762,10 @@ EOS
       sudo ntpdate "ntp.${domain}" || true
 
       # port: 1024~
+      podman-compose up irc &
+      sleep 1
       podman-compose up git apt container &
-      sleep 3
+      sleep 1
       podman-compose up mariadb pgsql redis mongo chroma &
       sleep 5
       podman-compose up stun tor btc eth &

@@ -70,6 +70,36 @@ services:
         chronyd -d -x
     restart: on-failure
 
+  irc:
+    image: docker.io/inspircd/inspircd-docker:latest
+    container_name: irc
+    ports:
+      - '${lan_ip}:6667:6667'
+#   volumes:
+#     - {type: bind, source: '${HOME}/src/0.irc', target: /inspircd/conf, read_only: true}
+    restart: on-failure
+
+  proxy:
+    image: docker.io/nginx:latest
+    container_name: proxy
+    ports:
+      - '${lan_ip}:443:443'
+    volumes:
+      - {type: bind, source: '${HOME}/src/0.proxy/nginx.conf',            target: /etc/nginx/nginx.conf,            read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/certs',                 target: /etc/nginx/certs,                 read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/apt.conf',       target: /etc/nginx/conf.d/apt.conf,       read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/container.conf', target: /etc/nginx/conf.d/container.conf, read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/git.conf',       target: /etc/nginx/conf.d/git.conf,       read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/doc.conf',       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/setup.conf',     target: /etc/nginx/conf.d/setup.conf,     read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/chat.conf',      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
+#     - {type: bind, source: '${HOME}/src/0.proxy/conf.d/evidence.conf',  target: /etc/nginx/conf.d/evidence.conf,  read_only: true}
+#     - {type: bind, source: '${HOME}/src/0.proxy/conf.d/comfyui.conf',   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
+    restart: on-failure
+
+  #----------------------------------------------------------------
+  # p2p
+
   stun:
     image: docker.io/coturn/coturn:latest
     container_name: stun
@@ -90,27 +120,6 @@ services:
           --log-file=stdout
 #   restart: on-failure
 
-  #----------------------------------------------------------------
-  # proxy
-
-  proxy:
-    image: docker.io/nginx:latest
-    container_name: proxy
-    ports:
-      - '${lan_ip}:443:443'
-    volumes:
-      - {type: bind, source: '${HOME}/src/0.proxy/nginx.conf',            target: /etc/nginx/nginx.conf,            read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/certs',                 target: /etc/nginx/certs,                 read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/apt.conf',       target: /etc/nginx/conf.d/apt.conf,       read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/container.conf', target: /etc/nginx/conf.d/container.conf, read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/git.conf',       target: /etc/nginx/conf.d/git.conf,       read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/doc.conf',       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/setup.conf',     target: /etc/nginx/conf.d/setup.conf,     read_only: true}
-      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/chat.conf',      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
-#     - {type: bind, source: '${HOME}/src/0.proxy/conf.d/evidence.conf',  target: /etc/nginx/conf.d/evidence.conf,  read_only: true}
-#     - {type: bind, source: '${HOME}/src/0.proxy/conf.d/comfyui.conf',   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
-    restart: on-failure
-
   tor:
     image: docker.io/library/alpine:latest
     container_name: tor
@@ -129,7 +138,7 @@ services:
     restart: on-failure
 
   #----------------------------------------------------------------
-  # blockchain
+  # p2p.blockchain
 
   btc:
     image: docker.io/debian:latest
@@ -162,7 +171,7 @@ services:
         cmake --build build -j $(nproc)
         cat << EOS | tee '/root/.bitcoin/bitcoin.conf'
         # proxy
-        #proxy=127.0.0.1:9050
+        #proxy=127.0.0.1:9051
         # node
         txindex=1
         port=8333
@@ -269,7 +278,7 @@ services:
     restart: on-failure
 
   #----------------------------------------------------------------
-  # registry
+  # registry, repository
 
   apt:
     build:
@@ -293,9 +302,6 @@ services:
       REGISTRY_LOG_LEVEL:  info
       REGISTRY_LOG_FORMAT: text
     restart: on-failure
-
-  #----------------------------------------------------------------
-  # repository
 
   git:
     image: docker.io/library/alpine:latest
@@ -412,6 +418,9 @@ services:
       - {type: bind, source: '${HOME}/src/com.github/IceWreck/Argon-Dokuwiki-Template',        target: /usr/share/nginx/html/lib/tpl/argon}
     restart: on-failure
 
+  #----------------------------------------------------------------
+  # web.bi
+
   evidence:
     image: docker.io/library/node:latest
     container_name: evidence
@@ -436,7 +445,7 @@ services:
 #   restart: on-failure
 
   #----------------------------------------------------------------
-  # ai
+  # web.ai
 
   chat:
     image: docker.io/nvidia/cuda:12.4.1-devel-ubuntu22.04

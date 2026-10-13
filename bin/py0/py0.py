@@ -4,9 +4,26 @@ import os
 import socket
 import subprocess
 
-def _domain() -> str:
-  fqdn = socket.getfqdn()
-  return fqdn.partition(".")[2]
+def _env(name) -> str:
+
+  ret = None
+
+  with open(env_file, "r", encoding="utf-8") as f:
+    for line in f:
+
+      line = line.strip()
+      if "" == line or line.startswith("#"):
+        continue
+
+      key, val = line.split("=", 1)
+
+      if key.strip() != name:
+        continue
+
+      ret = val.strip()
+      break
+
+  return ret
 
 def fread(file, encoding="utf8") -> str:
   content = None
@@ -14,8 +31,8 @@ def fread(file, encoding="utf8") -> str:
     content = f.read()
   return content
 
-def fwrite(file, content) -> None:
-  with open(file, "w") as f:
+def fwrite(file, content, encoding="utf8") -> None:
+  with open(file, "w", encoding=encoding) as f:
     f.write(content)
 
 def call(*command):
@@ -23,14 +40,18 @@ def call(*command):
 
 pwd       = os.getcwd()
 home      = os.environ.get("HOME")
-doc_dir   = home + "/doc"
+
+bin_dir   = home + "/bin"
 dat_dir   = home + "/dat"
+doc_dir   = home + "/doc"
 enc_dir   = home + "/enc"
 lib_dir   = home + "/lib"
 mnt_dir   = home + "/mnt"
 opt_dir   = home + "/opt"
 src_dir   = home + "/src"
+sbin_dir  = home + "/sbin"
 tmp_dir   = home + "/tmp"
+env_file  = home + "/.env"
 
 index_dir = dat_dir + "/index"
 ref_dir   = dat_dir + "/ref"
@@ -39,4 +60,24 @@ image_dir = dat_dir + "/train.image"
 audio_dir = dat_dir + "/train.audio"
 video_dir = dat_dir + "/train.video"
 
-domain    = _domain()
+# .env
+if True:
+
+  # uid
+  openpgp4fpr = _env("openpgp4fpr")
+  jpki_id     = _env("jpki_id")
+
+  # scope
+  machine_id  = _env("machine_id")
+  boot_id     = _env("boot_id")
+  setup_id    = _env("setup_id")
+
+  # network
+  upstream_ip = _env("upstream_ip")
+  dns_ip      = _env("dns_ip")
+  wan_ip      = _env("wan_ip")
+  lan_ip      = _env("lan_ip")
+  domain      = _env("domain")
+  namespace   = _env("namespace")
+
+  tag         = _env("tag")
