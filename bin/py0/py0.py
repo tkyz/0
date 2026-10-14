@@ -4,6 +4,8 @@ import os
 import socket
 import subprocess
 
+from datetime import datetime
+
 def _env(name) -> str:
 
   ret = None
@@ -25,6 +27,9 @@ def _env(name) -> str:
 
   return ret
 
+def ymdhms() -> str:
+  return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 def fread(file, encoding="utf8") -> str:
   content = None
   with open(file, "r", encoding=encoding) as f:
@@ -39,6 +44,7 @@ def call(*command):
   return subprocess.run(command, capture_output=True, text=True, check=True).stdout.strip()
 
 pwd       = os.getcwd()
+user      = os.environ.get("USER")
 home      = os.environ.get("HOME")
 
 bin_dir   = home + "/bin"

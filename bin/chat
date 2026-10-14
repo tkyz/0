@@ -4,65 +4,71 @@ from py0 import py0
 
 import os
 import sys
+import re
 import git
 import json
 import magic
-import socket
 import urllib.request
 import ssl
 
-def main() -> None:
+from pathlib import Path
 
-  args        = sys.argv[1:]
-  prompt_user = args[0] if 0 < len(args) else ""
+def chat() -> None:
 
   messages = []
 
-  # system
-  messages.append({"role": "system", "content": """
-role:
-  system:     このプロンプト
-  entrypoint: {このファイルのパス}
-  command[]:  {コマンド} + "\n" + {コマンドの結果}
-  code[]:     {ファイルのパス} + "\n" + {ファイルの内容}
+  if True:
+
+    messages.append({"role": "system", "content": r"""
+system: このプロンプト
+  system[]: {コマンド}      + "\n" + {コマンドの実行結果}
+  system[]: {ファイルのパス} + "\n" + {ファイルの内容}
 """})
 
-  # entrypoint
-  content = os.path.abspath(__file__)
-  messages.append({"role": "entrypoint", "content": f"{content}"})
+    commands = [
+      # time
+#     ["date"],
+      # hardware
+#     ["lshw"],
+#     ["lscpu"],
+      ["lspci"],
+      ["lsusb"],
+#     ["lsblk"],
+#     ["nvidia-smi"],
+      # software
+#     ["dpkg", "--list"],
+      ["pip",  "list"],
+      # 環境変数
+#     ["bash", "-c", "export"],
+    ]
+    for command in commands:
+      messages.append({"role": "system", "content": " ".join(command) + "\n" + py0.call(*command)})
 
-  # command
-  commands = [
-#   ["date"],
-#   ["lshw"],
-#   ["lscpu"],
-    ["lspci"],
-    ["lsusb"],
-#   ["lsblk"],
-#   ["nvidia-smi"],
-#   ["bash", '-c', 'export'],
-  ]
-  for command in commands:
-    c      = " ".join(command)
-    result = py0.call(*command)
-    messages.append({"role": "command", "content": f"{c}\n{result}"})
+    # file
+    for f in files():
+      if not os.path.isfile(f):
+        continue
+      mime_type = magic.from_file(f, mime=True)
+      if not is_prompt(mime_type):
+        continue
+      messages.append({"role": "system", "content": f"{f}\n" + py0.fread(f)})
 
-  # code
-  for f in files():
-    content = py0.fread(f)
-    messages.append({"role": "code", "content": f"{f}\n{content}"})
+  print("chat...")
+  while True:
+    messages.append({"role": "user",      "content": sys.stdin.readline()})
+    print()
+    messages.append({"role": "assistant", "content": assistant(messages)})
+    print()
 
-  messages.append({"role": "user", "content": prompt_user})
+def assistant(messages, thinking=False) -> str:
 
-  api(messages)
-
-def api(messages) -> None:
+  content = []
 
   payload = {
     "model": "default",
     "stream": True,
     "messages": messages,
-    "chat_template_kwargs": {"enable_thinking": False},
+    "chat_template_kwargs": {"enable_thinking": thinking},
   }
 
   url = f"https://chat.{py0.domain}/v1/chat/completions"
@@ -96,60 +102,60 @@ def api(messages) -> None:
         if data:
           sys.stdout.write(data)
           sys.stdout.flush()
+#         content.append(data)
 
         # content
         data = delta.get("content")
         if data:
           sys.stdout.write(data)
           sys.stdout.flush()
+          content.append(data)
 
   sys.stdout.write("\n")
   sys.stdout.flush()
 
+  return "".join(content)
+
 def files() -> list:
 
-  l = set()
+  l = list()
 
-  # ./.git
-  if True:
-    repo = git.Repo(py0.home, search_parent_directories=True)
-    for path in repo.git.ls_files().split("\n"):
-      full_path = os.path.join(repo.working_tree_dir, path)
-      if not os.path.isfile(full_path):
-        continue
-      if not is_text(full_path):
-        continue
-      l.add(full_path)
+  # .git
+  repo = git.Repo(py0.home, search_parent_directories=True)
+  for path in repo.git.ls_files().split("\n"):
+    l.append(os.path.join(repo.working_tree_dir, path))
 
-  # ./doc
-  if False:
-    for root, dirs, files_ in os.walk(py0.doc_dir):
-      for f in files_:
-        full_path = root + "/" + f
-        if not is_text(full_path):
-          continue
-        l.add(full_path)
+  # document
+  for root, dirs, files_ in os.walk(py0.doc_dir):
+    for f in files_:
+      l.append(root + "/" + f)
 
-  # ./.env
-  l.add(py0.home + "/.env")
+  # .env
+  l.append(py0.env_file)
 
-  return sorted(list(l))
+  return sorted(set(l))
 
 def ssl_context() -> ssl.SSLContext:
   ctx = ssl.create_default_context()
+# ctx.load_verify_locations("/usr/local/share/ca-certificates/" + py0.namespace + ".crt") # TODO: CERTIFICATE_VERIFY_FAILED
   ctx.check_hostname = False
   ctx.verify_mode    = ssl.CERT_NONE
   return ctx
 
-def is_text(file) -> bool:
-
-  mime_type = magic.from_file(file, mime=True)
+def is_prompt(mime_type) -> bool:
 
   ret  = False
-  ret |= mime_type.startswith("text/")
   ret |= mime_type.startswith("application/json")
+  ret |= mime_type.startswith("inode/x-empty")
+  ret |= mime_type.startswith("text/")
 
   return ret
+
+def main() -> None:
+  try:
+    chat()
+  except KeyboardInterrupt:
+    pass
 
 if __name__ == "__main__":
   main()

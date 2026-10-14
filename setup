@@ -126,9 +126,9 @@ EOS
         sudo extrepo enable kubernetes
         sudo extrepo enable openvpn
         sudo extrepo enable virtualbox
-        sudo extrepo enable github-cli
-        sudo extrepo enable google_cloud
-        sudo extrepo enable dotnet
+#       sudo extrepo enable github-cli
+#       sudo extrepo enable google_cloud
+#       sudo extrepo enable dotnet
         sudo extrepo enable winehq
 
       fi

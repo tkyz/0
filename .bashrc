@@ -84,7 +84,7 @@ if true; then
   HISTSIZE=16777216
   HISTFILESIZE=16777216
   HISTCONTROL='ignoredups:ignorespace'
-# HISTIGNORE='history:history *'
+  HISTIGNORE='chat *'
 # HISTTIMEFORMAT='%F %T '
 
   PROMPT_COMMAND='history -a; history -c; history -r'

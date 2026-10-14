@@ -3,16 +3,18 @@
 from py0 import py0
 
 import os
+import sys
 import hashlib
 import re
 import magic
 import duckdb
 
-def mkindex() -> None:
+from pathlib import Path
+
+def mkindex(target_dir) -> None:
 
   dirs = list()
-# dirs.append(py0.pwd)
-  dirs.append(py0.home)
+  dirs.append(str(Path(target_dir).absolute()))
 
   os.makedirs(py0.index_dir, exist_ok=True)
 
@@ -20,6 +22,8 @@ def mkindex() -> None:
     while 0 < len(dirs):
 
       d = dirs.pop()
+      if not os.path.exists(d):
+        continue
 
       dir_hash    = hashlib.sha256(d.encode()).hexdigest()
       idx_file    = py0.index_dir + "/" + dir_hash
@@ -116,33 +120,61 @@ def tsv_select(idx_file) -> dict:
 
 def is_skip(path) -> bool:
 
+  prefixs = [
+    py0.index_dir,                # ${HOME}/dat/index*
+    py0.dat_dir + "/net.wan",     # ${HOME}/dat/net.wan*
+    py0.dat_dir + "/train",       # ${HOME}/dat/train*
+    py0.enc_dir,                  # ${HOME}/enc
+    py0.home + "/go/",            # ${HOME}/go
+    py0.lib_dir,                  # ${HOME}/lib
+#   py0.mnt_dir,                  # ${HOME}/mnt
+    py0.opt_dir,                  # ${HOME}/opt
+    py0.src_dir + "/com.github/", # ${HOME}/src/com.github
+  ]
+
   skip  = False
-  skip |= bool(re.search(r"/\.", path))                 # .*
-  skip |= path.startswith(py0.index_dir)                # ${HOME}/dat/index*
-  skip |= path.startswith(py0.dat_dir + "/net.wan")     # ${HOME}/dat/net.wan*
-  skip |= path.startswith(py0.dat_dir + "/train")       # ${HOME}/dat/train*
-  skip |= path.startswith(py0.enc_dir)                  # ${HOME}/enc
-  skip |= path.startswith(home + "/go/")                # ${HOME}/go
-  skip |= path.startswith(py0.lib_dir)                  # ${HOME}/lib
-  skip |= path.startswith(py0.mnt_dir)                  # ${HOME}/mnt
-  skip |= path.startswith(py0.opt_dir)                  # ${HOME}/opt
-  skip |= path.startswith(py0.src_dir + "/com.github/") # ${HOME}/src/com.github
+  skip |= bool(re.search(r"/\.", path)) # .*
+  for i in prefixs:
+    skip |= path.startswith(i)
+    if skip:
+      break
 
   return skip
 
 def is_hash(mime_type) -> bool:
 
-  is_hash  = False
-  is_hash |= mime_type.startswith("application/javascript")
-  is_hash |= mime_type.startswith("application/json")
-  is_hash |= mime_type.startswith("application/pdf")
-  is_hash |= mime_type.startswith("application/x-bittorrent")
-  is_hash |= mime_type.startswith("text/")
+  prefixs = [
+    "application/javascript",
+    "application/json",
+    "application/pdf",
+    "application/pgp-encrypted",
+    "application/pgp-keys",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/x-bittorrent",
+    "application/xhtml+xml",
+#   "audio/",
+    "font/",
+#   "image/",
+    "inode/",
+    "text/",
+#   "video/",
+  ]
+
+  is_hash = False
+  for i in prefixs:
+    is_hash |= mime_type.startswith(i)
+    if is_hash:
+      break
 
   return is_hash
 
 def main() -> None:
-  mkindex()
+
+  arg1 = sys.argv[1] if 1 < len(sys.argv) else py0.pwd
+
+  mkindex(arg1)
 
 if __name__ == "__main__":
   main()
