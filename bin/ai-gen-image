@@ -5,7 +5,7 @@ from py0 import py0
 import sys
 import uuid
 import torch
-
+from pathlib   import Path
 from diffusers import DiffusionPipeline, StableDiffusionXLPipeline
 
 def main():
@@ -37,7 +37,11 @@ def main():
   images = pipe(prompt_p, negative_prompt=prompt_n, width=size_w, height=size_h, num_inference_steps=steps, output_type="pil").images
 
   for image in images:
-    image.save("./" + str(uuid.uuid4()) + ".png")
+
+    image_file = Path("./" + str(uuid.uuid4()) + ".png").absolute()
+
+    image.save(image_file)
+    print(image_file)
 
 if __name__ == "__main__":
   main()

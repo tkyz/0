@@ -57,8 +57,8 @@ opt_dir   = home + "/opt"
 src_dir   = home + "/src"
 sbin_dir  = home + "/sbin"
 tmp_dir   = home + "/tmp"
-env_file  = home + "/.env"
 
+# dat
 index_dir = dat_dir + "/index"
 ref_dir   = dat_dir + "/ref"
 text_dir  = dat_dir + "/train.text"
@@ -67,23 +67,18 @@ audio_dir = dat_dir + "/train.audio"
 video_dir = dat_dir + "/train.video"
 
 # .env
-if True:
+env_file    = home + "/.env"
+openpgp4fpr = _env("openpgp4fpr")
+jpki_id     = _env("jpki_id")
+machine_id  = _env("machine_id")
+boot_id     = _env("boot_id")
+setup_id    = _env("setup_id")
+upstream_ip = _env("upstream_ip")
+dns_ip      = _env("dns_ip")
+wan_ip      = _env("wan_ip")
+lan_ip      = _env("lan_ip")
+domain      = _env("domain")
+namespace   = _env("namespace")
+tag         = _env("tag")
 
-  # uid
-  openpgp4fpr = _env("openpgp4fpr")
-  jpki_id     = _env("jpki_id")
-
-  # scope
-  machine_id  = _env("machine_id")
-  boot_id     = _env("boot_id")
-  setup_id    = _env("setup_id")
-
-  # network
-  upstream_ip = _env("upstream_ip")
-  dns_ip      = _env("dns_ip")
-  wan_ip      = _env("wan_ip")
-  lan_ip      = _env("lan_ip")
-  domain      = _env("domain")
-  namespace   = _env("namespace")
-
-  tag         = _env("tag")
+crt_file = "/usr/local/share/ca-certificates/" + namespace + ".crt"

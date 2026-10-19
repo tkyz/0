@@ -399,7 +399,7 @@ services:
       - {type: bind, source: '${HOME}/src/0.doc/conf',                                         target: /usr/share/nginx/html/conf}
       - {type: bind, source: '${HOME}/dat',                                                    target: /usr/share/nginx/html/data/media}
       - {type: bind, source: '${HOME}/doc',                                                    target: /usr/share/nginx/html/data/pages}
-      - {type: bind, source: '${HOME}/man',                                                    target: /usr/share/nginx/html/data/pages/man}
+      - {type: bind, source: '${HOME}/dat/train.text.token.vocab',                             target: /usr/share/nginx/html/data/pages/token}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-translation',  target: /usr/share/nginx/html/lib/plugins/translation}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-vshare',       target: /usr/share/nginx/html/lib/plugins/vshare}
       - {type: bind, source: '${HOME}/src/com.github/splitbrain/dokuwiki-plugin-gallery',      target: /usr/share/nginx/html/lib/plugins/gallery}

@@ -4,6 +4,7 @@ from py0 import py0
 
 import os
 import sys
+import random
 import re
 import git
 import json
@@ -13,47 +14,46 @@ import ssl
 
 from pathlib import Path
 
+entrypoint = os.path.abspath(__file__)
+
 def chat() -> None:
 
   messages = []
 
-  if True:
+  # entrypoint
+  messages.append({"role": "entrypoint", "content": f"{entrypoint}"})
 
-    messages.append({"role": "system", "content": r"""
-system: このプロンプト
-  system[]: {コマンド}      + "\n" + {コマンドの実行結果}
-  system[]: {ファイルのパス} + "\n" + {ファイルの内容}
-"""})
+  # file
+  for f in files():
+    if "/.Trash-" in f:
+      continue
+    if not os.path.isfile(f):
+      continue
+    mime_type = magic.from_file(f, mime=True)
+    if not is_prompt(mime_type):
+      continue
+    messages.append({"role": f"{f}", "content": py0.fread(f)})
 
-    commands = [
-      # time
-#     ["date"],
-      # hardware
-#     ["lshw"],
-#     ["lscpu"],
-      ["lspci"],
-      ["lsusb"],
-#     ["lsblk"],
-#     ["nvidia-smi"],
-      # software
-#     ["dpkg", "--list"],
-      ["pip",  "list"],
-      # 環境変数
-#     ["bash", "-c", "export"],
-    ]
-    for command in commands:
-      messages.append({"role": "system", "content": " ".join(command) + "\n" + py0.call(*command)})
+  # command
+  commands = [
+    # time
+#   ["date"],
+    # hardware
+#   ["lshw"],
+#   ["lscpu"],
+    ["lspci"],
+    ["lsusb"],
+#   ["lsblk"],
+#   ["nvidia-smi"],
+    # software
+#   ["dpkg", "--list"],
+    ["pip",  "list"],
+    # 環境変数
+#   ["bash", "-c", "export"],
+  ]
+  for command in commands:
+    messages.append({"role": " ".join(command), "content": py0.call(*command)})
 
-    # file
-    for f in files():
-      if not os.path.isfile(f):
-        continue
-      mime_type = magic.from_file(f, mime=True)
-      if not is_prompt(mime_type):
-        continue
-      messages.append({"role": "system", "content": f"{f}\n" + py0.fread(f)})
-
-  print("chat...")
   while True:
     messages.append({"role": "user",      "content": sys.stdin.readline()})
     print()
@@ -121,23 +121,24 @@ def files() -> list:
   l = list()
 
   # .git
-  repo = git.Repo(py0.home, search_parent_directories=True)
-  for path in repo.git.ls_files().split("\n"):
-    l.append(os.path.join(repo.working_tree_dir, path))
+  if True:
+    repo = git.Repo(py0.home, search_parent_directories=True)
+    for path in repo.git.ls_files().split("\n"):
+      l.append(os.path.join(repo.working_tree_dir, path))
+    l.append(entrypoint)
+    l.append(py0.env_file)
 
-  # document
-  for root, dirs, files_ in os.walk(py0.doc_dir):
-    for f in files_:
-      l.append(root + "/" + f)
-
-  # .env
-  l.append(py0.env_file)
+  # doc
+  if False:
+    for root, dirs, files_ in os.walk(py0.doc_dir):
+      for f in files_:
+        l.append(root + "/" + f)
 
   return sorted(set(l))
 
 def ssl_context() -> ssl.SSLContext:
+# ctx = ssl.create_default_context(cafile=py0.crt_file)
   ctx = ssl.create_default_context()
-# ctx.load_verify_locations("/usr/local/share/ca-certificates/" + py0.namespace + ".crt") # TODO: CERTIFICATE_VERIFY_FAILED
   ctx.check_hostname = False
   ctx.verify_mode    = ssl.CERT_NONE
   return ctx

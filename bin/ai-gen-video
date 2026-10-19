@@ -39,7 +39,11 @@ def main():
   frames = pipe(prompt=prompt_p, negative_prompt=prompt_n, width=size_w, height=size_h, num_frames=num_frames, guidance_scale=guidance_scale).frames
 
   for frame in frames:
-    export_to_video(frame, "./" + str(uuid.uuid4()) + ".mp4", fps=fps)
+
+    video_file = Path("./" + str(uuid.uuid4()) + ".mp4").absolute()
+
+    export_to_video(frame, video_file, fps=fps)
+    print(image_file)
 
 if __name__ == "__main__":
   main()

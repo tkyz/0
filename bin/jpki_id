@@ -14,6 +14,7 @@ set -o pipefail
 
     dat_dir="${HOME}/dat"
     cer_dir="${dat_dir}/net.wan/jp.go.jpki.www/ca/pdf"
+    tmp_dir="$(mktemp -d)"
 
     # wait
     while true; do
@@ -33,67 +34,77 @@ set -o pipefail
 
     done
 
+    # verify
+    function _verify() {
+      find "${tmp_dir}" -type f -name '*.der' | while read i; do
+
+        prefix="$(echo "${i}" | sed -e 's#.*/##g' -e 's/\..*//g')"
+
+        while read j; do
+          openssl verify -CAfile "${j}" "${i}" &> '/dev/null' && is_ok=
+        done < <(find "${cer_dir}" -type f -name "${prefix}ca*.cer" | sort)
+
+        if [[ ! -v is_ok ]]; then
+          echo '⚠️カード不正'
+          false
+        fi
+
+      done
+    }
+
     # reset
     myna pin status
     test -v pin_card && myna pin change card --pin "${pin_card}" --newpin "${pin_card}"
     test -v pin_auth && myna pin change auth --pin "${pin_auth}" --newpin "${pin_auth}"
     test -v pin_sign && myna pin change sign --pin "${pin_sign}" --newpin "${pin_sign}"
 
-    # 理想: pinは不要(タッチのみ) x jpki基盤 x 個人と対になる不可逆識別子
-    if false; then
-      false
-    # 制限:   pinが必須 x 法律により目的外の利用が禁止
-    # 不完全: 特別変更、法律により変更可能
-    elif false; then
-      uid="$(myna text mynumber --pin "${pin_card}" | awk '{print substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
-      exp_dir="${dat_dir}/uid.個人番号/${uid}"
-#     exp_dir="${dat_dir}/uid.個人番号.vhash/$(echo -n "${uid}" | vhash)"
-    # 不完全: 定期変更、カード再発行で変更される識別子
-    else
-      check="$(myna jpki cert --type 'auth' --format 'der' | openssl x509 -inform der -noout -text)"
-      sid1="$(echo "${check}" | grep 'Serial Number:' | sed -r 's/.*\(0x([0-9a-f]+)\).*/\1/g')"
-      sid2="$(echo "${check}" | grep 'Subject:'       | sed -r 's/.*CN=([0-9A-Z]+).*/\1/g')"
-      uid="${sid1}_${sid2}"
-      vid="$(echo -n "${uid}" | vhash)"
-      exp_dir="${dat_dir}/uid.jpki_id/${vid}"
-    fi
-    mkdir -p "${exp_dir}"
-
     # jpki
-#   true             && myna jpki cert --type 'auth-ca' --format 'der'                                                                         | tee    "${exp_dir}/authca.der"  > '/dev/null'
-#   true             && myna jpki cert --type 'sign-ca' --format 'der'                                                                         | tee    "${exp_dir}/signca.der"  > '/dev/null'
-    true             && myna jpki cert --type 'auth'    --format 'der'                                                                         | tee    "${exp_dir}/auth.der" | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 | tee "${exp_dir}/auth.ssh.pub" > '/dev/null'
-    test -v pin_sign && myna jpki cert --type 'sign'    --format 'der' --password "${pin_sign}"                                                | tee    "${exp_dir}/sign.der"    > '/dev/null'
+#   true             && myna jpki cert --type 'auth-ca' --format 'der'                                 >  "${tmp_dir}/authca.der"
+#   true             && myna jpki cert --type 'sign-ca' --format 'der'                                 >  "${tmp_dir}/signca.der"
+    true             && myna jpki cert --type 'auth'    --format 'der'                                 >  "${tmp_dir}/auth.der"
+    test -v pin_sign && myna jpki cert --type 'sign'    --format 'der' --password "${pin_sign}"        >  "${tmp_dir}/sign.der"
+
+    _verify
+
+    # 個人番号
+#   test -v pin_card && mynumber="$(myna text mynumber --pin "${pin_card}" | awk '{print "個人番号: " substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}')"
+
     # 券面事項入力補助AP
-    true             && myna text basic-info                                                                                                   | tee    "${exp_dir}/text.txt"    > '/dev/null'
-#   test -v pin_card && myna text mynumber --pin "${pin_card}" | awk '{print "個人番号: " substr($0,1,4) "-" substr($0,5,4) "-" substr($0,9,4)}' | tee -a "${exp_dir}/text.txt"    > '/dev/null'
-    test -v pin_card && myna text attrs    --pin "${pin_card}"                                                                                 | tee -a "${exp_dir}/text.txt"    > '/dev/null'
+    true             && myna text basic-info                                                           >  "${tmp_dir}/text.txt"
+    test -v mynumber && echo "${mynumber}"                                                             >> "${tmp_dir}/text.txt"
+    test -v pin_card && myna text attrs   --pin "${pin_card}"                                          >> "${tmp_dir}/text.txt"
+
     # 券面事項確認AP
-    true             && myna visual basic-info                                                                                                 | tee    "${exp_dir}/photo.txt"   > '/dev/null'
-    test -v pin_card && myna visual photo  --pin "${pin_card}" --output '/dev/stdout' | convert - png:-                                        >        "${exp_dir}/photo.png"
+    true             && myna visual basic-info                                                         >  "${tmp_dir}/photo.txt"
+    test -v pin_card && myna visual photo --pin "${pin_card}" --output '/dev/stdout' | convert - png:- >  "${tmp_dir}/photo.png"
+
     # 謎AP
-    true             && myna unknown number                                                                                                    | tee    "${exp_dir}/unknown.txt" > '/dev/null'
-    true             && myna unknown manufacture                                                                                               | tee -a "${exp_dir}/unknown.txt" > '/dev/null'
+    true             && myna unknown number                                                            >  "${tmp_dir}/unknown.txt"
+    true             && myna unknown manufacture                                                       >> "${tmp_dir}/unknown.txt"
 
-    # verify
-    find "${exp_dir}" -type f -name '*.der' | while read i; do
-
-      prefix="$(echo "${i}" | sed -e 's#.*/##g' -e 's/\..*//g')"
-
-      while read j; do
-        openssl verify -CAfile "${j}" "${i}" 2> '/dev/null' && is_ok=
-      done < <(find "${cer_dir}" -type f -name "${prefix}ca*.cer" | sort)
-
-      if [[ ! -v is_ok ]]; then
-        echo '⚠️カード不正'
-        false
-      fi
-
-    done
-
+    # cms
 #   test -v pin_sign && myna jpki cms sign   --password "${pin_sign}" --help
 #   test -v pin_sign && myna jpki cms verify                          --help
 
+    check="$(  openssl x509 -inform der -in "${tmp_dir}/auth.der" -noout -text)"
+    serial="$( openssl x509 -inform der -in "${tmp_dir}/auth.der" -noout -serial  | sed    's/serial=//g')"
+    subject="$(openssl x509 -inform der -in "${tmp_dir}/auth.der" -noout -subject | sed -r 's/.*CN=([0-9A-Z]+).*/\1/g')"
+    enddate="$(openssl x509 -inform der -in "${tmp_dir}/auth.der" -noout -enddate | cut -d= -f2)"
+    pubkey="$( openssl x509 -inform der -in "${tmp_dir}/auth.der" -noout -pubkey)"
+    dirname="$(openssl x509 -inform der -in "${tmp_dir}/auth.der" -noout -ext crlDistributionPoints | grep "DirName:" | sed -e 's/.*DirName://g')"
+
+    jpki_id="$( echo -n "${serial}_${subject}" | vhash)"
+    birthday="$(date -u -d "${enddate}" "+%m%d")"
+
+    echo "${pubkey}" | ssh-keygen -f '/dev/stdin' -i -m pkcs8 > "${tmp_dir}/auth.ssh.pub"
+    echo "${dirname}" | sed 's/, /\n/g'
+
+#   exp_dir="${dat_dir}/uid.個人番号/${mynumber}"
+#   exp_dir="${dat_dir}/uid.個人番号/$(echo -n "${mynumber}" | vhash)"
+    exp_dir="${dat_dir}/uid.jpki_id/${jpki_id}"
+    mkdir -p "${exp_dir}"
+    mv "${tmp_dir}/"* "${exp_dir}"
+
   } >&2
-  echo "${vid}"
+  echo "${jpki_id}"
 )

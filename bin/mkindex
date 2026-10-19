@@ -11,7 +11,7 @@ import duckdb
 
 from pathlib import Path
 
-def mkindex(target_dir) -> None:
+def mkindex(target_dir=py0.home) -> None:
 
   dirs = list()
   dirs.append(str(Path(target_dir).absolute()))

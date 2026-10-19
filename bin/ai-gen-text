@@ -2,8 +2,15 @@
 
 from py0 import py0
 
+from llama_cpp import Llama
+
 def main() -> None:
-  pass
+
+  llm = Llama(
+    model_path   = py0.tmp_dir +  "/models/default.gguf",
+#   n_ctx        = 4096,
+    n_gpu_layers = -1,
+  )
 
 if __name__ == "__main__":
   main()
