@@ -32,6 +32,18 @@ set -o pipefail
 
 (
 
+  readonly codename='0'
+  readonly upstream_ip=''
+
+  readonly dns_ip='1.1.1.1'
+  readonly github_user='tkyz'
+
+  is_setup=
+  is_build=
+# is_deploy=
+
+  # -------------------------------- setup --------------------------------
+
   set -a
     source <(cat '/etc/os-release' | sed 's/^/readonly /g')
   set +a
@@ -51,20 +63,12 @@ set -o pipefail
   readonly src_dir="${HOME}/src"
   readonly tmp_dir="${HOME}/tmp"
 
-  readonly upstream_ip=''
-  readonly dns_ip='1.1.1.1'
   readonly domain="$(hostname -d)"
   readonly namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
 
-  readonly github_user='tkyz'
+  export DEBIAN_FRONTEND='noninteractive'
 
-  # phase
-  do_setup=
-  do_build=
-# do_deploy=
-
-  # -------------------------------- setup --------------------------------
-  if [[ -v do_setup ]]; then
+  if [[ -v is_setup ]]; then
 
     # dns
     echo "nameserver ${dns_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
@@ -84,8 +88,6 @@ EOS
 
     # apt
     if :; then
-
-      export DEBIAN_FRONTEND=noninteractive
 
       # repo
       cat << EOS | sudo tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
@@ -262,6 +264,7 @@ EOS
   rsync
   jq
   qrencode
+  unar
   imagemagick
 EOS
     fi
@@ -380,7 +383,7 @@ EOS
       git config --global commit.gpgsign     true
     fi
 
-    # 0.git
+    # .git
     pushd "${HOME}" &> '/dev/null'
 
       mkdir -p \
@@ -400,11 +403,11 @@ EOS
 
       # remote
       {
-#       git_remote='origin';   git_uri="${lib_dir}/${namespace}.git/0.git";         git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-#       git_remote="upstream"; git_uri="git://${upstream_ip}/0.git";                git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-        git_remote="upstream"; git_uri="git://git.${domain}/0.git";                 git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-        git_remote='public';   git_uri="https://github.com/${github_user}/0.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-#       git_remote='github';   git_uri="ssh://git@github.com/${github_user}/0.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#       git_remote='origin';       git_uri="${lib_dir}/${namespace}.git/${codename}.git";         git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#       git_remote='upstream';     git_uri="git://${upstream_ip}/${codename}.git";                git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+        git_remote="${namespace}"; git_uri="git://git.${domain}/${codename}.git";                 git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+        git_remote='public';       git_uri="https://github.com/${github_user}/${codename}.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#       git_remote='github';       git_uri="ssh://git@github.com/${github_user}/${codename}.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
       } 2> '/dev/null'
 
       git fetch --prune --all || true
@@ -529,7 +532,7 @@ EOS
   fi
 
   # -------------------------------- build --------------------------------
-  if [[ -v do_build ]]; then
+  if [[ -v is_build ]]; then
 
 #   cat "${lib_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
 #   cat "${src_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
@@ -546,7 +549,7 @@ EOS
     # firefox + mpa
     if is_x11; then
 
-      mpa_file="${HOME}/src/com.github/jpki/myna/target/release/mpa"
+      mpa_file="${src_dir}/com.github/jpki/myna/target/release/mpa"
       if [[ -f "${mpa_file}" ]]; then
 
         # manifest
@@ -729,7 +732,7 @@ EOS
   fi
 
   # -------------------------------- domain --------------------------------
-  if [[ -v do_deploy ]]; then
+  if [[ -v is_deploy ]]; then
 
     printf 'y' | sudo ufw reset > '/dev/null'
     sudo ufw reload
@@ -740,7 +743,7 @@ EOS
     # container
     pushd "${HOME}" &> '/dev/null'
 
-      if [[ -v do_build ]]; then
+      if [[ -v is_build ]]; then
         podman-compose pull || true
         podman-compose build # --pull --no-cache
       fi
@@ -766,12 +769,12 @@ EOS
       sleep 1
       podman-compose up git apt container &
       sleep 1
-      podman-compose up mariadb pgsql redis mongo chroma &
-      sleep 5
+#     podman-compose up mariadb pgsql redis mongo chroma &
+#     sleep 5
       podman-compose up stun tor btc eth &
       sleep 5
-      podman-compose up minecraft &
-      sleep 3
+#     podman-compose up minecraft &
+#     sleep 3
       podman-compose up setup doc-php chat &
       sleep 3
       podman-compose up doc &

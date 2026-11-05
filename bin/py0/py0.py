@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 import os
-import socket
+import sys
+import ssl
 import subprocess
+import urllib.request
+import json
 
 from datetime import datetime
 
@@ -40,8 +43,72 @@ def fwrite(file, content, encoding="utf8") -> None:
   with open(file, "w", encoding=encoding) as f:
     f.write(content)
 
-def call(*command):
+def call(*command) -> str:
   return subprocess.run(command, capture_output=True, text=True, check=True).stdout.strip()
+
+def assistant(messages, thinking=False) -> str:
+
+  payload = {
+    "model": "default",
+    "stream": True,
+    "messages": messages,
+    "chat_template_kwargs": {"enable_thinking": thinking},
+  }
+
+  url = f"https://chat.{domain}/v1/chat/completions"
+  req = urllib.request.Request(
+    url,
+    data    = json.dumps(payload).encode("utf-8"),
+    headers = {"Content-Type": "application/json"},
+    method  = "POST",
+  )
+
+# ctx = ssl.create_default_context(cafile=crt_file)
+  ctx = ssl.create_default_context()
+  ctx.check_hostname = False
+  ctx.verify_mode    = ssl.CERT_NONE
+
+  content = None
+  with urllib.request.urlopen(req, context=ctx) as resp:
+
+    content = []
+    for raw in resp:
+
+      line = raw.decode("utf-8").strip()
+      if not line.startswith("data:"):
+        continue
+
+      data = line[len("data:"):].strip()
+      if data == "[DONE]":
+        break
+
+      chunk   = json.loads(data)
+      choices = chunk.get("choices", [])
+
+      for choice in choices:
+
+        delta = choice.get("delta", {})
+
+        # reasoning
+        data = delta.get("reasoning_content") or delta.get("reasoning")
+        if data:
+          sys.stdout.write(data)
+          sys.stdout.flush()
+#         content.append(data)
+
+        # content
+        data = delta.get("content")
+        if data:
+          sys.stdout.write(data)
+          sys.stdout.flush()
+          content.append(data)
+
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
+    content = "".join(content)
+
+  return content
 
 pwd       = os.getcwd()
 user      = os.environ.get("USER")

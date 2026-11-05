@@ -7,11 +7,20 @@ set -o pipefail
 (
 
   # apt
-  if true; then
-    sudo apt update
-    sudo apt upgrade    -y
-    sudo apt autoremove -y
-  fi
+  sudo apt update
+  sudo apt upgrade    -y
+  sudo apt autoremove -y
+
+  # rkhunter
+  sudo rkhunter --update
+# sudo rkhunter --propupd
+# sudo rkhunter --versioncheck
+# sudo rkhunter --check --skip-keypress
+
+  # clamav
+  sudo systemctl stop  clamav-freshclam
+  sudo freshclam
+  sudo systemctl start clamav-freshclam
 
   # container
   podman images --noheading --format "{{.Repository}}:{{.Tag}}" | grep -v '<none>' | grep -v "container.$(hostname -d)" | while read i; do
