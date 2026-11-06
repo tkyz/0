@@ -7,29 +7,33 @@ import magic
 
 from git import Repo
 
-dic_dir = py0.doc_dir + "/chat"
-
 def copilot() -> None:
 
   messages = []
 # messages.append({"role": "system", "content": None})
 
-  repo = Repo(".")
+  repo = Repo(".", search_parent_directories=True)
   for blob in repo.head.commit.tree.traverse():
 
     if "blob" != blob.type:
       continue
 
-    path    = blob.path
-    data    = blob.data_stream.read()
-    mime    = magic.from_buffer(data, mime=True)
-    content = None
+    path      = blob.path
+    full_path = repo.working_dir + "/" + path
+    content   = None
 
-    is_text  = False
-    is_text |= mime.startswith("text/")
-    is_text |= mime.startswith("application/json")
-    if is_text:
-      content = data.decode("utf8")
+    if os.path.isfile(full_path):
+      mime = magic.from_file(full_path, mime=True)
+      if is_text(mime):
+        content = py0.fread(full_path)
+    else:
+      data = blob.data_stream.read()
+      mime = magic.from_buffer(data, mime=True)
+      if is_text(mime):
+        try:
+          content = data.decode("utf8")
+        except UnicodeDecodeError:
+          pass
 
     messages.append({"role": path, "content": content})
 
@@ -41,6 +45,14 @@ def copilot() -> None:
 
     messages.append({"role": "user",      "content": line})
     messages.append({"role": "assistant", "content": py0.assistant(messages)})
+
+def is_text(mime_type) -> bool:
+
+  is_text  = False
+  is_text |= mime_type.startswith("text/")
+  is_text |= mime_type.startswith("application/json")
+
+  return is_text
 
 def main() -> None:
   try:

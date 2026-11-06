@@ -283,7 +283,7 @@ services:
   apt:
     build:
       context: '${HOME}/src/org.debian/apt-cacher-ng'
-    image: 'container.${domain}/org.debian/apt-cacher-ng:${tag}'
+    image: 'container.${domain}/org.debian/apt-cacher-ng:${version}'
     container_name: apt
     expose:
       - 3142
@@ -337,7 +337,7 @@ services:
   minecraft:
     build:
       context: '${HOME}/src/net.minecraftforge'
-    image: 'container.${domain}/net.minecraftforge:${tag}'
+    image: 'container.${domain}/net.minecraftforge:${version}'
     container_name: minecraft
     ports:
       - '${lan_ip}:25565:25565'
@@ -389,7 +389,7 @@ services:
   doc-php:
     build:
       context: '${HOME}/src/net.php/fpm'
-    image: 'container.${domain}/net.php/fpm:${tag}'
+    image: 'container.${domain}/net.php/fpm:${version}'
     container_name: doc-php
     expose:
       - 9000

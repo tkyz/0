@@ -33,127 +33,14 @@ set -o pipefail
 (
 
   readonly codename='0'
-  readonly upstream_ip=''
+  readonly version='latest'
 
+  readonly upstream_ip=''
   readonly dns_ip='1.1.1.1'
+  readonly jpki_id='e65fe741dc7eef846bedbdd8fae6ca9702e79764a8d49e6fd7922165c40e0182'
   readonly github_user='tkyz'
 
-  is_setup=
-  is_build=
-# is_deploy=
-
-  # -------------------------------- setup --------------------------------
-
-  set -a
-    source <(cat '/etc/os-release' | sed 's/^/readonly /g')
-  set +a
-
-  test 'debian' == "${ID_LIKE:-${ID}}"
-  test 'bash'   == "${SHELL##*/}"
-  sudo -v -n
-
-  readonly bin_dir="${HOME}/bin"
-  readonly dat_dir="${HOME}/dat"
-  readonly doc_dir="${HOME}/doc"
-  readonly enc_dir="${HOME}/enc"
-  readonly lib_dir="${HOME}/lib"
-  readonly mnt_dir="${HOME}/mnt"
-  readonly opt_dir="${HOME}/opt"
-  readonly sbin_dir="${HOME}/sbin"
-  readonly src_dir="${HOME}/src"
-  readonly tmp_dir="${HOME}/tmp"
-
-  readonly domain="$(hostname -d)"
-  readonly namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
-
-  export DEBIAN_FRONTEND='noninteractive'
-
-  if [[ -v is_setup ]]; then
-
-    # dns
-    echo "nameserver ${dns_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
-
-    # keyboard
-    cat << EOS | sudo tee '/etc/default/keyboard' > '/dev/null'
-XKBMODEL=pc105
-XKBLAYOUT=jp
-XKBVARIANT=
-XKBOPTIONS=ctrl:nocaps
-BACKSPACE=guess
-EOS
-
-    # sysctl
-#   sudo sysctl --write fs.inotify.max_user_instances=128 #  1024
-#   sudo sysctl --write fs.inotify.max_user_watches=8192  # 65536
-
-    # apt
-    if :; then
-
-      # repo
-      cat << EOS | sudo tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
-deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
-deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
-deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
-deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
-deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
-deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
-deb     http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
-deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
-#deb     http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
-#deb-src http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
-#deb     http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
-#deb-src http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
-#deb     http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
-#deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
-EOS
-
-      sudo apt-get update
-      sudo apt-get upgrade -y
-      sudo apt-get install -y extrepo curl gnupg2
-
-      # extrepo
-      if :; then
-
-        cat << EOS | sudo tee '/etc/extrepo/config.yaml' > '/dev/null'
-url: https://extrepo-team.pages.debian.net/extrepo-data
-dist: debian
-version: trixie
-enabled_policies:
-  - main
-  - contrib
-  - non-free
-EOS
-
-#       sudo extrepo enable nvidia-cuda
-        sudo extrepo enable kubernetes
-        sudo extrepo enable openvpn
-        sudo extrepo enable virtualbox
-#       sudo extrepo enable github-cli
-#       sudo extrepo enable google_cloud
-#       sudo extrepo enable dotnet
-        sudo extrepo enable winehq
-
-      fi
-
-      # nvidia
-      #   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian
-      if :; then
-
-        pub_file='/etc/apt/keyrings/nvidia-container-toolkit.gpg'
-        src_file='/etc/apt/sources.list.d/nvidia-container-toolkit.list'
-
-        curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey' | sudo gpg --dearmor | sudo tee "${pub_file}" > '/dev/null'
-        cat << EOS | sudo tee "${src_file}" > '/dev/null'
-deb  [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH)       /
-#deb [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/experimental/deb/\$(ARCH) /
-EOS
-
-      fi
-
-      sudo apt-get update
-      sudo apt-get upgrade -y
-
-      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
+  apt_list=($(cat << EOS | sed 's/#.*//g'
 # kernel
   linux-headers-$(uname -r | sed 's/.*-//g')
 
@@ -267,194 +154,9 @@ EOS
   unar
   imagemagick
 EOS
-    fi
+))
 
-    # ufw
-    sudo ufw default deny  incoming
-    sudo ufw default allow outgoing
-    sudo ufw enable
-    sudo ufw reload
-
-    # rkhunter
-    if :; then
-
-      sudo sed -i -r \
-        -e 's/^#?LANGUAGE=.*$/LANGUAGE=ja/g' \
-        -e 's/^#?UPDATE_LANG=.*$/UPDATE_LANG=ja/g' \
-        -e 's/^#?WEB_CMD=.*$/WEB_CMD=""/g' \
-        -e 's/^#?UPDATE_MIRRORS=.*$/UPDATE_MIRRORS=1/g' \
-        -e 's/^#?MIRRORS_MODE=.*$/MIRRORS_MODE=0/g' \
-        -e 's/^#?PKGMGR=.*$/PKGMGR=DPKG/g' \
-        '/etc/rkhunter.conf'
-
-      sudo rkhunter --update || true
-      sudo rkhunter --propupd
-#     sudo rkhunter --versioncheck
-#     sudo rkhunter --check --skip-keypress
-
-    fi
-
-    # clamav
-    sudo systemctl stop  clamav-freshclam
-    sudo freshclam
-    sudo systemctl start clamav-freshclam
-
-    # ssh
-    sudo sed -i -r \
-      -e 's/^#?PermitRootLogin[[:space:]].*$/PermitRootLogin no/g' \
-      -e 's/^#?PermitEmptyPasswords[[:space:]].*$/PermitEmptyPasswords no/g' \
-      -e 's/^#?PasswordAuthentication[[:space:]].*$/PasswordAuthentication no/g' \
-      -e 's/^#?PubkeyAuthentication[[:space:]].*$/PubkeyAuthentication yes/g' \
-      -e 's/^#?StrictModes[[:space:]].*$/StrictModes yes/g' \
-      -e 's|^#?AuthorizedKeysFile[[:space:]].*$|AuthorizedKeysFile .ssh/authorized_keys|g' \
-      '/etc/ssh/sshd_config'
-#     -e 's/^#?MaxAuthTries .*$/MaxAuthTries 1/g' \
-
-    # container
-    sudo sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
-
-    # pcsc
-    if :; then
-
-      # LIBUSB_ERROR_BUSY
-      cat << EOS | sudo tee '/etc/modprobe.d/blacklist-nfc.conf'
-blacklist nfc
-blacklist pn533
-blacklist pn533_usb
-EOS
-
-      sudo rmmod pn533_usb pn533 nfc 2> '/dev/null' || true
-
-    fi
-
-    # cups
-    #   https://www.brother.co.jp/support/index.aspx
-    #   https://canon.jp/support/software
-    #   https://www.epson.jp/support/download/
-
-    # .venv
-    python3 -m venv "${HOME}/.venv"
-    source "${HOME}/.venv/bin/activate"
-
-    # pip
-    if :; then
-
-      # pytorch
-      #   https://pytorch.org/get-started/previous-versions/
-      pip install torch==2.6.0  torchvision==0.21.0 torchaudio==2.6.0 --index-url 'https://download.pytorch.org/whl/cu124'
-#     pip install torch==2.12.1 torchvision==0.27.1                   --index-url 'https://download.pytorch.org/whl/cu132'
-
-      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 pip install
-# container
-  podman
-  podman-compose
-
-# util
-  yq
-
-# dl
-  transformers
-EOS
-
-    fi
-
-    # git
-    if :; then
-      git config --global init.defaultBranch main
-      git config --global core.ignorecase    false
-      git config --global core.quotepath     false
-      git config --global core.autocrlf      false
-      git config --global core.safecrlf      true
-      git config --global core.filemode      true
-      git config --global core.symlinks      true
-      git config --global core.hooksPath     "${HOME}/.git-hooks"
-      git config --global color.ui           auto
-      git config --global color.diff         auto
-      git config --global color.status       auto
-      git config --global color.branch       auto
-      git config --global pull.ff            only
-      git config --global pull.rebase        true
-      git config --global pull.autostash     false
-      git config --global rebase.autostash   false
-      git config --global merge.ff           false
-      git config --global diff.sjis.textconv 'iconv -f sjis'
-      git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
-      git config --global gpg.program        "$(type -p gpg)"
-      git config --global commit.gpgsign     true
-    fi
-
-    # .git
-    pushd "${HOME}" &> '/dev/null'
-
-      mkdir -p \
-        "${bin_dir}" \
-        "${dat_dir}" \
-        "${doc_dir}" \
-        "${enc_dir}" \
-        "${lib_dir}" \
-        "${mnt_dir}" \
-        "${opt_dir}" \
-        "${sbin_dir}" \
-        "${src_dir}" \
-        "${tmp_dir}"
-
-#     git init --object-format=sha256 '.'
-      git init                        '.'
-
-      # remote
-      {
-#       git_remote='origin';       git_uri="${lib_dir}/${namespace}.git/${codename}.git";         git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-#       git_remote='upstream';     git_uri="git://${upstream_ip}/${codename}.git";                git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-        git_remote="${namespace}"; git_uri="git://git.${domain}/${codename}.git";                 git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-        git_remote='public';       git_uri="https://github.com/${github_user}/${codename}.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-#       git_remote='github';       git_uri="ssh://git@github.com/${github_user}/${codename}.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
-      } 2> '/dev/null'
-
-      git fetch --prune --all || true
-
-      # head
-      git remote | while read remote; do
-        git remote set-head "${remote}" 'main' || true
-      done
-
-      # checkout
-      if git checkout --orphan 'main' 2> '/dev/null'; then
-
-        {
-          ( git reset --mixed 'origin/main'    && git branch --set-upstream-to='origin/main'   ) ||
-          ( git reset --mixed "${domain}/main" && git branch --set-upstream-to="${domain}/main") ||
-          ( git reset --mixed 'public/main'    && git branch --set-upstream-to='public/main'   ) ||
-          ( git reset --mixed 'github/main'    && git branch --set-upstream-to='github/main'   ) ||
-          true
-        } 2> '/dev/null'
-
-        if [[ ! -f './setup' ]]; then
-
-          git diff --name-only -z --diff-filter=D | xargs -0 git checkout
-
-          cp './.profile' './.profile.bk'; git checkout './.profile'
-          cp './.bashrc'  './.bashrc.bk';  git checkout './.bashrc'
-
-          # activate profile
-          set +o errexit +o nounset +o pipefail
-            source './.profile'
-          set -o errexit -o nounset -o pipefail
-
-        fi
-
-      fi
-
-      git gc
-      git status
-
-    popd &> '/dev/null'
-
-    # x11
-    if is_x11; then
-
-#     sudo tasksel
-
-      cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo apt-get install -y
+  apt_list_x11=($(cat << EOS | sed 's/#.*//g'
 # desktop
   task-japanese-desktop
 # task-japanese-gnome-desktop
@@ -486,14 +188,9 @@ EOS
   tumbler-plugins-extra
   ffmpegthumbnailer
 EOS
+))
 
-      # flatpak
-      #   https://flathub.org/ja/setup/Debian
-      if :; then
-
-        sudo flatpak remote-add --if-not-exists flathub 'https://dl.flathub.org/repo/flathub.flatpakrepo'
-
-        cat << EOS | sed 's/#.*//g' | xargs --no-run-if-empty sudo flatpak install -y flathub
+  flatpak_list=($(cat << EOS | sed 's/#.*//g'
 # text/*
   org.telegram.desktop
 
@@ -502,7 +199,7 @@ EOS
 
 # sound/*
   com.discordapp.Discord
-  org.audacityteam.Audacity
+# org.audacityteam.Audacity
 
 # video/*
   com.obsproject.Studio
@@ -518,25 +215,313 @@ EOS
 # org.libreoffice.LibreOffice
 # com.valvesoftware.Steam
 EOS
+))
 
-      fi
+  pip_list=($(cat << EOS | sed 's/#.*//g'
+# container
+  podman
+  podman-compose
 
-      # wine
+# util
+  yq
+
+# dl
+  transformers
+EOS
+))
+
+  set -a
+    source <(cat '/etc/os-release' | sed 's/^/readonly /g')
+  set +a
+
+  test 'debian' == "${ID_LIKE:-${ID}}"
+  test 'bash'   == "${SHELL##*/}"
+  sudo -v -n
+
+  readonly bin_dir="${HOME}/bin"
+  readonly dat_dir="${HOME}/dat"
+  readonly doc_dir="${HOME}/doc"
+  readonly enc_dir="${HOME}/enc"
+  readonly lib_dir="${HOME}/lib"
+  readonly mnt_dir="${HOME}/mnt"
+  readonly opt_dir="${HOME}/opt"
+  readonly sbin_dir="${HOME}/sbin"
+  readonly src_dir="${HOME}/src"
+  readonly tmp_dir="${HOME}/tmp"
+
+  readonly domain="$(hostname -d)"
+  readonly namespace="$(echo "${domain}" | tr '.' $'\n' | tac | paste -s -d '.')"
+
+  export DEBIAN_FRONTEND='noninteractive'
+
+  # -------------------------------- init --------------------------------
+
+  test ! -d "${HOME}/.git" && readonly is_init=
+
+  if [[ -v is_init ]]; then
+
+    # dns
+    echo "nameserver ${dns_ip}" | sudo tee '/etc/resolv.conf' > '/dev/null'
+
+    # sysctl
+#   sudo sysctl --write fs.inotify.max_user_instances=128 #  1024
+#   sudo sysctl --write fs.inotify.max_user_watches=8192  # 65536
+
+    # keyboard
+    cat << EOS | sudo tee '/etc/default/keyboard' > '/dev/null'
+XKBMODEL=pc105
+XKBLAYOUT=jp
+XKBVARIANT=
+XKBOPTIONS=ctrl:nocaps
+BACKSPACE=guess
+EOS
+
+    # apt
+    if :; then
+
+      # debian
       if :; then
-        winetricks cjkfonts gdiplus || true
-        wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
+
+        cat << EOS | sudo tee '/etc/apt/sources.list.d/org.debian.list' > '/dev/null'
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}           main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-updates   main contrib non-free non-free-firmware
+deb     http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb-src http://deb.debian.org/debian               ${VERSION_CODENAME}-backports main contrib non-free non-free-firmware
+deb     http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security ${VERSION_CODENAME}-security  main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               testing                       main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               unstable                      main contrib non-free non-free-firmware
+#deb     http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian               experimental                  main contrib non-free non-free-firmware
+EOS
+
+        sudo apt-get update
+        sudo apt-get upgrade -y
+        sudo apt-get install -y curl gnupg2 extrepo
+
       fi
+
+      # extrepo
+      if :; then
+
+        cat << EOS | sudo tee '/etc/extrepo/config.yaml' > '/dev/null'
+url: https://extrepo-team.pages.debian.net/extrepo-data
+dist: ${ID}
+version: ${VERSION_CODENAME}
+enabled_policies:
+  - main
+  - contrib
+  - non-free
+EOS
+
+        sudo extrepo disable nvidia-cuda
+        sudo extrepo enable  kubernetes
+        sudo extrepo enable  openvpn
+        sudo extrepo enable  virtualbox
+        sudo extrepo disable github-cli
+        sudo extrepo enable  google_cloud
+        sudo extrepo enable  dotnet
+        sudo extrepo enable  winehq
+
+      fi
+
+      # nvidia
+      #   https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian
+      if :; then
+
+        pub_file='/etc/apt/keyrings/nvidia-container-toolkit.gpg'
+        src_file='/etc/apt/sources.list.d/nvidia-container-toolkit.list'
+
+        curl -fsSL 'https://nvidia.github.io/libnvidia-container/gpgkey' | sudo gpg --dearmor | sudo tee "${pub_file}" > '/dev/null'
+        cat << EOS | sudo tee "${src_file}" > '/dev/null'
+deb  [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/stable/deb/\$(ARCH)       /
+#deb [signed-by=${pub_file}] https://nvidia.github.io/libnvidia-container/experimental/deb/\$(ARCH) /
+EOS
+
+      fi
+
+      sudo apt-get update
+      sudo apt-get upgrade -y
+      sudo apt-get install -y "${apt_list[@]}"
 
     fi
 
-  fi
+    # ufw
+    if :; then
+      sudo ufw default deny  incoming
+      sudo ufw default allow outgoing
+      sudo ufw enable
+    fi
 
-  # -------------------------------- build --------------------------------
-  if [[ -v is_build ]]; then
+    # rkhunter
+    if :; then
 
-#   cat "${lib_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
-#   cat "${src_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+      sudo sed -i -r \
+        -e 's/^#?LANGUAGE=.*$/LANGUAGE=ja/g' \
+        -e 's/^#?UPDATE_LANG=.*$/UPDATE_LANG=ja/g' \
+        -e 's/^#?WEB_CMD=.*$/WEB_CMD=""/g' \
+        -e 's/^#?UPDATE_MIRRORS=.*$/UPDATE_MIRRORS=1/g' \
+        -e 's/^#?MIRRORS_MODE=.*$/MIRRORS_MODE=0/g' \
+        -e 's/^#?PKGMGR=.*$/PKGMGR=DPKG/g' \
+        '/etc/rkhunter.conf'
 
+      sudo rkhunter --update || true
+      sudo rkhunter --propupd
+
+    fi
+
+    # clamav
+    if :; then
+      sudo systemctl stop  clamav-freshclam
+      sudo freshclam
+      sudo systemctl start clamav-freshclam
+    fi
+
+    # ssh
+    if :; then
+      sudo sed -i -r \
+        -e 's/^#?PermitRootLogin[[:space:]].*$/PermitRootLogin no/g' \
+        -e 's/^#?PermitEmptyPasswords[[:space:]].*$/PermitEmptyPasswords no/g' \
+        -e 's/^#?PasswordAuthentication[[:space:]].*$/PasswordAuthentication no/g' \
+        -e 's/^#?PubkeyAuthentication[[:space:]].*$/PubkeyAuthentication yes/g' \
+        -e 's/^#?StrictModes[[:space:]].*$/StrictModes yes/g' \
+        -e 's|^#?AuthorizedKeysFile[[:space:]].*$|AuthorizedKeysFile .ssh/authorized_keys|g' \
+        '/etc/ssh/sshd_config'
+#       -e 's/^#?MaxAuthTries .*$/MaxAuthTries 1/g' \
+    fi
+
+    # pcsc
+    if :; then
+
+      # LIBUSB_ERROR_BUSY
+      cat << EOS | sudo tee '/etc/modprobe.d/blacklist-nfc.conf'
+blacklist nfc
+blacklist pn533
+blacklist pn533_usb
+EOS
+
+      sudo rmmod pn533_usb pn533 nfc 2> '/dev/null' || true
+
+    fi
+
+    # cups
+    #   https://www.brother.co.jp/support/index.aspx
+    #   https://canon.jp/support/software
+    #   https://www.epson.jp/support/download/
+
+    # container
+    sudo sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
+
+    # venv
+    if :; then
+
+      python3 -m venv "${HOME}/.venv"
+      source "${HOME}/.venv/bin/activate"
+
+      # pytorch
+      #   https://pytorch.org/get-started/previous-versions/
+      pip install torch==2.6.0  torchvision==0.21.0 torchaudio==2.6.0 --index-url 'https://download.pytorch.org/whl/cu124'
+#     pip install torch==2.12.1 torchvision==0.27.1                   --index-url 'https://download.pytorch.org/whl/cu132'
+
+      # pip
+      pip install "${pip_list[@]}"
+
+    fi
+
+    # .git
+    pushd "${HOME}" &> '/dev/null'
+
+      mkdir -p \
+        "${bin_dir}" \
+        "${dat_dir}" \
+        "${doc_dir}" \
+        "${enc_dir}" \
+        "${lib_dir}" \
+        "${mnt_dir}" \
+        "${opt_dir}" \
+        "${sbin_dir}" \
+        "${src_dir}" \
+        "${tmp_dir}"
+
+      git config --global init.defaultBranch main
+      git config --global core.ignorecase    false
+      git config --global core.quotepath     false
+      git config --global core.autocrlf      false
+      git config --global core.safecrlf      true
+      git config --global core.filemode      true
+      git config --global core.symlinks      true
+      git config --global core.hooksPath     "${HOME}/.git-hooks"
+      git config --global color.ui           auto
+      git config --global color.diff         auto
+      git config --global color.status       auto
+      git config --global color.branch       auto
+      git config --global pull.ff            only
+      git config --global pull.rebase        true
+      git config --global pull.autostash     false
+      git config --global rebase.autostash   false
+      git config --global merge.ff           false
+      git config --global diff.sjis.textconv 'iconv -f sjis'
+      git config --global filter.lfs.smudge  'git-lfs smudge --skip -- %f'
+      git config --global gpg.program        "$(type -p gpg)"
+      git config --global commit.gpgsign     true
+
+#     git init --object-format=sha256 '.'
+      git init                        '.'
+
+      # remote
+      {
+        git_remote='origin';       git_uri="${lib_dir}/${namespace}.git/${codename}.git";         git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+#       git_remote='upstream';     git_uri="git://${upstream_ip}/${codename}.git";                git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+        git_remote="${namespace}"; git_uri="git://git.${domain}/${codename}.git";                 git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+        git_remote='public';       git_uri="https://github.com/${github_user}/${codename}.git";   git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+        git_remote='github';       git_uri="ssh://git@github.com/${github_user}/${codename}.git"; git remote add "${git_remote}" "${git_uri}" || git remote set-url "${git_remote}" "${git_uri}" || true
+      } 2> '/dev/null'
+
+      git fetch --prune --all || true
+
+      # head
+      git remote | while read remote; do
+        git remote set-head "${remote}" 'main' || true
+      done
+
+      # checkout
+      if git checkout --orphan 'main' 2> '/dev/null'; then
+
+        {
+          ( git reset --mixed 'origin/main'    && git branch --set-upstream-to='origin/main'   ) ||
+          ( git reset --mixed "${domain}/main" && git branch --set-upstream-to="${domain}/main") ||
+          ( git reset --mixed 'public/main'    && git branch --set-upstream-to='public/main'   ) ||
+          ( git reset --mixed 'github/main'    && git branch --set-upstream-to='github/main'   ) ||
+          true
+        } 2> '/dev/null'
+
+        if [[ ! -f './setup' && ! -f './LICENSE' ]]; then
+
+          git diff --name-only -z --diff-filter=D | xargs -0 git checkout
+
+          cp './.profile' './.profile.bk'; git checkout './.profile'
+          cp './.bashrc'  './.bashrc.bk';  git checkout './.bashrc'
+
+          # activate profile
+          set +o errexit +o nounset +o pipefail
+            source './.profile'
+          set -o errexit -o nounset -o pipefail
+
+        fi
+
+      fi
+      license | tee './LICENSE'
+
+      git gc
+      git status
+
+    popd &> '/dev/null'
+
+    # build
     curi 'https://github.com/kubernetes-sigs/kind.git'; podman run               --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
     curi 'https://github.com/sacloud/usacloud.git';     podman run               --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
     curi 'https://github.com/mgdm/htmlq.git';           podman run               --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
@@ -546,11 +531,27 @@ EOS
       cargo build --workspace --release
 EOS
 
-    # firefox + mpa
+    # x11
     if is_x11; then
 
-      mpa_file="${src_dir}/com.github/jpki/myna/target/release/mpa"
-      if [[ -f "${mpa_file}" ]]; then
+#     sudo tasksel
+
+      # apt
+      sudo apt-get install -y "${apt_list_x11[@]}"
+
+      # flatpak
+      #   https://flathub.org/ja/setup/Debian
+      sudo flatpak remote-add --if-not-exists flathub 'https://dl.flathub.org/repo/flathub.flatpakrepo'
+      sudo flatpak install -y flathub "${flatpak_list[@]}"
+
+      # wine
+      winetricks cjkfonts gdiplus || true
+      wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
+
+      # firefox + jpki mpa
+      if :; then
+
+        mpa_file="${src_dir}/com.github/jpki/myna/target/release/mpa"
 
         # manifest
 #       exp_dir="${HOME}/.mozilla/native-messaging-hosts"
@@ -598,28 +599,28 @@ tQlf0x+BqPhgmw==
 EOS
   fi
 
-  # identifier
-  if :; then
+  readonly openpgp4fpr="$(openpgp4fpr)"
+  readonly jpki_id_="$(is_myna && jpki_id || true)"
 
-    readonly openpgp4fpr="$(openpgp4fpr)"
-    readonly jpki_id="" # "$(jpki_id)"
+  readonly machine_id="$(machine_id)"
+  readonly boot_id="$(boot_id)"
+  readonly setup_id="$(uuidgen)"
 
-    readonly machine_id="$(machine_id)"
-    readonly boot_id="$(boot_id)"
-    readonly setup_id="$(uuidgen)"
+  readonly lan_ip="$(ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1)"
+  readonly wan_ip="$(
+    dig +short        'myip.opendns.com'        '@resolver1.opendns.com' ||
+    dig +short        'myip.opendns.com'        '@resolver2.opendns.com' ||
+    dig +short        'myip.opendns.com'        '@resolver3.opendns.com' ||
+    dig +short        'myip.opendns.com'        '@resolver4.opendns.com' ||
+    dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"' ||
+    dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"'
+  )"
 
-    readonly lan_ip="$(ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1)"
-    readonly wan_ip="$(
-      dig +short        'myip.opendns.com'        '@resolver1.opendns.com' ||
-      dig +short        'myip.opendns.com'        '@resolver2.opendns.com' ||
-      dig +short        'myip.opendns.com'        '@resolver3.opendns.com' ||
-      dig +short        'myip.opendns.com'        '@resolver4.opendns.com' ||
-      dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"' ||
-      dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"'
-    )"
+  # .env
+  cat << EOS | sed 's/[ ]*=[ ]*/=/g' > "${HOME}/.env"
+codename    = ${codename}
+version     = ${version}
 
-    # .env
-    cat << EOS | tr -d ' ' > "${HOME}/.env"
 # uid
 openpgp4fpr = ${openpgp4fpr}
 jpki_id     = ${jpki_id}
@@ -636,11 +637,7 @@ wan_ip      = ${wan_ip}
 lan_ip      = ${lan_ip}
 domain      = ${domain}
 namespace   = ${namespace}
-
-tag         = latest
 EOS
-
-  fi
 
   # git
   if :; then
@@ -658,9 +655,12 @@ EOS
   # ssh
   if :; then
 
+    # jpki
+    jpki_auth_ssh="${dat_dir}/uid.jpki_id/${jpki_id}/auth.ssh.pub"
+
+    # onetime
     onetime_key="/tmp/${setup_id}"
     onetime_pub="${onetime_key}.pub"
-
 #   ssh-keygen -t rsa     -b 4096 -C '' -N '' -f "${onetime_key}"
     ssh-keygen -t ed25519 -a 4096 -C '' -N '' -f "${onetime_key}"
 
@@ -668,7 +668,7 @@ EOS
     auth_file="${HOME}/.ssh/authorized_keys"
     {
       cat "${onetime_pub}"
-      is_myna && myna jpki cert --type auth --format der | openssl x509 -inform der -noout -pubkey | ssh-keygen -f '/dev/stdin' -i -m pkcs8 || true
+      test -f "${jpki_auth_ssh}" && cat "${jpki_auth_ssh}"
 #     curl -fsSL "https://github.com/${github_user}.keys"
     } | sort -u > "${auth_file}"
 
@@ -703,7 +703,7 @@ EOS
 
   fi
 
-  # regist
+  # dat
   if :; then
 
     # uid
@@ -712,7 +712,6 @@ EOS
 #   gpg --armor --export-secret-keys                    > "${HOME}/gpg.0x${openpgp4fpr}.key"
 #   jpki_id
 
-    # scope
     mkdir -p \
       "${dat_dir}/uid.machine_id/${machine_id}" \
       "${dat_dir}/uid.boot_id/${boot_id}" \
@@ -731,22 +730,37 @@ EOS
 
   fi
 
-  # -------------------------------- domain --------------------------------
-  if [[ -v is_deploy ]]; then
-
+  # firewall
+  if :; then
     printf 'y' | sudo ufw reset > '/dev/null'
-    sudo ufw reload
+    sudo ufw default deny  incoming
+    sudo ufw default allow outgoing
+    sudo ufw allow 22/tcp
+    sudo ufw enable
+  fi
 
-    # cdi
-    sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
+  # -------------------------------- domain --------------------------------
+
+  # cdi
+  sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
+
+  if [[ '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
+
+    # pull
+    if [[ -v is_init ]]; then
+
+      cat "${lib_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+      cat "${src_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+
+      pushd "${HOME}" &> '/dev/null'
+        podman-compose pull || true
+        podman-compose build # --pull --no-cache
+      popd &> '/dev/null'
+
+    fi
 
     # container
     pushd "${HOME}" &> '/dev/null'
-
-      if [[ -v is_build ]]; then
-        podman-compose pull || true
-        podman-compose build # --pull --no-cache
-      fi
 
 #     podman-compose down
 
@@ -811,27 +825,18 @@ EOS
 
         # tcp
         sudo ufw allow from "${from}" to any port     7 proto tcp
-        sudo ufw allow from "${from}" to any port    22 proto tcp
         sudo ufw allow from "${from}" to any port   443 proto tcp
         sudo ufw allow from "${from}" to any port  9418 proto tcp
 
       done
 
-      # deny
-      froms=()
-#     froms+=($(cat "${HOME}/dat/net.ipv4/ban.txt"))
-      for from in "${froms[@]}"; do
-        sudo ufw insert 1 deny from "${from}" to any
-      done
-
       sudo ufw reload
 
     fi
-    sudo ufw status verbose
 
   fi
 
-  # -------------------------------- clean --------------------------------
+  # clean
   if :; then
 
     sudo apt-get autoremove -y
@@ -844,5 +849,8 @@ EOS
     podman network prune --force || true
 
   fi
+
+# sudo ufw status verbose
+  sudo ufw status numbered
 
 ) >&2
