@@ -2,12 +2,13 @@
 
 from py0 import py0
 
+import os
 import sys
 import magic
 
 from git import Repo
 
-def copilot() -> None:
+def chat() -> None:
 
   messages = []
 # messages.append({"role": "system", "content": None})
@@ -56,7 +57,7 @@ def is_text(mime_type) -> bool:
 
 def main() -> None:
   try:
-    copilot()
+    chat()
   except KeyboardInterrupt:
     pass
 

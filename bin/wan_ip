@@ -1,0 +1,14 @@
+#!/bin/bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
+(
+  dig +short        'myip.opendns.com'        '@resolver1.opendns.com' ||
+  dig +short        'myip.opendns.com'        '@resolver2.opendns.com' ||
+  dig +short        'myip.opendns.com'        '@resolver3.opendns.com' ||
+  dig +short        'myip.opendns.com'        '@resolver4.opendns.com' ||
+  dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"' ||
+  dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"'
+)

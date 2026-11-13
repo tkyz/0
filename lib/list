@@ -1,6 +1,7 @@
 # model
 
   # text -> text
+    https://huggingface.co/llm-jp/llm-jp-4.1-33b-thinking.git
 #   https://huggingface.co/google/gemma-4-31B.git
     https://huggingface.co/google/gemma-4-31B-it.git
 #   https://huggingface.co/Qwen/Qwen3.6-35B-A3B.git
@@ -8,6 +9,8 @@
   # text -> image
     https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/sd_xl_base_1.0.safetensors.git
 #   https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/sd_xl_refiner_1.0.safetensors.git
+    https://huggingface.co/OpenMOSS-Team/MOSS-Image-Base.git
+    https://huggingface.co/OpenMOSS-Team/MOSS-Image-SFT.git
 
   # text -> video
     https://huggingface.co/stabilityai/stable-video-diffusion-img2vid/svd.safetensors.git

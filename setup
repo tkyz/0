@@ -584,11 +584,23 @@ EOS
 
   # -------------------------------- identifier --------------------------------
 
+  readonly machine_id="$(machine_id)"
+  readonly boot_id="$(boot_id)"
+  readonly setup_id="$(uuidgen)"
+
+  readonly lan_ip="$(lan_ip)"
+  readonly wan_ip="$(wan_ip)"
+
+  test 'e42365e88cf5e7f34334a44155eb09da0242a7cf20c3cdc6153686b1b9ed198a' == "$(echo -n "${wan_ip}"     | vhash)" && is_machine_01=
+# test 'e05e9d2069ab485407fa8c3bd0d7335f64c4b9f8de99f17c5102b819c61ef16e' == "$(echo -n "${machine_id}" | vhash)" && is_machine_01=
+# test '24920d4fa648fe61fe959e3edfcf557a70abb7e926140fe50322c1d45ca47f02' == "$(echo -n "${lan_ip}"     | vhash)" && is_machine_02=
+  test '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(echo -n "${machine_id}" | vhash)" && is_machine_02=
+
   # ⚠️restore
 # bkuser "${USER}" '00000000-0000-0000-0000-000000000000' 'restore'
 
   # ⚠️暗号化ペイロード
-  if [[ '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
+  if [[ -v is_machine_02 ]]; then
 #   cat << 'EOS' | enc | base64
     cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
 hF4DAAAAAAAAAAASAQdAyzMylrtsuLM37O3VI5L1GbT1PrGv2M37SI0GaVdHfRQwVjCqw9LgFy08
@@ -601,20 +613,6 @@ EOS
 
   readonly openpgp4fpr="$(openpgp4fpr)"
   readonly jpki_id_="$(is_myna && jpki_id || true)"
-
-  readonly machine_id="$(machine_id)"
-  readonly boot_id="$(boot_id)"
-  readonly setup_id="$(uuidgen)"
-
-  readonly lan_ip="$(ip -4 addr | grep inet | grep 'scope global' | awk -F ' ' '{print $2}' | sed 's|/.*||g' | head -n 1)"
-  readonly wan_ip="$(
-    dig +short        'myip.opendns.com'        '@resolver1.opendns.com' ||
-    dig +short        'myip.opendns.com'        '@resolver2.opendns.com' ||
-    dig +short        'myip.opendns.com'        '@resolver3.opendns.com' ||
-    dig +short        'myip.opendns.com'        '@resolver4.opendns.com' ||
-    dig +short txt ch 'whoami.cloudflare'       '@1.1.1.1'        | tr -d '"' ||
-    dig +short txt    'o-o.myaddr.l.google.com' '@ns1.google.com' | tr -d '"'
-  )"
 
   # .env
   cat << EOS | sed 's/[ ]*=[ ]*/=/g' > "${HOME}/.env"
@@ -744,23 +742,21 @@ EOS
   # cdi
   sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
 
-  if [[ '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(echo -n "$(machine_id)" | vhash)" ]]; then
+  # container
+  pushd "${HOME}" &> '/dev/null'
 
-    # pull
-    if [[ -v is_init ]]; then
+    if [[ -v is_machine_02 ]]; then
 
-      cat "${lib_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
-      cat "${src_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+      # pull
+      if [[ -v is_init ]]; then
 
-      pushd "${HOME}" &> '/dev/null'
+        cat "${lib_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+        cat "${src_dir}/list" | sed 's/#.*//g' | xargs --no-run-if-empty -n 1 curi
+
         podman-compose pull || true
         podman-compose build # --pull --no-cache
-      popd &> '/dev/null'
 
-    fi
-
-    # container
-    pushd "${HOME}" &> '/dev/null'
+      fi
 
 #     podman-compose down
 
@@ -802,37 +798,39 @@ EOS
         sleep 1
       sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
-    popd &> '/dev/null'
-
-    # firewall
-    if :; then
-
-      # allow
-      froms=()
-#     froms+=('0.0.0.0')
-#     froms+=('10.0.0.0/8')
-#     froms+=('172.16.0.0/12')
-#     froms+=('192.168.0.0/16')
-      froms+=("${lan_ip}")
-#     froms+=("${wan_ip}")
-      for from in "${froms[@]}"; do
-
-        # udp
-        sudo ufw allow from "${from}" to any port     7 proto udp
-        sudo ufw allow from "${from}" to any port    53 proto udp
-        sudo ufw allow from "${from}" to any port   123 proto udp
-        sudo ufw allow from "${from}" to any port  3478 proto udp
-
-        # tcp
-        sudo ufw allow from "${from}" to any port     7 proto tcp
-        sudo ufw allow from "${from}" to any port   443 proto tcp
-        sudo ufw allow from "${from}" to any port  9418 proto tcp
-
-      done
-
-      sudo ufw reload
-
     fi
+
+  popd &> '/dev/null'
+
+  # firewall
+  if :; then
+
+    # allow
+    froms=()
+#   froms+=('0.0.0.0')
+#   froms+=('10.0.0.0/8')
+#   froms+=('172.16.0.0/12')
+#   froms+=('192.168.0.0/16')
+    froms+=("${lan_ip}")
+#   froms+=("${wan_ip}")
+    for from in "${froms[@]}"; do
+
+      # udp
+      sudo ufw allow from "${from}" to any port     7 proto udp
+      sudo ufw allow from "${from}" to any port    53 proto udp
+      sudo ufw allow from "${from}" to any port   123 proto udp
+      sudo ufw allow from "${from}" to any port  3478 proto udp
+
+      # tcp
+      sudo ufw allow from "${from}" to any port     7 proto tcp
+      sudo ufw allow from "${from}" to any port   443 proto tcp
+      sudo ufw allow from "${from}" to any port  9418 proto tcp
+
+    done
+
+    sudo ufw reload
+#   sudo ufw status verbose
+    sudo ufw status numbered
 
   fi
 
@@ -849,8 +847,5 @@ EOS
     podman network prune --force || true
 
   fi
-
-# sudo ufw status verbose
-  sudo ufw status numbered
 
 ) >&2
