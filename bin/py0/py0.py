@@ -3,13 +3,25 @@
 import os
 import sys
 import ssl
+import hashlib
 import subprocess
 import urllib.request
 import json
 
 from datetime import datetime
 
-def _env(name) -> str:
+def vhash(text: str) -> str:
+
+  blk0  = b"public"
+  hash0 = hashlib.sha256(blk0).hexdigest()
+
+  hasher = hashlib.sha256()
+  hasher.update((hash0 + "\n").encode())
+  hasher.update(text.encode())
+
+  return hasher.hexdigest()
+
+def _env(name: str) -> str:
 
   ret = None
 

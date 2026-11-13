@@ -591,10 +591,10 @@ EOS
   readonly lan_ip="$(lan_ip)"
   readonly wan_ip="$(wan_ip)"
 
-  test 'e42365e88cf5e7f34334a44155eb09da0242a7cf20c3cdc6153686b1b9ed198a' == "$(echo -n "${wan_ip}"     | vhash)" && is_machine_01=
-# test 'e05e9d2069ab485407fa8c3bd0d7335f64c4b9f8de99f17c5102b819c61ef16e' == "$(echo -n "${machine_id}" | vhash)" && is_machine_01=
-# test '24920d4fa648fe61fe959e3edfcf557a70abb7e926140fe50322c1d45ca47f02' == "$(echo -n "${lan_ip}"     | vhash)" && is_machine_02=
-  test '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(echo -n "${machine_id}" | vhash)" && is_machine_02=
+  test 'e42365e88cf5e7f34334a44155eb09da0242a7cf20c3cdc6153686b1b9ed198a' == "$(vhash "${wan_ip}")"     && is_machine_01=
+# test 'e05e9d2069ab485407fa8c3bd0d7335f64c4b9f8de99f17c5102b819c61ef16e' == "$(vhash "${machine_id}")" && is_machine_01=
+# test '24920d4fa648fe61fe959e3edfcf557a70abb7e926140fe50322c1d45ca47f02' == "$(vhash "${lan_ip}")"     && is_machine_02=
+  test '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(vhash "${machine_id}")" && is_machine_02=
 
   # ⚠️restore
 # bkuser "${USER}" '00000000-0000-0000-0000-000000000000' 'restore'
@@ -787,9 +787,9 @@ EOS
 #     sleep 3
       podman-compose up setup doc-php chat &
       sleep 3
-      podman-compose up doc &
+      podman-compose up doc evidence &
       sleep 3
-#     podman-compose up evidence comfyui &
+#     podman-compose up comfyui &
 #     sleep 3
 
       # port: ~1023

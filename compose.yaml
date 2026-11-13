@@ -93,7 +93,7 @@ services:
       - {type: bind, source: '${HOME}/src/0.proxy/conf.d/doc.conf',       target: /etc/nginx/conf.d/doc.conf,       read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/conf.d/setup.conf',     target: /etc/nginx/conf.d/setup.conf,     read_only: true}
       - {type: bind, source: '${HOME}/src/0.proxy/conf.d/chat.conf',      target: /etc/nginx/conf.d/chat.conf,      read_only: true}
-#     - {type: bind, source: '${HOME}/src/0.proxy/conf.d/evidence.conf',  target: /etc/nginx/conf.d/evidence.conf,  read_only: true}
+      - {type: bind, source: '${HOME}/src/0.proxy/conf.d/evidence.conf',  target: /etc/nginx/conf.d/evidence.conf,  read_only: true}
 #     - {type: bind, source: '${HOME}/src/0.proxy/conf.d/comfyui.conf',   target: /etc/nginx/conf.d/comfyui.conf,   read_only: true}
     restart: on-failure
 
@@ -118,7 +118,7 @@ services:
           --no-cli \
           --fingerprint \
           --log-file=stdout
-#   restart: on-failure
+    restart: on-failure
 
   tor:
     image: docker.io/library/alpine:latest
@@ -427,9 +427,10 @@ services:
       - 3000
     volumes:
       - {type: bind, source: '${HOME}/.npm',                                 target: /root/.npm}
-      - {type: bind, source: '${HOME}/src/com.github/evidence-dev/template', target: /dev.evidence}
-      - {type: bind, source: '${HOME}/doc',                                  target: /dev.evidence/pages, read_only: true}
-    working_dir: /dev.evidence
+      - {type: bind, source: '${HOME}/src/com.github/evidence-dev/evidence', target: /evidence}
+      - {type: bind, source: '${HOME}/src/com.github/evidence-dev/template', target: /template} # legacy
+      - {type: bind, source: '${HOME}/doc',                                  target: /template/pages, read_only: true}
+    working_dir: /template
     entrypoint:
       - /bin/bash
       - -c
@@ -438,8 +439,8 @@ services:
         apt-get update
         apt-get install -y xdg-utils
         npm install
-        tail -f /dev/null # TODO: cli?
         npm run sources
+        ( sleep 3 && sed -i 's/server: {/server: { allowedHosts: ["evidence.${domain}"],/g' '.evidence/template/vite.config.js' ) &
         npm run dev -- --host 0.0.0.0
 #   restart: on-failure
 
@@ -482,7 +483,7 @@ services:
 #   restart: on-failure
 
   comfyui:
-    image: docker.io/library/python:latest
+    image: docker.io/library/python:3.13
     container_name: comfyui
     devices:
       - nvidia.com/gpu=all
@@ -529,7 +530,7 @@ services:
         echo 'Acquire::http::Proxy "http://apt:3142/";' | tee '/etc/apt/apt.conf.d/00proxy'
         apt-get update
         apt-get install -y ffmpeg
-        pip install torch==2.6.0  torchvision==0.21.0 torchaudio==2.6.0 --index-url 'https://download.pytorch.org/whl/cu124'
+        pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url 'https://download.pytorch.org/whl/cu124'
         pip install --requirement requirements.txt
         cat << EOS | sort -u | pip install --requirement '/dev/stdin'
         imageio-ffmpeg
@@ -542,4 +543,35 @@ services:
         diffusers
         EOS
         python main.py --listen
+#   restart: on-failure
+
+  invokeai:
+    image: docker.io/library/node:latest
+    container_name: invokeai
+    devices:
+      - nvidia.com/gpu=all
+#   expose:
+#     - 9090
+#   ports:
+#     - '${lan_ip}:9090:9090'
+    volumes:
+      - {type: bind, source: '${HOME}/.cache/pip',                        target: /root/.cache/pip}
+      - {type: bind, source: '${HOME}/.local/share/pnpm',                 target: /root/.local/share/pnpm}
+      - {type: bind, source: '${HOME}/src/com.github/invoke-ai/invokeai', target: /invokeai}
+    working_dir: /invokeai
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        echo 'Acquire::http::Proxy "http://apt:3142/";' | tee '/etc/apt/apt.conf.d/00proxy'
+        apt-get update
+        apt-get install -y python3 python3-pip python3-venv
+        python3 -m venv '/.venv'
+        source '/.venv/bin/activate'
+        npm i -g pnpm
+        pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url 'https://download.pytorch.org/whl/cu124'
+        pushd './invokeai/frontend/webv2' &> '/dev/null'
+          pnpm install
+          pnpm build
+        popd &> '/dev/null'
 #   restart: on-failure

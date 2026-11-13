@@ -68,7 +68,7 @@ set -o pipefail
     git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
     git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
 
-    git_pull "${git_dir}" 'github' "${uri}"
+    git_pull "${git_dir}" 'upstream' "${uri}"
 
   elif [[ "${uri}" =~ ^https://gitlab\.com/.+\.git$ ]]; then
 
@@ -76,7 +76,7 @@ set -o pipefail
     git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
     git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
 
-    git_pull "${git_dir}" 'gitlab' "${uri}"
+    git_pull "${git_dir}" 'upstream' "${uri}"
 
   elif [[ "${uri}" =~ ^https://huggingface\.co/.+\.git$ ]]; then
 
@@ -84,7 +84,7 @@ set -o pipefail
     git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\1|g' | tr '.' $'\n' | tac | paste -s -d '.')"
     git_dir+="/$(echo "${uri}" | sed -E 's|^https://([^/]+)/(.+)\.git$|\2|g')"
 
-    git_pull "${git_dir}" 'huggingface' "${uri}"
+    git_pull "${git_dir}" 'upstream' "${uri}"
 
   fi
 
