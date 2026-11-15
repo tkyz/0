@@ -24,7 +24,7 @@
 - マイナンバーカード
   - 公的個人認証AP
     - EF000A
-      - [ssh](./dat/uid.jpki_id/4abc370b9ad260aeebb12eda1d794d7fa80a87742ef637698ca145ce9129209b/auth.ssh.pub)
+      - [ssh](./dat/uid.jpki_id/e65fe741dc7eef846bedbdd8fae6ca9702e79764a8d49e6fd7922165c40e0182/auth.ssh.pub)
 
 🙏 寄付
 |<img src='./dat/blockchain/btc/icon.png'                                       height=20> btc|<img src='./dat/blockchain/eth/icon.png'                                       height=20> eth|<img src='./dat/blockchain/sol/icon.png'                                         height=20> sol|<img src='./dat/blockchain/xrp/icon.png'                               height=20> xrp|

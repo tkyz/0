@@ -35,15 +35,15 @@ if true; then
   export JAVA_HOME="${HOME}/opt/net.java.jdk"
   PATH="${JAVA_HOME}/bin:${PATH}"
 
+# PATH="${HOME}/opt/org.gradle/bin:${PATH}"
+  PATH="${HOME}/opt/org.apache.ant/bin:${PATH}"
+  PATH="${HOME}/opt/org.apache.maven/bin:${PATH}"
+
   : << 'DISABLED'
 export CLASSPATH='.:./*'
 while read item; do
   CLASSPATH="${item}:${CLASSPATH}"
 done < <(find "${HOME}/.m2/repository/0" -mindepth 3 -maxdepth 3 -type f -name '*-latest.jar')
-
-PATH="${HOME}/opt/org.gradle/bin:${PATH}"
-PATH="${HOME}/opt/org.apache.ant/bin:${PATH}"
-PATH="${HOME}/opt/org.apache.maven/bin:${PATH}"
 DISABLED
 
 fi

@@ -137,6 +137,10 @@ set -o pipefail
   openssh-client
   openssh-server
 
+# archive
+  unar
+  libarchive-tools
+
 # k8s
   kubectl
 # kubelet
@@ -151,7 +155,6 @@ set -o pipefail
   rsync
   jq
   qrencode
-  unar
   imagemagick
 EOS
 ))
@@ -165,6 +168,7 @@ EOS
 # task-kde-desktop
   zenity
 
+# ibus
   ibus-mozc
   fcitx5
   fcitx5-mozc
@@ -229,6 +233,86 @@ EOS
   transformers
 EOS
 ))
+
+  opt_yaml="$(cat << EOS | sed 's/#.*//g'
+net.java.jdk:
+  - https://download.java.net/java/GA/jdk27.0.1.0.3/b14170c9b2de463d9b89442c6db3e384/1/GPL/openjdk-27.0.1.0.3_linux-x64_bin.tar.gz
+  - https://download.java.net/java/GA/javafx27.0.1/92832825adb44a9594d978fc23cca518/5/openjfx-27.0.1_linux-x64_bin-sdk.tar.gz
+
+org.apache.ant:
+  - https://dlcdn.apache.org/ant/binaries/apache-ant-1.10.18-bin.tar.gz
+# - https://dlcdn.apache.org/ant/ivy/2.6.0/apache-ivy-2.6.0-bin.tar.gz
+
+org.apache.maven:
+  - https://dlcdn.apache.org/maven/maven-3/3.10.0/binaries/apache-maven-3.10.0-bin.tar.gz
+EOS
+)"
+
+  opt_yaml_x11="$(cat << EOS | sed 's/#.*//g'
+jp.co.maruo.hide/hidemaru:
+  - https://hide.maruo.co.jp/software/bin/hm960_x64_signed.exe
+
+jp.co.maruo.hide/hmfilerclassic:
+  - https://hide.maruo.co.jp/software/bin/hmfilerclassic223_x64_signed.exe
+
+io.github.sakura-editor:
+  - https://github.com/sakura-editor/sakura/releases/download/v2.4.3/sakura-tag-v2.4.3-build2916-fe1a4a281-Win32-Release-Exe.zip
+
+net.minecraft:
+  - https://launcher.mojang.com/download/Minecraft.tar.gz
+
+org.eclipse:
+  - https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2026-09/R/eclipse-java-2026-09-R-linux-gtk-x86_64.tar.gz&mirror_id=1
+  - https://ftp.jaist.ac.jp/pub/mergedoc/pleiades/build/stable/pleiades.zip
+
+com.voideditor:
+  - https://github.com/voideditor/binaries/releases/download/1.99.30044/Void-linux-x64-1.99.30044.tar.gz
+EOS
+)"
+
+  function opt_func() {
+    (
+      cat '/dev/stdin' | yq -cr "to_entries[]" | while read entry; do
+
+        key="$(echo "${entry}" | yq -cr '.key')"
+        val="$(echo "${entry}" | yq -cr '.value')"
+
+        opt_dir_="${opt_dir}/${key}"
+        if [[ -d "${opt_dir_}" ]]; then
+          continue
+        fi
+
+        mkdir -p "${opt_dir_}"
+        pushd "${opt_dir_}" &> '/dev/null'
+          echo "${val}" | yq -cr '.[]' | while read url; do
+
+#           url="$(   echo "${...}" | yq -cr '.url')"
+#           depth="$( echo "${...}" | yq -cr '.depth')"
+#           subdir="$(echo "${...}" | yq -cr '.subdir')"
+
+            if [[ "${url}" =~ ^.*\.tar\.gz([?&].*)?$ ||  "${url}" =~ ^.*\.tgz$ ]]; then
+              curl -fsSL "${url}" | tar zxf - --strip-components 1 --no-same-permissions --no-same-owner
+
+            elif [[ "${url}" =~ ^.*\.zip$ ]]; then
+              curl -fsSL "${url}"| bsdtar xf - --strip-components 0
+
+            elif [[ "${url}" =~ ^.*\.exe$ ]]; then
+              curl -fsSL "${url}" > 'file.exe'
+                wine 'file.exe'
+              rm 'file.exe'
+
+            elif [[ "${url}" =~ ^.*\.7z$ ]]; then
+              curl -fsSL "${url}" > 'file'
+                7z x 'file'
+              rm 'file'
+            fi
+
+          done
+        popd &> '/dev/null'
+
+      done
+    )
+  }
 
   set -a
     source <(cat '/etc/os-release' | sed 's/^/readonly /g')
@@ -416,9 +500,10 @@ EOS
     # container
     sudo sed -i -r "s/^(# )?unqualified-search-registries = .*/unqualified-search-registries = ['container.${domain}', 'docker.io']/" '/etc/containers/registries.conf'
 
-    # venv
+    # python
     if :; then
 
+      # venv
       python3 -m venv "${HOME}/.venv"
       source "${HOME}/.venv/bin/activate"
 
@@ -582,6 +667,10 @@ EOS
 
   fi
 
+  # opt
+  true   && echo "${opt_yaml}"     | opt_func
+  is_x11 && echo "${opt_yaml_x11}" | opt_func
+
   # -------------------------------- identifier --------------------------------
 
   readonly machine_id="$(machine_id)"
@@ -596,19 +685,26 @@ EOS
 # test '24920d4fa648fe61fe959e3edfcf557a70abb7e926140fe50322c1d45ca47f02' == "$(vhash "${lan_ip}")"     && is_machine_02=
   test '57965a50fa04846b03788571e43f19d7cf757743a4fa365add1202329982a437' == "$(vhash "${machine_id}")" && is_machine_02=
 
-  # ⚠️restore
-# bkuser "${USER}" '00000000-0000-0000-0000-000000000000' 'restore'
-
-  # ⚠️暗号化ペイロード
+  # ⚠️
   if [[ -v is_machine_02 ]]; then
-#   cat << 'EOS' | enc | base64
-    cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
+
+    # restore
+#   if [[ ! -d "${dat_dir}/uid.machine_id/${machine_id}" ]]; then
+#     bkuser "${USER}" '00000000-0000-0000-0000-000000000000' 'restore'
+#   fi
+
+    # 暗号化ペイロード
+    if [[ ! -d "${dat_dir}/uid.boot_id/${boot_id}" ]]; then
+#     cat << 'EOS' | enc | base64
+      cat << 'EOS' | base64 -d | dec | ( source '/dev/stdin' )
 hF4DAAAAAAAAAAASAQdAyzMylrtsuLM37O3VI5L1GbT1PrGv2M37SI0GaVdHfRQwVjCqw9LgFy08
 G1NOZxN01IE5T+KGhTxzss7FIQVtOG5bka/rV6PkW1fIK5/haY5o0owBQL+5EH5YmMn4METaZ+QA
 5yoLijyipG0jqgtP7wiIr9Hr87Kf71L2V5pgzRcfKDTA6zmqelzizpLVpJn7+/V0BzDM92ToiOks
 2rPDLNfpETD7M2605oXRDNMjtSKfkwLN7WmKqG+8JIwyOT4ogENE9icDWGiN1sS4rFRTJ9tiYJpw
 tQlf0x+BqPhgmw==
 EOS
+    fi
+
   fi
 
   readonly openpgp4fpr="$(openpgp4fpr)"
@@ -742,10 +838,10 @@ EOS
   # cdi
   sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
 
-  # container
-  pushd "${HOME}" &> '/dev/null'
+  if [[ -v is_machine_02 ]]; then
 
-    if [[ -v is_machine_02 ]]; then
+    # container
+    pushd "${HOME}" &> '/dev/null'
 
       # pull
       if [[ -v is_init ]]; then
@@ -798,9 +894,9 @@ EOS
         sleep 1
       sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
-    fi
+    popd &> '/dev/null'
 
-  popd &> '/dev/null'
+  fi
 
   # firewall
   if :; then

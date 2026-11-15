@@ -442,7 +442,7 @@ services:
         npm run sources
         ( sleep 3 && sed -i 's/server: {/server: { allowedHosts: ["evidence.${domain}"],/g' '.evidence/template/vite.config.js' ) &
         npm run dev -- --host 0.0.0.0
-#   restart: on-failure
+    restart: on-failure
 
   #----------------------------------------------------------------
   # web.ai
