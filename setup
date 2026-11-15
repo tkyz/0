@@ -838,10 +838,32 @@ EOS
   # cdi
   sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
 
-  if [[ -v is_machine_02 ]]; then
+  # playground
+  podman run \
+    --interactive \
+    --rm \
+    --volume  "${HOME}/.m2:/root/.m2" \
+    --volume  "${src_dir}/0.playground:/build" \
+    --workdir '/build' \
+    --env     MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData' \
+    maven:latest bash << EOS
+      mvn \
+        --threads 1C \
+        --define  version="${version}" \
+        --define  checkstyle.skip=false \
+        --define  maven.test.skip=false \
+        --define  maven.javadoc.skip=false \
+        --define  assembly.skipAssembly=false \
+        clean \
+        package
+#       install
+#       deploy
+EOS
 
-    # container
-    pushd "${HOME}" &> '/dev/null'
+  # container
+  pushd "${HOME}" &> '/dev/null'
+
+    if [[ -v is_machine_02 ]]; then
 
       # pull
       if [[ -v is_init ]]; then
@@ -894,9 +916,9 @@ EOS
         sleep 1
       sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
-    popd &> '/dev/null'
+    fi
 
-  fi
+  popd &> '/dev/null'
 
   # firewall
   if :; then

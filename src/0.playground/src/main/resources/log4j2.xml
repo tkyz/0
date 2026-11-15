@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="off">
+
+  <Properties>
+
+    <Property name="log_dir">./log</Property>
+    <Property name="charset">UTF-8</Property>
+
+    <Property name="pattern_raw"   >%msg%n</Property>
+    <Property name="pattern_detail">[%highlight{%-5level}][%d{yyyy-MM-dd HH:mm:ss.SSS}][%t] %msg%n</Property>
+
+  </Properties>
+
+  <Appenders>
+
+    <Console name="stdout" target="SYSTEM_OUT">
+      <PatternLayout pattern="${pattern_detail}" />
+    </Console>
+    <Console name="stderr" target="SYSTEM_ERR">
+      <PatternLayout pattern="${pattern_detail}" />
+    </Console>
+<!--
+    <RollingFile name="file" fileName="${log_dir}/log.txt" filePattern="${log_dir}/%d{yyyy-MM-dd}_%i.gz">
+      <PatternLayout pattern="${pattern_detail}" charset="${charset}" />
+      <Policies>
+        <TimeBasedTriggeringPolicy />
+      </Policies>
+      <DefaultRolloverStrategy />
+    </RollingFile>
+-->
+  </Appenders>
+
+  <Loggers>
+
+    <Root level="warn">
+      <!-- AppenderRef ref="file" /-->
+      <AppenderRef ref="warn" />
+    </Root>
+
+    <Logger level="trace" name="Main" additivity="false">
+      <AppenderRef ref="stdout" />
+    </Logger>
+
+  </Loggers>
+
+</Configuration>
