@@ -37,6 +37,7 @@ set -o pipefail
 
   readonly upstream_ip=''
   readonly dns_ip='1.1.1.1'
+
   readonly jpki_id='e65fe741dc7eef846bedbdd8fae6ca9702e79764a8d49e6fd7922165c40e0182'
   readonly github_user='tkyz'
 
@@ -606,43 +607,116 @@ EOS
 
     popd &> '/dev/null'
 
-    # build
-    curi 'https://github.com/kubernetes-sigs/kind.git'; podman run               --rm --volume "${src_dir}/com.github/kubernetes-sigs/kind:/build" --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-    curi 'https://github.com/sacloud/usacloud.git';     podman run               --rm --volume "${src_dir}/com.github/sacloud/usacloud:/build"     --workdir '/build' "docker.io/library/golang:${VERSION_CODENAME}" go build
-    curi 'https://github.com/mgdm/htmlq.git';           podman run               --rm --volume "${src_dir}/com.github/mgdm/htmlq:/build"           --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   cargo build --release
-    curi 'https://github.com/jpki/myna.git';            podman run --interactive --rm --volume "${src_dir}/com.github/jpki/myna:/build"            --workdir '/build' "docker.io/library/rust:${VERSION_CODENAME}"   bash << EOS
-      apt-get update -y
-      apt-get install -y libpcsclite-dev
-      cargo build --workspace --release
+  fi
+
+  # opt
+  true   && echo "${opt_yaml}"     | opt_func
+  is_x11 && echo "${opt_yaml_x11}" | opt_func
+
+  # build
+  if :; then
+
+    if [[ -v is_init ]]; then
+
+      # kind
+      curi 'https://github.com/kubernetes-sigs/kind.git'
+      podman run \
+        --rm \
+        --volume  "${HOME}/.cache/go-build:/root/.cache/go-build" \
+        --volume  "${HOME}/.config/go:/root/.config/go" \
+        --volume  "${src_dir}/com.github/kubernetes-sigs/kind:/build" \
+        --workdir '/build' \
+        "docker.io/library/golang:${VERSION_CODENAME}" \
+        go build
+
+      # usacloud
+      curi 'https://github.com/sacloud/usacloud.git'
+      podman run \
+        --rm \
+        --volume  "${HOME}/.cache/go-build:/root/.cache/go-build" \
+        --volume  "${HOME}/.config/go:/root/.config/go" \
+        --volume  "${src_dir}/com.github/sacloud/usacloud:/build" \
+        --workdir '/build' \
+        "docker.io/library/golang:${VERSION_CODENAME}" \
+        go build
+
+      # htmlq
+      curi 'https://github.com/mgdm/htmlq.git'
+      podman run \
+        --rm \
+        --volume  "${src_dir}/com.github/mgdm/htmlq:/build" \
+        --workdir '/build' \
+        "docker.io/library/rust:${VERSION_CODENAME}" \
+         cargo build --release
+
+      # myna
+      curi 'https://github.com/jpki/myna.git'
+      podman run \
+        --interactive \
+        --rm \
+        --volume  "${src_dir}/com.github/jpki/myna:/build" \
+        --workdir '/build' \
+        "docker.io/library/rust:${VERSION_CODENAME}" \
+        bash << EOS
+          apt-get update -y
+          apt-get install -y libpcsclite-dev
+          cargo build --workspace --release
 EOS
 
-    # x11
-    if is_x11; then
+    fi
 
-#     sudo tasksel
+    # playground
+    podman run \
+      --interactive \
+      --rm \
+      --volume  "${HOME}/.m2:/root/.m2" \
+      --volume  "${src_dir}/0.playground:/build" \
+      --workdir '/build' \
+      --env     MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData' \
+      "docker.io/library/maven:latest" bash << EOS
+        mvn \
+          --threads 1C \
+          --define  codename="${codename}" \
+          --define  version="${version}" \
+          --define  domain="${domain}" \
+          --define  namespace="${namespace}" \
+          --define  checkstyle.skip=false \
+          --define  maven.test.skip=false \
+          --define  maven.javadoc.skip=false \
+          --define  assembly.skipAssembly=false \
+          clean \
+          package
+EOS
 
-      # apt
-      sudo apt-get install -y "${apt_list_x11[@]}"
+  fi
 
-      # flatpak
-      #   https://flathub.org/ja/setup/Debian
-      sudo flatpak remote-add --if-not-exists flathub 'https://dl.flathub.org/repo/flathub.flatpakrepo'
-      sudo flatpak install -y flathub "${flatpak_list[@]}"
+  # x11
+  if [[ -v is_init ]] && is_x11; then
 
-      # wine
-      winetricks cjkfonts gdiplus || true
-      wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
+#   sudo tasksel
 
-      # firefox + jpki mpa
-      if :; then
+    # apt
+    sudo apt-get install -y "${apt_list_x11[@]}"
 
-        mpa_file="${src_dir}/com.github/jpki/myna/target/release/mpa"
+    # flatpak
+    #   https://flathub.org/ja/setup/Debian
+    sudo flatpak remote-add --if-not-exists flathub 'https://dl.flathub.org/repo/flathub.flatpakrepo'
+    sudo flatpak install -y flathub "${flatpak_list[@]}"
 
-        # manifest
-#       exp_dir="${HOME}/.mozilla/native-messaging-hosts"
-        exp_dir="${HOME}/.var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts"
-        mkdir -p "${exp_dir}"
-        cat << EOS > "${exp_dir}/com.github.jpki.mpa.json"
+    # wine
+    winetricks cjkfonts gdiplus || true
+    wine reg add 'HKCU\Control Panel\Desktop' /v 'LogPixels' /t REG_DWORD /d 192 /f
+
+    # firefox + jpki mpa
+    if :; then
+
+      mpa_file="${src_dir}/com.github/jpki/myna/target/release/mpa"
+
+      # manifest
+#     exp_dir="${HOME}/.mozilla/native-messaging-hosts"
+      exp_dir="${HOME}/.var/app/org.mozilla.firefox/.mozilla/native-messaging-hosts"
+      mkdir -p "${exp_dir}"
+      cat << EOS > "${exp_dir}/com.github.jpki.mpa.json"
 {
   "name":        "com.github.jpki.mpa",
   "description": "MPA for Linux",
@@ -654,22 +728,25 @@ EOS
 }
 EOS
 
-        # config
-        exp_dir="${HOME}/.config/mpa"
-        mkdir -p "${exp_dir}"
-        cat << EOS > "${exp_dir}/config.json"
+      # config
+      exp_dir="${HOME}/.config/mpa"
+      mkdir -p "${exp_dir}"
+      cat << EOS > "${exp_dir}/config.json"
 {"uuid": "$(od -An -tx1 -N16 '/dev/urandom' | tr -d ' \n')"}
 EOS
-
-      fi
 
     fi
 
   fi
 
-  # opt
-  true   && echo "${opt_yaml}"     | opt_func
-  is_x11 && echo "${opt_yaml_x11}" | opt_func
+  # firewall
+  if :; then
+    printf 'y' | sudo ufw reset > '/dev/null'
+    sudo ufw default deny  incoming
+    sudo ufw default allow outgoing
+    sudo ufw allow 22/tcp
+    sudo ufw enable
+  fi
 
   # -------------------------------- identifier --------------------------------
 
@@ -824,46 +901,15 @@ EOS
 
   fi
 
-  # firewall
-  if :; then
-    printf 'y' | sudo ufw reset > '/dev/null'
-    sudo ufw default deny  incoming
-    sudo ufw default allow outgoing
-    sudo ufw allow 22/tcp
-    sudo ufw enable
-  fi
-
   # -------------------------------- domain --------------------------------
 
   # cdi
   sudo nvidia-ctk cdi generate --output='/etc/cdi/nvidia.yaml' 2> '/dev/null' || true
 
-  # playground
-  podman run \
-    --interactive \
-    --rm \
-    --volume  "${HOME}/.m2:/root/.m2" \
-    --volume  "${src_dir}/0.playground:/build" \
-    --workdir '/build' \
-    --env     MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData' \
-    maven:latest bash << EOS
-      mvn \
-        --threads 1C \
-        --define  version="${version}" \
-        --define  checkstyle.skip=false \
-        --define  maven.test.skip=false \
-        --define  maven.javadoc.skip=false \
-        --define  assembly.skipAssembly=false \
-        clean \
-        package
-#       install
-#       deploy
-EOS
+  if [[ -v is_machine_02 ]]; then
 
-  # container
-  pushd "${HOME}" &> '/dev/null'
-
-    if [[ -v is_machine_02 ]]; then
+    # container
+    pushd "${HOME}" &> '/dev/null'
 
       # pull
       if [[ -v is_init ]]; then
@@ -916,39 +962,39 @@ EOS
         sleep 1
       sudo sysctl --write net.ipv4.ip_unprivileged_port_start=1024
 
+    popd &> '/dev/null'
+
+    # firewall
+    if :; then
+
+      # allow
+      froms=()
+#     froms+=('0.0.0.0')
+#     froms+=('10.0.0.0/8')
+#     froms+=('172.16.0.0/12')
+#     froms+=('192.168.0.0/16')
+      froms+=("${lan_ip}")
+#     froms+=("${wan_ip}")
+      for from in "${froms[@]}"; do
+
+        # udp
+        sudo ufw allow from "${from}" to any port     7 proto udp
+        sudo ufw allow from "${from}" to any port    53 proto udp
+        sudo ufw allow from "${from}" to any port   123 proto udp
+        sudo ufw allow from "${from}" to any port  3478 proto udp
+
+        # tcp
+        sudo ufw allow from "${from}" to any port     7 proto tcp
+        sudo ufw allow from "${from}" to any port   443 proto tcp
+        sudo ufw allow from "${from}" to any port  9418 proto tcp
+
+      done
+
+      sudo ufw reload
+#     sudo ufw status verbose
+      sudo ufw status numbered
+
     fi
-
-  popd &> '/dev/null'
-
-  # firewall
-  if :; then
-
-    # allow
-    froms=()
-#   froms+=('0.0.0.0')
-#   froms+=('10.0.0.0/8')
-#   froms+=('172.16.0.0/12')
-#   froms+=('192.168.0.0/16')
-    froms+=("${lan_ip}")
-#   froms+=("${wan_ip}")
-    for from in "${froms[@]}"; do
-
-      # udp
-      sudo ufw allow from "${from}" to any port     7 proto udp
-      sudo ufw allow from "${from}" to any port    53 proto udp
-      sudo ufw allow from "${from}" to any port   123 proto udp
-      sudo ufw allow from "${from}" to any port  3478 proto udp
-
-      # tcp
-      sudo ufw allow from "${from}" to any port     7 proto tcp
-      sudo ufw allow from "${from}" to any port   443 proto tcp
-      sudo ufw allow from "${from}" to any port  9418 proto tcp
-
-    done
-
-    sudo ufw reload
-#   sudo ufw status verbose
-    sudo ufw status numbered
 
   fi
 
