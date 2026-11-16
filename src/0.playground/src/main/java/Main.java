@@ -1,6 +1,7 @@
 import java.awt.Point;
 import java.awt.Toolkit;
 import java.io.Closeable;
+import java.io.Flushable;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
@@ -9,6 +10,9 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.file.Path;
 import java.security.PublicKey;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -176,7 +180,7 @@ public final class Main extends Application {
 		Group axis = new Group();
 		{
 
-			double radius = 0.0001d;
+			double radius = 0.0005d;
 			double height = 1.0d;
 
 			Cylinder axis_x = new Cylinder(radius, height);
@@ -252,6 +256,23 @@ public final class Main extends Application {
 
 	}
 
+	public static final void beep() {
+		Toolkit.getDefaultToolkit().beep();
+	}
+
+	public static final boolean empty(final Object obj) {
+		return switch (obj) {
+			case null            -> true;
+			case Boolean       e -> !e.booleanValue();
+			case Number        e -> 0.0d == e.doubleValue();
+			case CharSequence  e -> "".equals(e.toString());
+			case Iterator<?>   e -> e.hasNext();
+			case Collection<?> e -> e.isEmpty();
+			case Map<?, ?>     e -> e.isEmpty();
+			default              -> throw new UnsupportedOperationException(obj.getClass().getName());
+		};
+	}
+
 	private static final void close() {
 
 		close(sock);
@@ -275,8 +296,14 @@ public final class Main extends Application {
 		}
 	}
 
-	public static final void beep() {
-		Toolkit.getDefaultToolkit().beep();
+	public static final void flush(final Flushable flushable) {
+		if (null != flushable) {
+			try {
+				flushable.flush();
+			} catch (IOException e) {
+				log.warn("", e);
+			}
+		}
 	}
 
 }
