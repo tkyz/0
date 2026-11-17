@@ -613,8 +613,20 @@ EOS
   true   && echo "${opt_yaml}"     | opt_func
   is_x11 && echo "${opt_yaml_x11}" | opt_func
 
+  readonly machine_id="$(machine_id)"
+  readonly boot_id="$(boot_id)"
+  readonly setup_id="$(uuidgen)"
+
+  readonly lan_ip="$(lan_ip)"
+  readonly wan_ip="$(wan_ip)"
+
   # build
   if :; then
+
+    # cache
+    mkdir -p "${HOME}/.cache/go-build"
+    mkdir -p "${HOME}/.config/go"
+    mkdir -p "${HOME}/.m2"
 
     if [[ -v is_init ]]; then
 
@@ -665,28 +677,32 @@ EOS
 
     fi
 
-    # playground
-    podman run \
-      --interactive \
-      --rm \
-      --volume  "${HOME}/.m2:/root/.m2" \
-      --volume  "${src_dir}/0.playground:/build" \
-      --workdir '/build' \
-      --env     MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData' \
-      "docker.io/library/maven:latest" bash << EOS
-        mvn \
-          --threads 1C \
-          --define  codename="${codename}" \
-          --define  version="${version}" \
-          --define  domain="${domain}" \
-          --define  namespace="${namespace}" \
-          --define  checkstyle.skip=false \
-          --define  maven.test.skip=false \
-          --define  maven.javadoc.skip=false \
-          --define  assembly.skipAssembly=false \
-          clean \
-          package
+    if [[ ! -d "${dat_dir}/uid.boot_id/${boot_id}" ]]; then
+
+      # playground
+      podman run \
+        --interactive \
+        --rm \
+        --volume  "${HOME}/.m2:/root/.m2" \
+        --volume  "${src_dir}/0.playground:/build" \
+        --workdir '/build' \
+        --env     MAVEN_OPTS='-Xms256m -Xmx256m -XX:-UsePerfData' \
+        "docker.io/library/maven:latest" bash << EOS
+          mvn \
+            --threads 1C \
+            --define  codename="${codename}" \
+            --define  version="${version}" \
+            --define  domain="${domain}" \
+            --define  namespace="${namespace}" \
+            --define  checkstyle.skip=false \
+            --define  maven.test.skip=false \
+            --define  maven.javadoc.skip=false \
+            --define  assembly.skipAssembly=false \
+            clean \
+            package
 EOS
+
+    fi
 
   fi
 
@@ -749,13 +765,6 @@ EOS
   fi
 
   # -------------------------------- identifier --------------------------------
-
-  readonly machine_id="$(machine_id)"
-  readonly boot_id="$(boot_id)"
-  readonly setup_id="$(uuidgen)"
-
-  readonly lan_ip="$(lan_ip)"
-  readonly wan_ip="$(wan_ip)"
 
   test 'e42365e88cf5e7f34334a44155eb09da0242a7cf20c3cdc6153686b1b9ed198a' == "$(vhash "${wan_ip}")"     && is_machine_01=
 # test 'e05e9d2069ab485407fa8c3bd0d7335f64c4b9f8de99f17c5102b819c61ef16e' == "$(vhash "${machine_id}")" && is_machine_01=
@@ -852,7 +861,7 @@ EOS
   fi
 
   # ca
-  if :; then
+  if [[ ! -d "${dat_dir}/uid.boot_id/${boot_id}" ]]; then
 
     certs_dir="${src_dir}/0.proxy/certs"
     mkdir -p "${certs_dir}"
@@ -947,13 +956,13 @@ EOS
 #     sleep 5
       podman-compose up stun tor btc eth &
       sleep 5
-#     podman-compose up minecraft &
-#     sleep 3
-      podman-compose up setup doc-php chat &
+      podman-compose up setup dat doc-php &
       sleep 3
-      podman-compose up doc evidence &
+      podman-compose up doc evidence chat &
       sleep 3
 #     podman-compose up comfyui &
+#     sleep 3
+#     podman-compose up minecraft &
 #     sleep 3
 
       # port: ~1023

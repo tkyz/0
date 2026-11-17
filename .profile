@@ -39,6 +39,9 @@ if true; then
   PATH="${HOME}/opt/org.apache.ant/bin:${PATH}"
   PATH="${HOME}/opt/org.apache.maven/bin:${PATH}"
 
+  # playground
+  export CLASSPATH="${HOME}/src/0.playground/target/playground-latest-jar-with-dependencies.jar"
+
   : << 'DISABLED'
 export CLASSPATH='.:./*'
 while read item; do

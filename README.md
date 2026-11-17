@@ -57,6 +57,7 @@
   - _game_
     - minecraft
   - _web_
+    - [dat](https://dat.example/)
     - [doc](https://doc.example/)
     - _bi_
       - [evidence](https://evidence.example/)

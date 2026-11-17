@@ -1,8 +1,11 @@
+import java.awt.GraphicsEnvironment;
 import java.awt.Point;
 import java.awt.Toolkit;
+import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.Flushable;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.channels.SelectionKey;
@@ -64,6 +67,7 @@ public final class Main extends Application {
 		return thread;
 	});
 
+	private static boolean             exit  = false;
 	private static ServerSocketChannel sock  = null;
 	private static SshServer           sshd  = null;
 	private static Stage               stage = null;
@@ -71,13 +75,37 @@ public final class Main extends Application {
 	public static void main(final String... args)
 			throws Throwable {
 
-		Runtime.getRuntime().addShutdownHook(new Thread(() -> close()));
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> exit()));
+		try {
 
-		sock  = sock(0);
-		sshd  = sshd(0);
-//		stage = stage();
+			sock  = sock(0);
+			sshd  = sshd(0);
+			stage = stage();
 
-		Thread.sleep(Long.MAX_VALUE);
+			console();
+
+		} finally {
+			exit();
+		}
+
+	}
+
+	private static void console()
+			throws Exception {
+
+		try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
+			while (!exit) {
+
+				String line = in.readLine().trim();
+				if (empty(line)) {
+					continue;
+				}
+				if ("exit".equalsIgnoreCase(line)) {
+					break;
+				}
+
+			}
+		}
 
 	}
 
@@ -94,19 +122,33 @@ public final class Main extends Application {
 
 		log.info("sock.port: " + sock.socket().getLocalPort());
 
-//		while (sock.isOpen()) {
-//
-//			int cnt = selector.select();
-//
-//			Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
-//			while (keys.hasNext()) {
-//
-//				SelectionKey key = keys.next();
-//				keys.remove();
-//
-//			}
-//
-//		}
+		worker.submit(() -> {
+
+			while (!exit) {
+
+				int cnt = selector.selectNow();
+				if (0 == cnt) {
+					Thread.yield();
+					continue;
+				}
+
+				Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+				while (keys.hasNext()) {
+
+					SelectionKey key = keys.next();
+//					keys.remove();
+
+					if (key.interestOps() == SelectionKey.OP_ACCEPT) {
+						log.debug("accept");
+					}
+
+				}
+
+			}
+
+			return null;
+
+		});
 
 		return sock;
 
@@ -160,10 +202,14 @@ public final class Main extends Application {
 	private static Stage stage()
 			throws InterruptedException {
 
-		new Thread(() -> Application.launch(Main.class)).start();
+		if (!GraphicsEnvironment.isHeadless()) {
 
-		while (null == stage) {
-			Thread.sleep(100);
+			new Thread(() -> Application.launch(Main.class)).start();
+
+			while (null == stage) {
+				Thread.sleep(100);
+			}
+
 		}
 
 		return stage;
@@ -245,7 +291,7 @@ public final class Main extends Application {
 
 		primary.addEventHandler(KeyEvent.KEY_PRESSED, e -> {
 			if (KeyCode.ESCAPE == e.getCode()) {
-				close();
+				exit();
 			}
 		});
 		primary.setFullScreen(true);
@@ -273,7 +319,9 @@ public final class Main extends Application {
 		};
 	}
 
-	private static final void close() {
+	private static final void exit() {
+
+		exit = true;
 
 		close(sock);
 		close(sshd);
