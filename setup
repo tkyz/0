@@ -134,9 +134,11 @@ set -o pipefail
   iproute2
   bind9-dnsutils
   nmap
+  tcpdump
   curl
   openssh-client
   openssh-server
+  stun-client
 
 # archive
   unar

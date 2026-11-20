@@ -1,5 +1,7 @@
-# podman image inspect "${image}" --format='ENTRYPOINT: {{.Config.Entrypoint}}, CMD: {{.Config.Cmd}}'
 version: 3
+name: ${domain}
+
+# podman image inspect "${image}" --format='ENTRYPOINT: {{.Config.Entrypoint}}, CMD: {{.Config.Cmd}}'
 services:
 
   echo:
@@ -34,15 +36,13 @@ services:
         EOS
         cat << EOS | tee '/etc/dnsmasq.conf'
         no-resolv
-        no-hosts
-        domain-needed
-        expand-hosts
-        bogus-priv
         server=${dns_ip}
-        domain=${domain}
+        no-hosts
+        addn-hosts=/etc/hosts.${domain}
+        domain-needed
+        bogus-priv
         #address=/.example/${lan_ip}
         address=/.${domain}/${lan_ip}
-        addn-hosts=/etc/hosts.${domain}
         EOS
         dnsmasq -k
     restart: on-failure
@@ -386,6 +386,7 @@ services:
       - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-xbr',            target: /usr/share/nginx/html/lib/plugins/xbr,         read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-iframe',         target: /usr/share/nginx/html/lib/plugins/iframe,      read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/cosmocode/sqlite',                        target: /usr/share/nginx/html/lib/plugins/sqlite,      read_only: true}
+      - {type: bind, source: '${HOME}/src/com.github/cosmocode/dokuwiki-plugin-diagrams',      target: /usr/share/nginx/html/lib/plugins/diagrams,    read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/cosmocode/dokuwiki-plugin-aichat',        target: /usr/share/nginx/html/lib/plugins/aichat,      read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/selfthinker/dokuwiki_plugin_wrap',        target: /usr/share/nginx/html/lib/plugins/wrap,        read_only: true}
       - {type: bind, source: '${HOME}/src/com.github/hanche/dokuwiki_color_plugin',            target: /usr/share/nginx/html/lib/plugins/color,       read_only: true}
@@ -417,6 +418,7 @@ services:
       - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-xbr',            target: /usr/share/nginx/html/lib/plugins/xbr}
       - {type: bind, source: '${HOME}/src/com.github/Chris--S/dokuwiki-plugin-iframe',         target: /usr/share/nginx/html/lib/plugins/iframe}
       - {type: bind, source: '${HOME}/src/com.github/cosmocode/sqlite',                        target: /usr/share/nginx/html/lib/plugins/sqlite}
+      - {type: bind, source: '${HOME}/src/com.github/cosmocode/dokuwiki-plugin-diagrams',      target: /usr/share/nginx/html/lib/plugins/diagrams}
       - {type: bind, source: '${HOME}/src/com.github/cosmocode/dokuwiki-plugin-aichat',        target: /usr/share/nginx/html/lib/plugins/aichat}
       - {type: bind, source: '${HOME}/src/com.github/selfthinker/dokuwiki_plugin_wrap',        target: /usr/share/nginx/html/lib/plugins/wrap}
       - {type: bind, source: '${HOME}/src/com.github/hanche/dokuwiki_color_plugin',            target: /usr/share/nginx/html/lib/plugins/color}
@@ -438,7 +440,7 @@ services:
       - 3000
     volumes:
       - {type: bind, source: '${HOME}/.npm',                                 target: /root/.npm}
-      - {type: bind, source: '${HOME}/src/com.github/evidence-dev/evidence', target: /evidence}
+#     - {type: bind, source: '${HOME}/src/com.github/evidence-dev/evidence', target: /evidence}
       - {type: bind, source: '${HOME}/src/com.github/evidence-dev/template', target: /template} # legacy
       - {type: bind, source: '${HOME}/doc',                                  target: /template/pages, read_only: true}
     working_dir: /template
@@ -446,9 +448,9 @@ services:
       - /bin/bash
       - -c
       - |
-        echo 'Acquire::http::Proxy "http://apt:3142/";' | tee '/etc/apt/apt.conf.d/00proxy'
-        apt-get update
-        apt-get install -y xdg-utils
+        #echo 'Acquire::http::Proxy "http://apt:3142/";' | tee '/etc/apt/apt.conf.d/00proxy'
+        #apt-get update
+        #apt-get install -y xdg-utils
         npm install
         npm run sources
         ( sleep 3 && sed -i 's/server: {/server: { allowedHosts: ["evidence.${domain}"],/g' '.evidence/template/vite.config.js' ) &

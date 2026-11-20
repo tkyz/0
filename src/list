@@ -33,8 +33,9 @@
     https://github.com/hanche/dokuwiki_color_plugin.git
     https://github.com/lejmr/dokuwiki-plugin-drawio.git
     https://github.com/samuelet/indexmenu.git
-    https://github.com/cosmocode/dokuwiki-plugin-aichat.git
     https://github.com/cosmocode/sqlite.git
+    https://github.com/cosmocode/dokuwiki-plugin-diagrams.git
+    https://github.com/cosmocode/dokuwiki-plugin-aichat.git
     https://github.com/liffiton/dokuwiki-plugin-mathjax.git
     https://github.com/dokufreaks/plugin-discussion.git
     https://github.com/giterlizzi/dokuwiki-template-bootstrap3.git
@@ -58,3 +59,6 @@
     https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
     https://github.com/jamesWalker55/comfyui-various.git
     https://github.com/space-nuko/ComfyUI-OpenPose-Editor.git
+
+# ...
+  https://github.com/morrownr/USB-WIFI.git

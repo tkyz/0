@@ -1,5 +1,4 @@
 <?php
-
 $conf['title'] = 'doc';
 $conf['lang'] = 'ja';
 $conf['template'] = 'bootstrap3';
@@ -10,7 +9,7 @@ $conf['dformat'] = '%F %T';
 $conf['useheading'] = '1';
 $conf['useacl'] = 1;
 $conf['superuser'] = 'admin';
-$conf['disableactions'] = 'backlink,index,recent,revisions,search,register,rss,subscribe,unsubscribe,source,export_raw';
+$conf['disableactions'] = 'backlink,index,recent,revisions,search,register,resendpwd,profile,profile_delete,check,rss,subscribe,unsubscribe,source,export_raw';
 $conf['target']['interwiki'] = '_blank';
 $conf['target']['extern'] = '_blank';
 $conf['userewrite'] = '1';
@@ -18,28 +17,18 @@ $conf['useslash'] = 1;
 $conf['fnencode'] = 'utf-8';
 $conf['renderer_xhtml'] = 'xbr';
 $conf['defer_js'] = 0;
-$conf['plugin']['aichat']['generic_apiurl'] = 'http://chat:8080/v1';
+$conf['plugin']['aichat']['chatmodel'] = 'default';
+$conf['plugin']['aichat']['rephrasemodel'] = 'default';
+$conf['plugin']['aichat']['embedmodel'] = 'default';
+$conf['plugin']['aichat']['generic_apiurl'] = 'http://chat:9931/v1/chat/completions';
 $conf['plugin']['authldap']['attributes'] = array();
 $conf['plugin']['gallery']['options'] = 'cache,crop,lightbox';
 $conf['plugin']['indexmenu']['defaultoptions'] = 'js navbar notoc nomenu';
+$conf['plugin']['indexmenu']['skip_index'] = '/^(user)$/';
 $conf['plugin']['indexmenu']['skip_file'] = '/^(sidebar)$/';
-$conf['plugin']['mathjax']['config'] = 'MathJax.Hub.Config({
-    tex2jax: {
-        inlineMath: [ ["$","$"], ["\\\\(","\\\\)"] ],
-        displayMath: [ ["$$","$$"], ["\\\\[","\\\\]"] ],
-        processEscapes: true
-    }
-});';
-$conf['plugin']['translation']['translations'] = 'ar en es fr hi it ko pt ru zh';
-$conf['plugin']['translation']['dropdown'] = 1;
-$conf['plugin']['translation']['display'] = 'langcode,name,flag';
-$conf['plugin']['translation']['translateui'] = 1;
-$conf['plugin']['translation']['redirectstart'] = 1;
 $conf['tpl']['bootstrap3']['inverseNavbar'] = 1;
-$conf['tpl']['bootstrap3']['showTranslation'] = 1;
 $conf['tpl']['bootstrap3']['showTools'] = 'logged';
 $conf['tpl']['bootstrap3']['showUserHomeLink'] = 0;
-$conf['tpl']['bootstrap3']['hideLoginLink'] = 1;
 $conf['tpl']['bootstrap3']['showAdminMenu'] = 1;
 $conf['tpl']['bootstrap3']['showPageTools'] = 'logged';
 $conf['tpl']['bootstrap3']['showPageId'] = 0;
